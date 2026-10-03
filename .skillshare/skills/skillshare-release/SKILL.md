@@ -58,7 +58,7 @@ For a minor or major release (any `feat` or breaking change in the range), also 
   git log <tag>..origin/main --format='%an%n%(trailers:key=Co-authored-by,valueonly)' | sort -u
   ```
 
-Documentation fixes go to `main`, with the usual authorization to commit and push. Finish them before the next step: every push to `main` regenerates the Release PR and discards edits made on its branch.
+Documentation fixes go to `main`, with the usual authorization to commit and push. Finish them before the next step. A push to `main` whose commits change the generated notes, such as a new `feat` or `fix`, regenerates the Release PR and discards edits made on its branch; `docs` commits leave it as it is (the Release Please log says the PR "remained the same").
 
 ### 3. Review the Release PR
 
