@@ -13,6 +13,7 @@ BIN=${BIN:-/tmp/tuibin}
 OUT=${OUT:-/tmp/tui-shots}
 THEME=${THEME:-dark}
 HERE=$(cd "$(dirname "$0")" && pwd)
+"$HERE/../../.devcontainer/ensure-recording-tools.sh"
 # Chromium refuses its sandbox as root, which is how docker exec runs here.
 [ "$(id -u)" = 0 ] && export VHS_NO_SANDBOX=true
 

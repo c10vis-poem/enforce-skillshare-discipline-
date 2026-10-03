@@ -121,7 +121,7 @@ Report which token (full or basic-user) and architecture each result came from.
 
 Start the dashboard through the devcontainer `ui` command. Run website package commands according to `website/AGENTS.md`. Visual changes require inspected screenshots in addition to builds and tests. Load `frontend` for design-specific checks.
 
-For full-screen TUI changes, screenshot every TUI inside the devcontainer with `scripts/screenshots/record-tui.sh [name...]`. It records the binary in `BIN` (default `/tmp/tuibin`) and writes PNGs to `OUT` (default `/tmp/tui-shots`). Each screen runs in a fresh ssenv that `scripts/screenshots/tui-fixture.sh` fills with real commands. The container start script installs vhs and its tools through `.devcontainer/ensure-recording-tools.sh`.
+For full-screen TUI changes, screenshot every TUI inside the devcontainer with `scripts/screenshots/record-tui.sh [name...]`. It records the binary in `BIN` (default `/tmp/tuibin`) and writes PNGs to `OUT` (default `/tmp/tui-shots`). Each screen runs in a fresh ssenv that `scripts/screenshots/tui-fixture.sh` fills with real commands. The first run installs vhs and its tools through `.devcontainer/ensure-recording-tools.sh`, which takes a few minutes; later runs skip it.
 
 ## Reporting
 

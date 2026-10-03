@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Ensure the terminal recording tools (vhs and what it drives: ttyd, ffmpeg,
 # chromium) exist, so CLI and TUI screenshots can be recorded in the
-# devcontainer. They live on the container filesystem, so a recreated
-# container installs them again; a running one skips straight through.
+# devcontainer. record-tui.sh runs it first, so they are installed the first
+# time screenshots are taken instead of on every container start; once
+# installed it skips straight through.
 set -euo pipefail
 
 # command -v succeeds when any one name is found, so check each.
