@@ -47,7 +47,7 @@
 </p>
 
 > [!NOTE]
-> **Latest**: v0.23.0 — manage and sync **native hooks** in global and project scope; choose which **MCP tools** reach the model with `tools.allow` and `tools.deny`; and use the dashboard's new **Hooks page** and **MCP tool picker** to configure them. [All releases →](https://github.com/runkids/skillshare/releases)
+> **Latest**: v0.24.0 — a redesigned **`init`** that asks first and writes only after you confirm; one output style and keymap across the CLI and every **TUI**; **`push --pull`** to sync both ways in one command; shared **Markdown memory** across agents; and per-target **Pi extension** switches plus **npm packages from pi.dev**. [All releases →](https://github.com/runkids/skillshare/releases)
 
 ## Why skillshare
 
@@ -378,6 +378,7 @@ Thanks to everyone who helped shape skillshare.
 <a href="https://github.com/harisonw"><img src="https://github.com/harisonw.png" width="50" style="border-radius:50%" alt="harisonw"></a>
 <a href="https://github.com/wuhaoyujerry"><img src="https://github.com/wuhaoyujerry.png" width="50" style="border-radius:50%" alt="wuhaoyujerry"></a>
 <a href="https://github.com/star-nebula"><img src="https://github.com/star-nebula.png" width="50" style="border-radius:50%" alt="star-nebula"></a>
+<a href="https://github.com/AdamMagued"><img src="https://github.com/AdamMagued.png" width="50" style="border-radius:50%" alt="AdamMagued"></a>
 
 ---
 

@@ -46,7 +46,7 @@
 </p>
 
 > [!NOTE]
-> **最新バージョン**：v0.23.0 — global と project の両スコープで**ネイティブ hooks** を管理・同期し、`tools.allow` と `tools.deny` でモデルが使える **MCP tools** を選択できます。dashboard に追加された **Hooks ページ**と **MCP ツール選択画面**からも設定できます。新機能と修正の一覧は [Releases](https://github.com/runkids/skillshare/releases) と[変更履歴](https://skillshare.runkids.cc/changelog)をご覧ください。
+> **最新バージョン**：v0.24.0 — 先に質問し、確認してから書き込む新しい **`init`**、CLI とすべての **TUI** で統一された出力スタイルとキー操作、1 つのコマンドで双方向に同期する **`push --pull`**、エージェント間で共有する **Markdown メモリ**、そして target ごとの **Pi extension** の切り替えと **pi.dev の npm パッケージ**の追加に対応しました。新機能と修正の一覧は [Releases](https://github.com/runkids/skillshare/releases) と[変更履歴](https://skillshare.runkids.cc/changelog)をご覧ください。
 
 ## skillshare を使う理由
 

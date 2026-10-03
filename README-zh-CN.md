@@ -46,7 +46,7 @@
 </p>
 
 > [!NOTE]
-> **最新版本**：v0.23.0 — 管理与同步全局和项目范围的**原生 hooks**；用 `tools.allow` 与 `tools.deny` 选择模型可使用的 **MCP tools**；并通过 dashboard 新增的 **Hooks 页面**与 **MCP 工具选择界面**完成配置。完整的新功能与修复见 [Releases](https://github.com/runkids/skillshare/releases) 和[更新日志](https://skillshare.runkids.cc/changelog)。
+> **最新版本**：v0.24.0 — 重新设计的 **`init`** 先提问、确认后才写入；CLI 与所有 **TUI** 使用统一的输出风格和按键；用 **`push --pull`** 一条命令双向同步；在多个 agent 间共享 **Markdown 记忆**；并可按 target 开关 **Pi extension**、添加 **pi.dev 上的 npm 包**。完整的新功能与修复见 [Releases](https://github.com/runkids/skillshare/releases) 和[更新日志](https://skillshare.runkids.cc/changelog)。
 
 ## 为什么用 skillshare
 
