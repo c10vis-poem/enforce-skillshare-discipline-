@@ -247,7 +247,7 @@ function RowGrid({ dir, children }: { dir: string; children: ReactNode }) {
   return (
     <div className="ss-r !block !min-h-0 !p-0">
       {dir && <div className="px-4 pt-3 font-mono text-[12px] text-ink-3">{dir}</div>}
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-x-4 px-2 pb-2 pt-1">{children}</ul>
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(440px,1fr))] gap-x-4 px-2 pb-2 pt-1">{children}</ul>
     </div>
   );
 }
