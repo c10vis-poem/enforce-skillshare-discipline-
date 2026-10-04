@@ -444,16 +444,23 @@ func TestPiProjectExtensionsNameTheManagedPlugin(t *testing.T) {
 	}
 }
 
-// A dashboard in project mode reads the project's config; the global config still owns inherited packages.
+// A dashboard in project mode reads the project's config; the global config still owns inherited packages and their overrides.
 func TestPiProjectModeNamesTheGlobalManagedPlugin(t *testing.T) {
 	f := newPiFixture(t)
 	root := filepath.Join(f.home, "code", "acme")
 	writeTree(t, f.home, map[string]string{"config.yaml": "plugins:\n  packages:\n    powers:\n      bindings:\n        pi:\n          id: " + f.pkg + "\n"})
 	f.global(map[string]any{"packages": []any{f.pkg}})
-	f.writeJSON(filepath.Join(root, ".pi", "settings.json"), map[string]any{"packages": []any{}})
-	f.svc.ProjectRoot, f.svc.GlobalConfigPath, f.svc.ConfigPath = root, f.svc.ConfigPath, filepath.Join(root, ".skillshare", "config.yaml")
-	if got := f.view("pi").Packages[0]; got.Scope != "global" || got.ManagedBy != "powers" {
-		t.Fatalf("scope = %q, managedBy = %q", got.Scope, got.ManagedBy)
+	for _, scope := range []string{"global", "project"} {
+		entries := []any{}
+		if scope == "project" {
+			// The override Skillshare writes when a global package's extension is switched in the project.
+			entries = append(entries, map[string]any{"source": f.pkg, "autoload": false, "extensions": []string{"-extensions/a.ts"}})
+		}
+		f.writeJSON(filepath.Join(root, ".pi", "settings.json"), map[string]any{"packages": entries})
+		f.svc.ProjectRoot, f.svc.GlobalConfigPath, f.svc.ConfigPath = root, filepath.Join(f.home, "config.yaml"), filepath.Join(root, ".skillshare", "config.yaml")
+		if got := f.view("pi").Packages[0]; got.Scope != scope || got.ManagedBy != "powers" {
+			t.Fatalf("scope = %q, want %q; managedBy = %q", got.Scope, scope, got.ManagedBy)
+		}
 	}
 }
 

@@ -149,7 +149,11 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		}
 		src := resolvePiSource(e.source, agentDir, projectDir, "project")
 		if !e.badSource {
+			// An override of a global package keeps the owner of that package.
 			pkg.ManagedBy = piManagedBy(managed, e.source, src)
+			if pkg.ManagedBy == "" {
+				pkg.ManagedBy = piManagedBy(globalManaged, e.source, src)
+			}
 		}
 		if e.problem != "" {
 			pkg.Problem = e.problem
