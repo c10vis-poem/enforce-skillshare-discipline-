@@ -21,7 +21,25 @@ type skillignoreResponse struct {
 	Exists bool              `json:"exists"`
 	Path   string            `json:"path"`
 	Raw    string            `json:"raw"`
+	Local  *ignoreLocalFile  `json:"local,omitempty"`
 	Stats  *skillignoreStats `json:"stats,omitempty"`
+}
+
+// ignoreLocalFile is the machine-only .local companion of an ignore file.
+// Its rules apply after the shared file and can override it.
+type ignoreLocalFile struct {
+	Path string `json:"path"`
+	Raw  string `json:"raw"`
+}
+
+// readIgnoreLocal returns ignorePath's .local companion, or nil when absent.
+func readIgnoreLocal(ignorePath string) *ignoreLocalFile {
+	localPath := ignorePath + ".local"
+	raw, err := os.ReadFile(localPath)
+	if err != nil {
+		return nil
+	}
+	return &ignoreLocalFile{Path: localPath, Raw: string(raw)}
 }
 
 func (s *Server) handleGetSkillignore(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +56,7 @@ func (s *Server) handleGetSkillignore(w http.ResponseWriter, r *http.Request) {
 		Exists: err == nil,
 		Path:   ignorePath,
 		Raw:    string(raw), // empty if file doesn't exist
+		Local:  readIgnoreLocal(ignorePath),
 	}
 
 	// Always discover stats — tracked repos may have their own .skillignore

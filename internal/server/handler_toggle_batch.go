@@ -109,8 +109,23 @@ func (s *Server) handleBatchToggleSkills(w http.ResponseWriter, r *http.Request)
 
 	var resp batchToggleResponse
 	resp.Results = make([]batchToggleItemResult, 0, len(req.Names))
+	// Each successful result, so its outcome can be checked after writing.
+	type pending struct {
+		relPath string
+		updated bool
+	}
+	written := map[int]pending{}
+	succeed := func(name, relPath string, updated bool) {
+		written[len(resp.Results)] = pending{relPath, updated}
+		resp.Results = append(resp.Results, batchToggleItemResult{Name: name, Success: true, Disabled: !req.Enable})
+		if updated {
+			resp.Summary.Updated++
+		} else {
+			resp.Summary.Unchanged++
+		}
+	}
 
-	// Acquire the write lock only for the file-write loop.
+	// Hold the write lock while writing and re-checking the outcome.
 	s.mu.Lock()
 	for _, name := range req.Names {
 		e, ok := lookup[name]
@@ -122,8 +137,7 @@ func (s *Server) handleBatchToggleSkills(w http.ResponseWriter, r *http.Request)
 
 		if req.Enable {
 			if !e.disabled {
-				resp.Results = append(resp.Results, batchToggleItemResult{Name: name, Success: true, Disabled: false})
-				resp.Summary.Unchanged++
+				succeed(name, e.relPath, false)
 				continue
 			}
 			removed, err := skillignore.RemovePattern(ignorePath, e.relPath)
@@ -141,8 +155,7 @@ func (s *Server) handleBatchToggleSkills(w http.ResponseWriter, r *http.Request)
 				resp.Summary.Failed++
 				continue
 			}
-			resp.Results = append(resp.Results, batchToggleItemResult{Name: name, Success: true, Disabled: false})
-			resp.Summary.Updated++
+			succeed(name, e.relPath, true)
 			continue
 		}
 
@@ -152,13 +165,31 @@ func (s *Server) handleBatchToggleSkills(w http.ResponseWriter, r *http.Request)
 			resp.Summary.Failed++
 			continue
 		}
-		if !added {
-			resp.Results = append(resp.Results, batchToggleItemResult{Name: name, Success: true, Disabled: true})
-			resp.Summary.Unchanged++
-			continue
+		succeed(name, e.relPath, added)
+	}
+
+	// A written rule can still be overridden by a later one, such as a "!" line
+	// in the .local file, so re-check the outcome the way discovery sees it.
+	if len(written) > 0 {
+		states, err := s.disabledByRelPath(req.Kind, source, agentsSource)
+		if err != nil {
+			s.mu.Unlock()
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
 		}
-		resp.Results = append(resp.Results, batchToggleItemResult{Name: name, Success: true, Disabled: true})
-		resp.Summary.Updated++
+		for i, p := range written {
+			msg := toggleOverrideError(req.Kind, req.Enable, states[p.relPath])
+			if msg == "" {
+				continue
+			}
+			if p.updated {
+				resp.Summary.Updated--
+			} else {
+				resp.Summary.Unchanged--
+			}
+			resp.Results[i] = batchToggleItemResult{Name: resp.Results[i].Name, Disabled: req.Enable, Error: msg}
+			resp.Summary.Failed++
+		}
 	}
 	s.mu.Unlock()
 
