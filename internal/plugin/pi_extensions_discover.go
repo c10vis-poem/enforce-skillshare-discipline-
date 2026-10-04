@@ -48,6 +48,8 @@ type piLayout struct {
 	// declared holds the other resource fields the manifest sets (skills, prompts,
 	// themes), each an array of strings as Pi's readPiManifest requires.
 	declared map[string]bool
+	// version is the root package.json "version", what Pi shows for the package.
+	version string
 }
 
 func openPiLayout(abs string) (*piLayout, error) {
@@ -61,6 +63,16 @@ func openPiLayout(abs string) (*piLayout, error) {
 }
 
 func (l *piLayout) Close() { _ = l.root.Close() }
+
+// piInstalledVersion is the version an installed package's package.json gives, "" when it can't be read.
+func piInstalledVersion(install string) string {
+	l, err := openPiLayout(install)
+	if err != nil {
+		return ""
+	}
+	defer l.Close()
+	return l.version
+}
 
 func (l *piLayout) open(rel string) (*os.File, error) {
 	if l.follow {
@@ -109,10 +121,14 @@ func (l *piLayout) readManifest(dir string) (bool, []string, bool, map[string]bo
 		return false, nil, false, nil
 	}
 	var pkg struct {
-		Pi json.RawMessage `json:"pi"`
+		Pi      json.RawMessage `json:"pi"`
+		Version string          `json:"version"`
 	}
 	if json.Unmarshal(trimBOM(data), &pkg) != nil {
 		return false, nil, false, nil
+	}
+	if dir == "." {
+		l.version = pkg.Version
 	}
 	var pi map[string]json.RawMessage
 	if json.Unmarshal(pkg.Pi, &pi) != nil || pi == nil {

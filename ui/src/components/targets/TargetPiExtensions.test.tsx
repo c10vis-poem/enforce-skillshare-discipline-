@@ -110,6 +110,10 @@ describe('Pi target Extensions tab', () => {
     expect(await screen.findByRole('region', { name: 'superpowers' })).toBeInTheDocument();
   });
 
+  it('shows the version the installed package declares beside its kind', async () => {
+    show(global({ packages: [{ ...global().packages[0], version: '5.0.0' }] }));
+    expect(within(await screen.findByRole('region', { name: pkg })).getByText('local 5.0.0')).toBeInTheDocument();
+  });
   it('collapses a package to its header', async () => {
     const user = userEvent.setup();
     show(global());

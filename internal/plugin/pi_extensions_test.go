@@ -387,6 +387,18 @@ func TestPiExtensionsManifestAndInstallLocations(t *testing.T) {
 	}
 }
 
+func TestPiExtensionsShowTheInstalledVersion(t *testing.T) {
+	f := newPiFixture(t)
+	writeTree(t, filepath.Join(f.agentDir, "npm", "node_modules", "pi-mcp-adapter"), map[string]string{
+		"package.json": `{"name":"pi-mcp-adapter","version":"5.0.0"}`,
+		"index.ts":     "x",
+	})
+	f.global(map[string]any{"packages": []any{"npm:pi-mcp-adapter"}})
+	if p := f.view("pi").Packages[0]; p.Version != "5.0.0" {
+		t.Fatalf("version: %+v", p)
+	}
+}
+
 func TestPiExtensionsListsARuleForAMissingFile(t *testing.T) {
 	f := newPiFixture(t)
 	f.global(map[string]any{"packages": []any{map[string]any{"source": f.pkg, "extensions": []string{"-extensions/gone.ts"}}}})

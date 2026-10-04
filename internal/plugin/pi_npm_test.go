@@ -3,6 +3,8 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -253,6 +255,68 @@ func TestNpmVersionRangeUpdatesThroughPi(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c := p.Changes[0]; c.Action != "update" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
+// fakeNpmRegistry answers every package's latest version with version, or 404 when it is "".
+func fakeNpmRegistry(t *testing.T, version string) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if version == "" || !strings.HasSuffix(r.URL.Path, "/latest") {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"version":"` + version + `"}`))
+	}))
+	t.Cleanup(server.Close)
+	old := npmRegistry
+	npmRegistry = server.URL
+	t.Cleanup(func() { npmRegistry = old })
+}
+
+// installedNpmDemo adds npm:demo through Pi, with the package Pi installed at version.
+func installedNpmDemo(t *testing.T, version string) *Service {
+	t.Helper()
+	var commands []string
+	s := fakePiNpm(t, &commands)
+	applyPluginRequest(t, s, Request{Action: "add", Source: "npm:demo", Targets: []string{"pi"}})
+	writePluginFile(t, os.Getenv("HOME"), ".pi/agent/npm/node_modules/demo/package.json", `{"name":"demo","version":"`+version+`"}`)
+	return s
+}
+
+func TestNpmPackageCheckFindsANewerVersionOnNpm(t *testing.T) {
+	fakeNpmRegistry(t, "1.2.0")
+	s := installedNpmDemo(t, "1.0.0")
+	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "update-available" || c.Binding.Version != "1.2.0" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
+func TestNpmPackageAtTheLatestVersionHasNothingToUpdate(t *testing.T) {
+	fakeNpmRegistry(t, "1.0.0")
+	s := installedNpmDemo(t, "1.0.0")
+	p, err := s.Preview(context.Background(), Request{Action: "update", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "noop" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
+func TestNpmPackageCheckFallsBackToPiWhenNpmDoesNotAnswer(t *testing.T) {
+	fakeNpmRegistry(t, "")
+	s := installedNpmDemo(t, "1.0.0")
+	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "native-check" {
 		t.Fatalf("changes: %+v", p.Changes)
 	}
 }

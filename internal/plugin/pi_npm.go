@@ -2,10 +2,14 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // An npm source (npm:<package>[@version], as on pi.dev) is installed by Pi itself. Skillshare
@@ -135,4 +139,59 @@ func (s *Service) recordPiEntry(ctx context.Context, target string, b *Binding) 
 	}
 	b.PiRegistration = c.Binding.PiRegistration
 	return nil
+}
+
+// npmRegistry is where an update check asks for a package's latest version; tests point it elsewhere.
+var npmRegistry = "https://registry.npmjs.org"
+
+// npmVersions is the installed and latest plain X.Y.Z versions of an unpinned npm package, nil
+// where either is unknown. latests holds the registry's answers for one preview.
+// ponytail: asks the public registry only; a package from a private registry or an .npmrc
+// scope reads as unknown, and the check falls back to the native client.
+func (s *Service) npmVersions(ctx context.Context, id string, h Host, latests map[string][]int) (installed, latest []int) {
+	if !isNpmSource(id) || pinnedNpm(id) != "" {
+		return nil, nil
+	}
+	for _, item := range h.Installed {
+		if item.ID == id {
+			installed = plainVersion(item.Version)
+		}
+	}
+	if installed == nil {
+		return nil, nil
+	}
+	name, _ := npmSpec(id)
+	latest, ok := latests[name]
+	if !ok {
+		latest = plainVersion(npmLatest(ctx, name))
+		latests[name] = latest
+	}
+	return installed, latest
+}
+
+// npmLatest is the version npm's "latest" tag names, "" when the registry does not say.
+func npmLatest(ctx context.Context, name string) string {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	// A scoped name keeps its slash encoded, as the registry addresses package documents.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, npmRegistry+"/"+strings.Replace(name, "/", "%2f", 1)+"/latest", nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	var doc struct {
+		Version string `json:"version"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&doc) != nil {
+		return ""
+	}
+	return doc.Version
 }

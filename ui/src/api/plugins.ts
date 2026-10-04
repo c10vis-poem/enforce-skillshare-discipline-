@@ -31,6 +31,9 @@ export const syncAction = (b: PluginBinding, host?: PluginInventory['hosts'][num
   if (b.pending) return b.pending === 'install' && exists && !b.piRegistration ? '' : b.pending;
   return !host || host.error || exists ? '' : 'install';
 };
+/** A binding's version: what config recorded, else what the Agent reports installed, as Pi does for an npm package. */
+export const bindingVersion = (inventory: Pick<PluginInventory, 'hosts'>, target: PluginTarget, b: PluginBinding) =>
+  b.version ?? inventory.hosts.find((h) => h.target === target)?.installed.find((i) => i.id === b.id)?.version;
 /**
  * The command that adds this plugin from its source on another machine, '' when the source is a
  * local directory, which only exists here. Agents are left for whoever runs it to choose. It always
@@ -47,6 +50,20 @@ export interface PluginDiscovery {
   warnings?: string[]; source: string; sourceRef?: string; commit?: string; targetDefinitions?: PluginTargetDefinition[]; digest: string; candidates: PluginCandidate[] }
 export interface PluginPlan { revision: string; blocked: boolean; changes: { name: string; target: PluginTarget; id: string; action: string; message?: string; messageKey?: string; messageArgs?: Record<string, string>; components?: string[]; preservedKeys?: string[]; logo?: string; binding?: PluginBinding }[] }
 export interface PluginOutcome { name: string; target: PluginTarget; status: string; message?: string; messageKey?: string; messageArgs?: Record<string, string> }
+
+export interface PluginRun { name: string; target: string; version?: string }
+
+/** Rows that differ only by Agent become one row naming every Agent; `key` says what else must match. */
+export function byPlugin<R extends PluginRun>(rows: R[], key: (r: R) => string = () => '') {
+  const groups = new Map<string, R & { targets: string[] }>();
+  for (const r of rows) {
+    const k = `${r.name}\0${key(r)}`;
+    const group = groups.get(k);
+    if (group) group.targets.push(r.target);
+    else groups.set(k, { ...r, targets: [r.target] });
+  }
+  return [...groups.values()];
+}
 export interface PluginResult { result: { results: PluginOutcome[] } | null; failure: string }
 const post = <T,>(path: string, body: unknown) => apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) });
 export const pluginsApi = {
