@@ -454,7 +454,7 @@ func (s *Service) Preview(ctx context.Context, r Request) (*Plan, error) {
 					}
 					if b.Source == "" {
 						// An npm package has no source snapshot to compare; npm names its latest version instead.
-						installed, latest := s.npmVersions(ctx, b.ID, host(target), latests)
+						installed, latest := s.npmVersions(ctx, target, b.ID, host(target), latests)
 						known := installed != nil && latest != nil
 						if known && slices.Compare(latest, installed) <= 0 {
 							c.Action = "noop"

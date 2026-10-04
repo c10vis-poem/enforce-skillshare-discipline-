@@ -321,6 +321,36 @@ func TestNpmPackageCheckFallsBackToPiWhenNpmDoesNotAnswer(t *testing.T) {
 	}
 }
 
+// A package npm fetches from another registry may share its name with a public one; npmjs's
+// latest says nothing about it.
+func TestNpmPackageCheckLeavesAPrivateRegistryToPi(t *testing.T) {
+	for name, npmrc := range map[string]struct{ dir, body string }{
+		"user registry":        {"", "registry=https://npm.example.com/\n"},
+		"scope in Pi's folder": {".pi/agent/npm", "@acme:registry = https://npm.example.com/\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fakeNpmRegistry(t, "1.2.0")
+			var commands []string
+			s := fakePiNpm(t, &commands)
+			id := "npm:demo"
+			if npmrc.dir != "" {
+				id = "npm:@acme/demo"
+			}
+			applyPluginRequest(t, s, Request{Action: "add", Source: id, Name: "demo", Targets: []string{"pi"}})
+			pkg, _ := npmSpec(id)
+			writePluginFile(t, os.Getenv("HOME"), ".pi/agent/npm/node_modules/"+pkg+"/package.json", `{"version":"1.0.0"}`)
+			writePluginFile(t, filepath.Join(os.Getenv("HOME"), npmrc.dir), ".npmrc", npmrc.body)
+			p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c := p.Changes[0]; c.Action != "native-check" {
+				t.Fatalf("changes: %+v", p.Changes)
+			}
+		})
+	}
+}
+
 func TestDiscoverExplainsNpmPackagesCannotBePreviewed(t *testing.T) {
 	_, err := Discover(context.Background(), "npm:demo")
 	if err == nil || !strings.Contains(err.Error(), "plugin add npm:") {

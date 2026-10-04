@@ -50,6 +50,9 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
   const pack = inventory.packages[name];
   const bindings = Object.entries(pack.bindings) as [PluginTarget, NonNullable<(typeof pack.bindings)[PluginTarget]>][];
   const selected = bindings.filter(([, b]) => b.sync !== false).map(([target]) => target);
+  // The Agents a check's version is still ahead of, each judged on its own: one already there leaves the others behind.
+  const next = updates?.[name];
+  const behind = next ? selected.filter((target) => pluginTargets[target]?.operations.includes('update') && bindingVersion(inventory, target, pack.bindings[target]!) !== next) : [];
   const versions = [...new Set(bindings.map(([target, b]) => bindingVersion(inventory, target, b)).filter(Boolean))];
   // With no Agent yet, the version recorded when the plugin was added is all there is; a plugin
   // added before that was recorded asks its source, through the same query the row opens with.
@@ -105,8 +108,8 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
               ? <span className="ss-tag shrink-0 font-mono" title={bindings.filter(([target, b]) => bindingVersion(inventory, target, b)).map(([target, b]) => `${pluginTargets[target]?.label ?? target} ${bindingVersion(inventory, target, b)}`).join(' · ')}>{versions.join(' / ')}</span>
               : <VersionChange from={versions[0]} to={updates?.[name]} />}
             {/* A check found another version: update it from here, through the same review as the menu. */}
-            {updates?.[name] && !versions.includes(updates[name]) && (
-              <button type="button" className="ss-more min-h-6 shrink-0 disabled:opacity-50" disabled={busy} onClick={() => onAdd({ action: 'update', name, targets: selected.filter((target) => pluginTargets[target]?.operations.includes('update')) }, name)}>{t('plugins.update')}</button>
+            {behind.length > 0 && (
+              <button type="button" className="ss-more min-h-6 shrink-0 disabled:opacity-50" disabled={busy} onClick={() => onAdd({ action: 'update', name, targets: behind }, name)}>{t('plugins.update')}</button>
             )}
             {bindings.some(([target, b]) => syncAction(b, inventory.hosts.find((h) => h.target === target))) && <span className="ss-tag warn">{t('plugins.pending')}</span>}
             {bindings.length === 0 && <span className="ss-tag">{t('plugins.noAgentsYet')}</span>}

@@ -149,6 +149,24 @@ describe('PluginsPage', () => {
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.update' }));
     await waitFor(() => expect(pluginsApi.preview).toHaveBeenLastCalledWith({ action: 'update', name: 'driver', targets: ['pi'] }));
   });
+  it('keeps the row update for an Agent still behind when another Agent already has the new version', async () => {
+    const pi = { label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true };
+    vi.mocked(pluginsApi.list).mockResolvedValue({
+      targetDefinitions: [{ target: 'pi', ...pi }, { target: 'pi-work', ...pi, label: 'pi-work' }],
+      packages: { driver: { bindings: { pi: { id: 'npm:driver' }, 'pi-work': { id: 'npm:driver' } } } },
+      hosts: [
+        { target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] },
+        { target: 'pi-work', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.1.0', enabled: true }] },
+      ],
+    });
+    vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'r', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'update-available', binding: { id: 'npm:driver', version: '1.1.0' } }] });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'plugins.update' }));
+    await waitFor(() => expect(pluginsApi.preview).toHaveBeenLastCalledWith({ action: 'update', name: 'driver', targets: ['pi'] }));
+  });
   it('offers an update on the list row once a check finds a newer version', async () => {
     vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true }], packages: { driver: { bindings: { pi: { id: 'npm:driver' } } } }, hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] }] });
     vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'r', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'update-available', binding: { id: 'npm:driver', version: '1.1.0' } }] });

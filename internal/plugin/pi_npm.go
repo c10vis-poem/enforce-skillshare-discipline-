@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -148,8 +151,13 @@ var npmRegistry = "https://registry.npmjs.org"
 // where either is unknown. latests holds the registry's answers for one preview.
 // ponytail: asks the public registry only; a package from a private registry or an .npmrc
 // scope reads as unknown, and the check falls back to the native client.
-func (s *Service) npmVersions(ctx context.Context, id string, h Host, latests map[string][]int) (installed, latest []int) {
+func (s *Service) npmVersions(ctx context.Context, target, id string, h Host, latests map[string][]int) (installed, latest []int) {
 	if !isNpmSource(id) || pinnedNpm(id) != "" {
+		return nil, nil
+	}
+	name, _ := npmSpec(id)
+	settings, err := s.piSettingsPath(target)
+	if err != nil || !npmUsesPublicRegistry(filepath.Join(filepath.Dir(settings), "npm"), name) {
 		return nil, nil
 	}
 	for _, item := range h.Installed {
@@ -160,13 +168,52 @@ func (s *Service) npmVersions(ctx context.Context, id string, h Host, latests ma
 	if installed == nil {
 		return nil, nil
 	}
-	name, _ := npmSpec(id)
 	latest, ok := latests[name]
 	if !ok {
 		latest = plainVersion(npmLatest(ctx, name))
 		latests[name] = latest
 	}
 	return installed, latest
+}
+
+// npmUsesPublicRegistry reports whether npm, run in dir as Pi runs it, fetches name from the
+// public registry: no registry setting for the package's scope, or for everything, names
+// another one in the environment or in the .npmrc files npm reads first.
+// ponytail: reads the environment, dir's .npmrc and the user .npmrc, not npm's global or builtin
+// config; ask `npm config get` if a registry set only there must be seen.
+func npmUsesPublicRegistry(dir, name string) bool {
+	keys := []string{"registry"}
+	if scope, _, ok := strings.Cut(name, "/"); ok && strings.HasPrefix(scope, "@") {
+		keys = append(keys, scope+":registry")
+	}
+	public := func(value string) bool {
+		value = strings.TrimSuffix(strings.Trim(strings.TrimSpace(value), `"'`), "/")
+		return value == "" || strings.TrimSuffix(npmRegistry, "/") == value || value == "https://registry.npmjs.org"
+	}
+	for _, key := range keys {
+		if !public(os.Getenv("npm_config_"+key)) || !public(os.Getenv("NPM_CONFIG_"+strings.ToUpper(key))) {
+			return false
+		}
+	}
+	user := os.Getenv("NPM_CONFIG_USERCONFIG")
+	if user == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			user = filepath.Join(home, ".npmrc")
+		}
+	}
+	for _, path := range []string{filepath.Join(dir, ".npmrc"), user} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for line := range strings.SplitSeq(string(data), "\n") {
+			key, value, ok := strings.Cut(line, "=")
+			if ok && slices.Contains(keys, strings.TrimSpace(key)) && !public(value) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // npmLatest is the version npm's "latest" tag names, "" when the registry does not say.
