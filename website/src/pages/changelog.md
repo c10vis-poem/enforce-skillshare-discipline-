@@ -9,6 +9,23 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ---
 
+## [0.24.1] - 2026-10-04
+
+### New Features
+
+- **Agents can keep the shared memory notes up to date** — each connected agent now has an update mode. `passive`, the default, reads the notes and updates them only when you ask. `active` also lets the agent save facts that will matter in later sessions, such as a stated preference or a decision with its reason; it skips one-off details, asks before saving when unsure, updates an existing note instead of adding a duplicate, and tells you what it saved. Choose the mode per agent in the dashboard's **Connect to agents**, which now shows each file's change as one diff, or print the guidance from the CLI:
+  ```bash
+  skillshare extras memory instructions --update-mode active -g
+  ```
+  Agents that read the same file share one mode. The dashboard flags an agent that reads guidance in both modes from different files.
+- **Config files saved by the CLI are laid out like the dashboard's Beautify** — when a command saves `config.yaml`, globally or in a project, its sections follow the dashboard's order with a blank line between them, instead of running together with `mcp`, `plugins` and `hooks` above the sources. A file that uses YAML aliases keeps its order where sorting would break them.
+
+### Bug Fixes
+
+- **Pi turns a global MCP server off in a project with its own override** — a `disabled` entry now writes `"NAME": {"enabled": false}` to `.pi/mcp.json`, the override Pi 1.0.1 and later read, instead of a copy of the global server's command or url. Turning the server back on with Pi's `/mcp` used to start it without its args, env or headers; now the global server keeps all of them. It also works in project mode, where `pi` in a `disabled` entry used to be an error. The next sync rewrites switches written by earlier releases, and an identical override made with Pi's `/mcp` is no longer a conflict. Older Pi reports the override as invalid. Refs: #378.
+- **Audit no longer blocks config keys named like role labels** — `prompt-injection-1` reported lines such as `root: ./src`, `admin: false` or `ignore: { tags: ["design"] }` as CRITICAL prompt overrides and blocked the install. Lowercase config keys with a plain value now pass, while directives such as `SYSTEM: jailbreak`, `system: Override ...` or an empty `system:` opening an indented block are still flagged. Refs: #374.
+- **The dashboard counts hooks** — the global and project dashboards listed every resource type except hooks, so a source with hooks looked empty. Hooks now appear between MCP and Plugins, as in the sidebar.
+
 ## [0.24.0] - 2026-10-03
 
 ### Breaking Changes
