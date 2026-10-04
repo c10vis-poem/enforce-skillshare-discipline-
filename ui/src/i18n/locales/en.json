@@ -2235,6 +2235,7 @@
   "plugins.unverified": "Could not check",
   "plugins.installed": "Installed",
   "plugins.absent": "Not installed",
+  "plugins.allManaged": "Already managed by Skillshare",
   "plugins.nativeDisabled": "Installed, turned off in the Agent",
   "plugins.hostReady": "Available integrations",
   "plugins.hostMissing": "Not installed on this machine",

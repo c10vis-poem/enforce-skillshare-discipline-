@@ -2235,6 +2235,7 @@
   "plugins.unverified": "无法确认",
   "plugins.installed": "已安装",
   "plugins.absent": "未安装",
+  "plugins.allManaged": "都已由 Skillshare 管理",
   "plugins.nativeDisabled": "已安装，但在 Agent 内停用",
   "plugins.hostReady": "可使用的集成",
   "plugins.hostMissing": "这台机器上没有安装",

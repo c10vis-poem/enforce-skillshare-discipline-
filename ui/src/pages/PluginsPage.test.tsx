@@ -71,6 +71,20 @@ describe('PluginsPage', () => {
     expect(screen.getByText('plugins.hostRegistered.one')).toBeInTheDocument();
     expect(pluginsApi.apply).toHaveBeenCalledWith({ action: 'import', from: 'pi', plugin: 'npm:demo' }, 'import-reviewed');
   });
+  it('leaves out of Import what Skillshare already installed or imported into the Agent', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({
+      targetDefinitions: [{ target: 'pi', label: 'Pi', project: true, operations: ['import'], npm: true }],
+      packages: {
+        powers: { source: 'owner/powers', bindings: { pi: { id: '/state/powers/content', source: 'owner/powers' } } },
+        driver: { bindings: { pi: { id: 'npm:driver' } } },
+      },
+      hosts: [{ target: 'pi', version: '1.0.0', status: 'ready', installed: [{ id: '/state/powers/content', enabled: true }, { id: 'npm:driver', enabled: true }] }],
+    });
+    mount();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'plugins.import' }))[0]);
+    expect(await screen.findByText('plugins.allManaged')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'plugins.importOne' })).toBeNull();
+  });
   it.each([true, false])('only permits reviewed filtered imports when native preservation is supported: %s', async (importable) => {
     vi.mocked(pluginsApi.list).mockResolvedValue({ packages: {}, targetDefinitions: [{ target: 'pi', label: 'Pi', project: true, operations: ['import'] }], hosts: [{ target: 'pi', version: '1.0.0', status: 'ready', installed: [{ id: 'npm:demo', enabled: true, filtered: true, importable }] }] });
     vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'filters-reviewed', blocked: false, changes: [{ name: 'demo', target: 'pi', id: 'npm:demo', action: 'import', preservedKeys: ['extensions', 'opaque', 'skills', 'source'] }] });

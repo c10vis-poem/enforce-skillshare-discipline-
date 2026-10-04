@@ -2235,6 +2235,7 @@
   "plugins.unverified": "بررسی ممکن نشد",
   "plugins.installed": "نصب شده",
   "plugins.absent": "نصب نشده",
+  "plugins.allManaged": "همه از قبل توسط Skillshare مدیریت می‌شوند",
   "plugins.nativeDisabled": "نصب‌شده، ولی در Agent خاموش است",
   "plugins.hostReady": "آماده",
   "plugins.hostMissing": "روی این دستگاه نصب نشده",
