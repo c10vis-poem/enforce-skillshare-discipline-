@@ -101,16 +101,19 @@ func (s *Server) handleToggleSkill(w http.ResponseWriter, r *http.Request, enabl
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	logArgs := map[string]any{
+		"name":  name,
+		"kind":  kind,
+		"scope": "ui",
+	}
 	if msg := toggleOverrideError(kind, enable, states[relPath]); msg != "" {
+		// The ignore file may already have changed, so the attempt is still logged.
+		s.writeOpsLog(action, "error", start, logArgs, msg)
 		writeError(w, http.StatusConflict, msg)
 		return
 	}
 
-	s.writeOpsLog(action, "ok", start, map[string]any{
-		"name":  name,
-		"kind":  kind,
-		"scope": "ui",
-	}, "")
+	s.writeOpsLog(action, "ok", start, logArgs, "")
 
 	writeJSON(w, map[string]any{"success": true, "name": name, "disabled": disabled})
 }
