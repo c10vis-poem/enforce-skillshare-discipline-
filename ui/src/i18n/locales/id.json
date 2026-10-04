@@ -2235,6 +2235,7 @@
   "plugins.unverified": "Tidak bisa diperiksa",
   "plugins.installed": "Terpasang",
   "plugins.absent": "Belum terpasang",
+  "plugins.allManaged": "Sudah dikelola Skillshare",
   "plugins.nativeDisabled": "Terpasang, dimatikan di Agent",
   "plugins.hostReady": "Siap",
   "plugins.hostMissing": "Tidak terpasang di mesin ini",

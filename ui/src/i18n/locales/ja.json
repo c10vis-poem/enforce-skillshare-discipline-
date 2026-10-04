@@ -2235,6 +2235,7 @@
   "plugins.unverified": "確認できません",
   "plugins.installed": "インストール済み",
   "plugins.absent": "未インストール",
+  "plugins.allManaged": "すべて Skillshare で管理済み",
   "plugins.nativeDisabled": "インストール済み（Agent 内で無効）",
   "plugins.hostReady": "利用可能",
   "plugins.hostMissing": "このマシンに未インストール",

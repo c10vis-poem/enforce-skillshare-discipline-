@@ -2235,6 +2235,7 @@
   "plugins.unverified": "확인할 수 없음",
   "plugins.installed": "설치됨",
   "plugins.absent": "설치 안 됨",
+  "plugins.allManaged": "모두 Skillshare에서 관리 중",
   "plugins.nativeDisabled": "설치됨, Agent에서 꺼져 있음",
   "plugins.hostReady": "사용 가능",
   "plugins.hostMissing": "이 머신에 설치되지 않음",

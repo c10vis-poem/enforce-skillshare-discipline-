@@ -135,12 +135,14 @@ export default function PluginsPage() {
       ],
     });
   };
-  // A package bound only to Pi targets is a Pi package: it gets its own list, in the same rows.
+  // A package Pi installs itself (no source Skillshare copies from) and bound only to Pi targets
+  // is a Pi package: it gets its own list, in the same rows. A plugin Skillshare installs stays above.
   const piTargets = new Set((data?.targetDefinitions ?? []).filter((d) => d.npm).map((d) => d.target));
   const names = Object.keys(data?.packages ?? {});
   const isPi = (name: string) => {
-    const bound = Object.keys(data!.packages[name].bindings);
-    return bound.length > 0 && bound.every((target) => piTargets.has(target));
+    const pack = data!.packages[name];
+    const bound = Object.entries(pack.bindings);
+    return !pack.source && bound.length > 0 && bound.every(([target, b]) => piTargets.has(target) && !b?.source);
   };
   const piPackages = names.filter(isPi);
   const plugins = names.filter((name) => !isPi(name));
@@ -233,11 +235,15 @@ export default function PluginsPage() {
             {!hostsReady && hostsSlow && <div className="ss-r !min-h-0 text-xs text-ink-3">{t('plugins.hostsSlow')}</div>}
             {data?.hosts.map((h) => {
               const locked = !pluginTargets[h.target]?.operations.includes('import');
+              // What Skillshare installed or already imported into this Agent has nothing left to import.
+              const managed = new Set(Object.values(data?.packages ?? {}).map((p) => p.bindings[h.target]?.id));
+              const importable = h.installed.filter((i) => !managed.has(i.id));
               return (
                 <div key={h.target}>
-                  <div className="ss-gh"><span className="ss-at"><AgentIcon target={h.target} size={17} /></span><span className="font-semibold">{(pluginTargets[h.target]?.label ?? h.target)}</span><span className="ss-cnt">{h.installed.length}</span></div>
+                  <div className="ss-gh"><span className="ss-at"><AgentIcon target={h.target} size={17} /></span><span className="font-semibold">{(pluginTargets[h.target]?.label ?? h.target)}</span><span className="ss-cnt">{importable.length}</span></div>
                   {h.installed.length === 0 && <div className="ss-r !min-h-11"><span className="text-[13px] text-ink-3">{message(h.errorKey, h.error, h.errorArgs) || t('plugins.absent')}</span></div>}
-                  {h.installed.map((i) => (
+                  {h.installed.length > 0 && importable.length === 0 && <div className="ss-r !min-h-11"><span className="text-[13px] text-ink-3">{t('plugins.allManaged')}</span></div>}
+                  {importable.map((i) => (
                     <div key={i.id} className="ss-r !min-h-11">
                       <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-semibold" title={i.id}>{i.id}</span>
                       {i.enabledKnown !== false && !i.enabled && <span className="ss-tag">{t('plugins.nativeDisabled')}</span>}

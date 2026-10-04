@@ -149,7 +149,8 @@ const isOn = (row: PiExtensionRow, action?: PiExtensionAction) =>
 function PackageCard({ pkg, name, ownsRules, pending, set, t }: { pkg: PiExtensionPackage; name: string; ownsRules: boolean; pending: Record<string, PiExtensionAction>; set: SetAction; t: T }) {
   const [open, setOpen] = useState(true);
   const [details, setDetails] = useState(false);
-  const title = pkg.identity || pkg.source;
+  // A plugin Skillshare installs is a local path into its state directory: its name says which one.
+  const title = pkg.managedBy || pkg.identity || pkg.source;
   const actionOf = (r: PiExtensionRow) => pending[keyOf(pkg.scope, pkg.index, r.path)];
   const on = pkg.rows.filter((r) => isOn(r, actionOf(r))).length;
   const locked = Boolean(pkg.readOnly) || (pkg.rows.length > 0 && pkg.rows.every((r) => !r.editable));

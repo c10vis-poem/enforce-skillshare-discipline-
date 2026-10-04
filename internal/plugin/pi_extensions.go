@@ -582,9 +582,10 @@ func (s *Service) piGlobalState(ctx context.Context, target string) (*piTargetSt
 			pkg.Problem = e.problem
 			// Pi still reads the entry, so it is the one that counts for its package.
 			if !e.badSource {
-				id := resolvePiSource(e.source, agentDir, "", "user").identity
-				seen[id] = true
-				unresolved = unresolved || id == ""
+				src := resolvePiSource(e.source, agentDir, "", "user")
+				pkg.ManagedBy = piManagedBy(managed, e.source, src)
+				seen[src.identity] = true
+				unresolved = unresolved || src.identity == ""
 			} else {
 				unresolved = true
 			}
@@ -594,10 +595,7 @@ func (s *Service) piGlobalState(ctx context.Context, target string) (*piTargetSt
 		p := openPiPackage(e.source, agentDir, "", "user")
 		st.packages[e.index] = p
 		pkg.Kind, pkg.Identity, pkg.Install, pkg.Problem = p.src.kind, redactSource(p.src.identity), p.install, p.problem
-		pkg.ManagedBy = managed[strings.TrimSpace(e.source)]
-		if pkg.ManagedBy == "" && p.src.kind == "local" {
-			pkg.ManagedBy = managed[p.src.install]
-		}
+		pkg.ManagedBy = piManagedBy(managed, e.source, p.src)
 		switch {
 		case p.src.identity != "" && seen[p.src.identity]:
 			// Pi keeps the first entry of a package and ignores the rest.
@@ -641,6 +639,15 @@ func (s *Service) piManaged(target string) map[string]string {
 		}
 	}
 	return result
+}
+
+// piManagedBy is the plugin that owns a settings entry: Skillshare records a Pi
+// binding by its source, or for a local package by the path it resolves to.
+func piManagedBy(managed map[string]string, source string, src piSource) string {
+	if name := managed[strings.TrimSpace(source)]; name != "" || src.kind != "local" {
+		return name
+	}
+	return managed[src.install]
 }
 
 // piFolders lists the extensions Pi discovers in baseDir/extensions and the paths

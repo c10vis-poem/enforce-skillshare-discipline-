@@ -89,6 +89,12 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		rows    []piRowState
 		problem string
 	}
+	managed, globalManaged := s.piManaged(target), s.piManaged(target)
+	if s.GlobalConfigPath != "" {
+		global := *s
+		global.ConfigPath = s.GlobalConfigPath
+		globalManaged = global.piManaged(target)
+	}
 	globals := map[string]*globalPkg{}
 	globalOrder := []*globalPkg{}
 	unresolvedGlobal := false
@@ -141,12 +147,20 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		if e.hasRules {
 			pkg.Rules = e.rules
 		}
+		src := resolvePiSource(e.source, agentDir, projectDir, "project")
+		if !e.badSource {
+			// An override of a global package keeps the owner of that package.
+			pkg.ManagedBy = piManagedBy(managed, e.source, src)
+			if pkg.ManagedBy == "" {
+				pkg.ManagedBy = piManagedBy(globalManaged, e.source, src)
+			}
+		}
 		if e.problem != "" {
 			pkg.Problem = e.problem
 			v.Packages = append(v.Packages, pkg)
 			continue
 		}
-		id := resolvePiSource(e.source, agentDir, projectDir, "project").identity
+		id := src.identity
 		pkg.Identity = redactSource(id)
 		if id != "" && lastProject[id] != e.index {
 			pkg.Problem = "duplicate"
@@ -217,6 +231,7 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		if g.entry.hasRules {
 			pkg.Rules = g.entry.rules
 		}
+		pkg.ManagedBy = piManagedBy(globalManaged, g.entry.source, g.pkg.src)
 		reference, readOnly := piOverrideReference(g.entry.source, g.pkg, agentDir, projectDir)
 		pkg.ReadOnly = readOnly
 		for _, r := range g.rows {
