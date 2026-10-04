@@ -444,6 +444,25 @@ func TestPiProjectExtensionsNameTheManagedPlugin(t *testing.T) {
 	}
 }
 
+// An entry Skillshare can't edit, here a non-list "extensions", still names the plugin that owns it.
+func TestPiExtensionsNameTheManagedPluginOfAProblemEntry(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		f := newPiFixture(t)
+		writeTree(t, f.home, map[string]string{"config.yaml": "plugins:\n  packages:\n    powers:\n      bindings:\n        pi:\n          id: " + f.pkg + "\n"})
+		entry := []any{map[string]any{"source": f.pkg, "extensions": nil}}
+		if project {
+			root := filepath.Join(f.home, "code", "acme")
+			f.writeJSON(filepath.Join(root, ".pi", "settings.json"), map[string]any{"packages": entry})
+			f.svc.ProjectRoot = root
+		} else {
+			f.global(map[string]any{"packages": entry})
+		}
+		if got := f.view("pi").Packages[0]; got.Problem == "" || got.ManagedBy != "powers" {
+			t.Fatalf("project %v: problem = %q, managedBy = %q", project, got.Problem, got.ManagedBy)
+		}
+	}
+}
+
 func TestPiExtensionsMarksAnExtraInPisFolder(t *testing.T) {
 	f := newPiFixture(t)
 	extra := filepath.Join(f.home, "extras", "pi-ext")

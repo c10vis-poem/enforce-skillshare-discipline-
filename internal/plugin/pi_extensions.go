@@ -582,9 +582,10 @@ func (s *Service) piGlobalState(ctx context.Context, target string) (*piTargetSt
 			pkg.Problem = e.problem
 			// Pi still reads the entry, so it is the one that counts for its package.
 			if !e.badSource {
-				id := resolvePiSource(e.source, agentDir, "", "user").identity
-				seen[id] = true
-				unresolved = unresolved || id == ""
+				src := resolvePiSource(e.source, agentDir, "", "user")
+				pkg.ManagedBy = piManagedBy(managed, e.source, src)
+				seen[src.identity] = true
+				unresolved = unresolved || src.identity == ""
 			} else {
 				unresolved = true
 			}

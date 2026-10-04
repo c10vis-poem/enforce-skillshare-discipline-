@@ -142,15 +142,17 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		if e.hasRules {
 			pkg.Rules = e.rules
 		}
+		src := resolvePiSource(e.source, agentDir, projectDir, "project")
+		if !e.badSource {
+			pkg.ManagedBy = piManagedBy(managed, e.source, src)
+		}
 		if e.problem != "" {
 			pkg.Problem = e.problem
 			v.Packages = append(v.Packages, pkg)
 			continue
 		}
-		src := resolvePiSource(e.source, agentDir, projectDir, "project")
 		id := src.identity
 		pkg.Identity = redactSource(id)
-		pkg.ManagedBy = piManagedBy(managed, e.source, src)
 		if id != "" && lastProject[id] != e.index {
 			pkg.Problem = "duplicate"
 			v.Packages = append(v.Packages, pkg)
