@@ -162,9 +162,9 @@ function PackageCard({ pkg, name, ownsRules, pending, set, t }: { pkg: PiExtensi
         <span className="ss-cat bg-sunken text-ink" aria-hidden><PiPackageIcon size={26} /></span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="nm m truncate" title={pkg.source}>{title}</span>
-          {(pkg.kind || pkg.shape || pkg.managedBy) && (
+          {(pkg.kind || pkg.version || pkg.shape || pkg.managedBy) && (
             <span className="flex flex-wrap items-center gap-1.5">
-              {pkg.kind && <span className="ss-tag">{pkg.kind}</span>}
+              {(pkg.kind || pkg.version) && <span className="ss-tag">{[pkg.kind, pkg.version].filter(Boolean).join(' ')}</span>}
               {pkg.shape && <span className="ss-tag inf">{t(`targetDetail.piExtensions.shape.${pkg.shape}`)}</span>}
               {pkg.managedBy && <Link to="/plugins" className="ss-tag hover:text-ink">{t('targetDetail.piExtensions.managedBy')}</Link>}
             </span>

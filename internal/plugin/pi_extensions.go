@@ -28,25 +28,27 @@ import (
 // CLI's bundle, and the native lock test. Older or unparsable versions are read-only.
 const PiMinVersion = "0.99.2"
 
-// piVersionSupported reports a plain X.Y.Z version at or above PiMinVersion.
-func piVersionSupported(version string) bool {
-	parts := func(v string) []int {
-		fields := strings.Split(v, ".")
-		if len(fields) != 3 {
+// plainVersion splits a plain X.Y.Z version into its numbers, nil for anything else.
+func plainVersion(v string) []int {
+	fields := strings.Split(v, ".")
+	if len(fields) != 3 {
+		return nil
+	}
+	out := make([]int, 3)
+	for i, field := range fields {
+		n, err := strconv.Atoi(field)
+		if err != nil || n < 0 {
 			return nil
 		}
-		out := make([]int, 3)
-		for i, field := range fields {
-			n, err := strconv.Atoi(field)
-			if err != nil || n < 0 {
-				return nil
-			}
-			out[i] = n
-		}
-		return out
+		out[i] = n
 	}
-	got := parts(version)
-	return got != nil && slices.Compare(got, parts(PiMinVersion)) >= 0
+	return out
+}
+
+// piVersionSupported reports a plain X.Y.Z version at or above PiMinVersion.
+func piVersionSupported(version string) bool {
+	got := plainVersion(version)
+	return got != nil && slices.Compare(got, plainVersion(PiMinVersion)) >= 0
 }
 
 // Read-only reasons, translated by the dashboard as piExtensions.readOnly.<key>.
@@ -84,6 +86,7 @@ type PiExtensionPackage struct {
 	Scope    string `json:"scope"` // global or project: which file the entry is in
 	Shape    string `json:"shape,omitempty"`
 	Install  string `json:"install"` // present, missing or unknown
+	Version  string `json:"version,omitempty"`
 	Problem  string `json:"problem,omitempty"`
 	// ReadOnly says why rows that Skillshare can read can't be switched here:
 	// singleFile (Pi ignores filters) or otherResources (a first rule turns the
@@ -336,6 +339,7 @@ func jsonDuplicateKeys(data []byte) bool {
 type piPackage struct {
 	src     piSource
 	install string
+	version string
 	problem string
 	single  bool // a local source that is one file: Pi ignores its filters
 	// convertLoadsOthers: a string entry can't be shown to take a rule without
@@ -380,7 +384,7 @@ func openPiPackage(source, agentDir, projectDir, scope string) *piPackage {
 	defer l.Close()
 	p.defaultsString, p.defaultsObject, p.base = l.defaults(false), l.defaults(true), l.base()
 	p.convertLoadsOthers = l.conversionLoadsOthers()
-	p.problem = l.problem
+	p.problem, p.version = l.problem, l.version
 	return p
 }
 
@@ -594,7 +598,7 @@ func (s *Service) piGlobalState(ctx context.Context, target string) (*piTargetSt
 		}
 		p := openPiPackage(e.source, agentDir, "", "user")
 		st.packages[e.index] = p
-		pkg.Kind, pkg.Identity, pkg.Install, pkg.Problem = p.src.kind, redactSource(p.src.identity), p.install, p.problem
+		pkg.Kind, pkg.Identity, pkg.Install, pkg.Version, pkg.Problem = p.src.kind, redactSource(p.src.identity), p.install, p.version, p.problem
 		pkg.ManagedBy = piManagedBy(managed, e.source, p.src)
 		switch {
 		case p.src.identity != "" && seen[p.src.identity]:
