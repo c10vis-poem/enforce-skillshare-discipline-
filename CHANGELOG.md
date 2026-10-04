@@ -2,14 +2,16 @@
 
 ## [0.24.4] - 2026-10-04
 
-
 ### Bug Fixes
 
-* **memory:** say which notes belong in project versus shared memory ([417a674](https://github.com/runkids/skillshare/commit/417a67440968bf5f235ce71a306348f7812634f2))
-* **memory:** say which notes belong in project versus shared memory ([91ad0cb](https://github.com/runkids/skillshare/commit/91ad0cba3aceda4d682e43ac49e77d13443cc2ab))
-* **memory:** scope the global examples to cross-project facts ([b466a06](https://github.com/runkids/skillshare/commit/b466a06d11f3706a10866007c215b5a7b90b277a))
-* **sync:** skip nested target dotdirs when discovering source skills ([b58d510](https://github.com/runkids/skillshare/commit/b58d510ec6acf95670b7e54c8c0c312ce0906406))
-* **sync:** skip nested target dotdirs when discovering source skills ([881d08e](https://github.com/runkids/skillshare/commit/881d08e52ebf070f7328934dd2bbe1f4900a476c))
+- **A skill that ships its own `.claude/skills/` no longer floods your Agents with the author's dev skills** — installing a repository whose root is a skill copies the whole repository into the source, including any `.claude/skills/` the author keeps for working on it. Those showed up as nested skills such as `ffmpeg-skill/.claude/skills/code-review` and were synced to every target. Discovery now skips target directories (`.claude`, `.cursor`, `.factory`, ...) nested below the source root, as `install` already did. Host-style paths directly under the root, such as `.cursor/skills/*`, still work and still pick their target. The next sync removes the stray links.
+  ```bash
+  skillshare sync
+  ```
+- **The shared-memory guidance says which notes go to the project and which to the shared folder** — an Agent that reads both a global and a project guidance block saw the same text twice and had to guess where a user preference or a project decision belongs. The global block now points project notes at the project memory when one exists and keeps user preferences, decisions that apply across projects and pitfalls in a tool; the project block keeps decisions, conventions and pitfalls of that project and says that notes about you, your tools or other projects do not belong in it. Existing guidance blocks show as **Outdated** on the dashboard's Memory page; reconnect to update them.
+  ```bash
+  skillshare extras memory instructions --update-mode active -g
+  ```
 
 ## [0.24.3] - 2026-10-04
 
