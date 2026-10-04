@@ -31,9 +31,15 @@ export const syncAction = (b: PluginBinding, host?: PluginInventory['hosts'][num
   if (b.pending) return b.pending === 'install' && exists && !b.piRegistration ? '' : b.pending;
   return !host || host.error || exists ? '' : 'install';
 };
-/** A binding's version: what config recorded, else what the Agent reports installed, as Pi does for an npm package. */
-export const bindingVersion = (inventory: Pick<PluginInventory, 'hosts'>, target: PluginTarget, b: PluginBinding) =>
-  b.version ?? inventory.hosts.find((h) => h.target === target)?.installed.find((i) => i.id === b.id)?.version;
+/**
+ * A binding's version: what config recorded, else what the Agent reports installed. For an npm
+ * package Pi's answer comes first: it reads the installed package, and one recorded at import
+ * goes stale with the next pi update.
+ */
+export const bindingVersion = (inventory: Pick<PluginInventory, 'hosts'>, target: PluginTarget, b: PluginBinding) => {
+  const installed = inventory.hosts.find((h) => h.target === target)?.installed.find((i) => i.id === b.id)?.version;
+  return b.id.startsWith('npm:') ? installed ?? b.version : b.version ?? installed;
+};
 /**
  * The command that adds this plugin from its source on another machine, '' when the source is a
  * local directory, which only exists here. Agents are left for whoever runs it to choose. It always

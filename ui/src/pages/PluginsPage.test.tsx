@@ -164,6 +164,31 @@ describe('PluginsPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'plugins.update' })).not.toBeInTheDocument();
   });
+  it('shows the version Pi has installed for an npm package, not the one recorded at import', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({
+      targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'sync'], npm: true }],
+      packages: { driver: { bindings: { pi: { id: 'npm:driver', version: '1.0.0' } } } },
+      hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.4.0', enabled: true }] }],
+    });
+    mount();
+    expect(await screen.findByText('1.4.0')).toBeInTheDocument();
+    expect(screen.queryByText('1.0.0')).not.toBeInTheDocument();
+  });
+  it('clears the row update when the package already reached that version before the update ran', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true }], packages: { driver: { bindings: { pi: { id: 'npm:driver' } } } }, hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] }] });
+    vi.mocked(pluginsApi.preview)
+      .mockResolvedValueOnce({ revision: 'r', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'update-available', binding: { id: 'npm:driver', version: '1.1.0' } }] })
+      .mockResolvedValueOnce({ revision: 'r2', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'noop', binding: { id: 'npm:driver' } }] });
+    vi.mocked(pluginsApi.apply).mockResolvedValue({ result: { results: [{ name: 'driver', target: 'pi', status: 'unchanged' }] }, failure: '' });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'plugins.update' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.apply' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'plugins.update' })).not.toBeInTheDocument();
+  });
   it('keeps the row update when the update stops before any Agent ran', async () => {
     vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'codex', label: 'Codex', project: false, operations: ['add', 'check', 'update'] }], packages: { demo: { bindings: { codex: { id: 'demo@market', source: 'https://example.com/demo.git', version: '1.0.0' } } } }, hosts: [] });
     vi.mocked(pluginsApi.preview)

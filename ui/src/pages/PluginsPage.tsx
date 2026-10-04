@@ -95,13 +95,13 @@ export default function PluginsPage() {
       const response = await pluginsApi.apply(review.request, review.plan.revision);
       setResult(response); setFailure(failureText(response)); setReview(null); refresh();
       if (review.request.action === 'update') {
-        // Only an Agent the update reports done comes off; one that failed, or never ran because the
-        // apply stopped first, keeps its Update action.
+        // An Agent comes off once the result reports it updated, or already there (noop); one that
+        // failed, was skipped, or never ran because the apply stopped first keeps its Update action.
         const done = new Set((response.result?.results ?? []).filter((r) => r.status !== 'failed').map((r) => `${r.name}:${r.target}`));
         setUpdates((prev) => {
           const next = { ...prev };
           for (const c of review.plan.changes) {
-            if (c.action !== 'update' || !done.has(`${c.name}:${c.target}`) || !next[c.name]) continue;
+            if ((c.action !== 'update' && c.action !== 'noop') || !done.has(`${c.name}:${c.target}`) || !next[c.name]) continue;
             next[c.name] = { ...next[c.name] };
             delete next[c.name][c.target];
           }
