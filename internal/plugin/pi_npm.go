@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -179,11 +180,34 @@ func (s *Service) npmVersions(ctx context.Context, target, id string, h Host, la
 	return installed, latest
 }
 
+// npmGlobalConfig is the global npmrc npm reads: the one the environment names, else
+// $PREFIX/etc/npmrc, with the prefix from the environment or the npm on PATH; "" when neither
+// tells.
+func npmGlobalConfig() string {
+	if path := cmp.Or(os.Getenv("npm_config_globalconfig"), os.Getenv("NPM_CONFIG_GLOBALCONFIG")); path != "" {
+		return path
+	}
+	prefix := cmp.Or(os.Getenv("npm_config_prefix"), os.Getenv("NPM_CONFIG_PREFIX"))
+	if prefix == "" {
+		npm, err := exec.LookPath("npm")
+		if err != nil {
+			return ""
+		}
+		// npm sits in $PREFIX/bin, or in $PREFIX itself on Windows.
+		prefix = filepath.Dir(npm)
+		if runtime.GOOS != "windows" {
+			prefix = filepath.Dir(prefix)
+		}
+	}
+	return filepath.Join(prefix, "etc", "npmrc")
+}
+
 // npmUsesPublicRegistry reports whether npm, run in dir as Pi runs it, fetches name from the
 // public registry: no registry setting for the package's scope, or for everything, names
-// another one in the environment or in the .npmrc files npm reads first.
-// ponytail: reads the environment, dir's .npmrc and the user .npmrc, not npm's global or builtin
-// config; ask `npm config get` if a registry set only there must be seen.
+// another one in the environment or in the .npmrc files npm reads. When the global one
+// can't be found, the answer is no, so a private name never goes to npmjs.
+// ponytail: npm's builtin config, inside its own install, is not read; ask `npm config get`
+// if a registry set only there must be seen.
 func npmUsesPublicRegistry(dir, name string) bool {
 	keys := []string{"registry"}
 	if scope, _, ok := strings.Cut(name, "/"); ok && strings.HasPrefix(scope, "@") {
@@ -204,7 +228,11 @@ func npmUsesPublicRegistry(dir, name string) bool {
 			user = filepath.Join(home, ".npmrc")
 		}
 	}
-	for _, path := range []string{filepath.Join(dir, ".npmrc"), user} {
+	global := npmGlobalConfig()
+	if global == "" {
+		return false
+	}
+	for _, path := range []string{filepath.Join(dir, ".npmrc"), user, global} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue

@@ -273,6 +273,8 @@ func fakeNpmRegistry(t *testing.T, version string) {
 	old := npmRegistry
 	npmRegistry = server.URL
 	t.Cleanup(func() { npmRegistry = old })
+	// The machine's own npm config stays out of the test.
+	t.Setenv("npm_config_globalconfig", filepath.Join(t.TempDir(), "none"))
 }
 
 // installedNpmDemo adds npm:demo through Pi, with the package Pi installed at version.
@@ -358,6 +360,21 @@ func TestNpmPackageCheckLeavesAVersionRangeToPi(t *testing.T) {
 	s := fakePiNpm(t, &commands)
 	applyPluginRequest(t, s, Request{Action: "add", Source: "npm:demo@^1.2.0", Targets: []string{"pi"}})
 	writePluginFile(t, os.Getenv("HOME"), ".pi/agent/npm/node_modules/demo/package.json", `{"version":"1.3.0"}`)
+	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "native-check" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
+func TestNpmPackageCheckReadsTheGlobalNpmConfig(t *testing.T) {
+	fakeNpmRegistry(t, "1.2.0")
+	s := installedNpmDemo(t, "1.0.0")
+	npmrc := filepath.Join(t.TempDir(), "npmrc")
+	writePluginFile(t, filepath.Dir(npmrc), filepath.Base(npmrc), "registry=https://npm.example.com/\n")
+	t.Setenv("npm_config_globalconfig", npmrc)
 	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
 	if err != nil {
 		t.Fatal(err)

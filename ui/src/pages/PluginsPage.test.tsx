@@ -149,6 +149,20 @@ describe('PluginsPage', () => {
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.update' }));
     await waitFor(() => expect(pluginsApi.preview).toHaveBeenLastCalledWith({ action: 'update', name: 'driver', targets: ['pi'] }));
   });
+  it('offers the row update for a source change without a new version, until that update is applied', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'codex', label: 'Codex', project: false, operations: ['add', 'check', 'update'] }], packages: { demo: { bindings: { codex: { id: 'demo@market', source: 'https://example.com/demo.git', version: '1.0.0' } } } }, hosts: [] });
+    vi.mocked(pluginsApi.preview)
+      .mockResolvedValueOnce({ revision: 'r', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update-available', binding: { id: 'demo@market', version: '1.0.0' } }] })
+      .mockResolvedValueOnce({ revision: 'r2', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update', binding: { id: 'demo@market', version: '1.0.0' } }] });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'plugins.update' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.apply' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'plugins.update' })).not.toBeInTheDocument();
+  });
   it('keeps the row update for an Agent still behind when another Agent already has the new version', async () => {
     const pi = { label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true };
     vi.mocked(pluginsApi.list).mockResolvedValue({

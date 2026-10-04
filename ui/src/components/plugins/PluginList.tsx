@@ -21,7 +21,7 @@ interface Props {
   /** Pi packages, which all show Pi's mark. */
   pi?: boolean;
   /** The version each plugin's source has, from the last update check. */
-  updates?: Record<string, string>;
+  updates?: Record<string, Record<PluginTarget, string>>;
   busy: boolean;
   /** `name:target` of the selection being applied right now. */
   working: string;
@@ -50,9 +50,11 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
   const pack = inventory.packages[name];
   const bindings = Object.entries(pack.bindings) as [PluginTarget, NonNullable<(typeof pack.bindings)[PluginTarget]>][];
   const selected = bindings.filter(([, b]) => b.sync !== false).map(([target]) => target);
-  // The Agents a check's version is still ahead of, each judged on its own: one already there leaves the others behind.
-  const next = updates?.[name];
-  const behind = next ? selected.filter((target) => pluginTargets[target]?.operations.includes('update') && bindingVersion(inventory, target, pack.bindings[target]!) !== next) : [];
+  // The Agents the last check found an update for, until an update takes them off. A source change
+  // without a new version counts too; the version only says what the update brings.
+  const checked = updates?.[name] ?? {};
+  const next = Object.values(checked).find(Boolean);
+  const behind = selected.filter((target) => target in checked && pluginTargets[target]?.operations.includes('update'));
   const versions = [...new Set(bindings.map(([target, b]) => bindingVersion(inventory, target, b)).filter(Boolean))];
   // With no Agent yet, the version recorded when the plugin was added is all there is; a plugin
   // added before that was recorded asks its source, through the same query the row opens with.
@@ -106,7 +108,7 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
             {/* Agents at different versions, as after an update that skipped one, show each. */}
             {versions.length > 1
               ? <span className="ss-tag shrink-0 font-mono" title={bindings.filter(([target, b]) => bindingVersion(inventory, target, b)).map(([target, b]) => `${pluginTargets[target]?.label ?? target} ${bindingVersion(inventory, target, b)}`).join(' · ')}>{versions.join(' / ')}</span>
-              : <VersionChange from={versions[0]} to={updates?.[name]} />}
+              : <VersionChange from={versions[0]} to={next} />}
             {/* A check found another version: update it from here, through the same review as the menu. */}
             {behind.length > 0 && (
               <button type="button" className="ss-more min-h-6 shrink-0 disabled:opacity-50" disabled={busy} onClick={() => onAdd({ action: 'update', name, targets: behind }, name)}>{t('plugins.update')}</button>

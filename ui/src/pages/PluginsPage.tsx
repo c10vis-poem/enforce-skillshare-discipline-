@@ -58,8 +58,9 @@ export default function PluginsPage() {
     const failed = new Set((response.result?.results ?? []).filter((r) => r.status === 'failed').map((r) => keyedMessage(t, r)));
     return response.failure && failed.size ? [...failed].join(' ') : response.failure;
   };
-  // The source version each plugin could update to, from the last check.
-  const [updates, setUpdates] = useState<Record<string, string>>({});
+  // What the last check found to update, per plugin and Agent, with the version it would bring
+  // ('' when the source changed without a new one). An applied update takes its Agents off.
+  const [updates, setUpdates] = useState<Record<string, Record<PluginTarget, string>>>({});
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   // A change with no Agent is to Skillshare itself: the plugin was only added to it, or removed from it.
   const agentLabel = (target: string) => pluginTargets[target]?.label ?? (target || t('plugins.skillshareOnly'));
@@ -76,7 +77,11 @@ export default function PluginsPage() {
     setBusy(true); setWorking(key); setFailure(''); setResult(null);
     try {
       const plan = await pluginsApi.preview(request);
-      if (request.action === 'check') setUpdates(Object.fromEntries(plan.changes.filter((c) => c.action === 'update-available' && c.binding?.version).map((c) => [c.name, c.binding!.version!])));
+      if (request.action === 'check') {
+        const found: Record<string, Record<PluginTarget, string>> = {};
+        for (const c of plan.changes) if (c.action === 'update-available') (found[c.name] ??= {})[c.target] = c.binding?.version ?? '';
+        setUpdates(found);
+      }
       setReview({ request, plan }); setAdding(null); setImporting(false);
     }
     catch (e) { setFailure((e as Error).message); throw e; }
@@ -86,7 +91,22 @@ export default function PluginsPage() {
   const apply = async () => {
     if (!review) return;
     setBusy(true); setFailure('');
-    try { const response = await pluginsApi.apply(review.request, review.plan.revision); setResult(response); setFailure(failureText(response)); setReview(null); refresh(); }
+    try {
+      const response = await pluginsApi.apply(review.request, review.plan.revision);
+      setResult(response); setFailure(failureText(response)); setReview(null); refresh();
+      if (review.request.action === 'update') {
+        const failed = new Set((response.result?.results ?? []).filter((r) => r.status === 'failed').map((r) => `${r.name}:${r.target}`));
+        setUpdates((prev) => {
+          const next = { ...prev };
+          for (const c of review.plan.changes) {
+            if (c.action !== 'update' || failed.has(`${c.name}:${c.target}`) || !next[c.name]) continue;
+            next[c.name] = { ...next[c.name] };
+            delete next[c.name][c.target];
+          }
+          return next;
+        });
+      }
+    }
     catch (e) { setFailure((e as Error).message); refresh(); }
     finally { setBusy(false); }
   };

@@ -399,6 +399,18 @@ func TestPiExtensionsShowTheInstalledVersion(t *testing.T) {
 	}
 }
 
+// A version that is not a string is someone's mistake, not a reason to lose the manifest Pi reads.
+func TestPiExtensionsKeepTheManifestOfAPackageWithAnOddVersion(t *testing.T) {
+	f := newPiFixture(t)
+	writeTree(t, f.pkg, map[string]string{"package.json": `{"name":"tools","version":1,"pi":{"extensions":["./extensions/a.ts"]}}`})
+	f.global(map[string]any{"packages": []any{f.pkg}})
+	p := f.view("pi").Packages[0]
+	if p.Version != "" {
+		t.Fatalf("version: %q", p.Version)
+	}
+	assertRows(t, selections(p), "extensions/a.ts:loads")
+}
+
 func TestPiExtensionsListsARuleForAMissingFile(t *testing.T) {
 	f := newPiFixture(t)
 	f.global(map[string]any{"packages": []any{map[string]any{"source": f.pkg, "extensions": []string{"-extensions/gone.ts"}}}})

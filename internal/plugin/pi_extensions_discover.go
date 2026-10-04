@@ -120,15 +120,16 @@ func (l *piLayout) readManifest(dir string) (bool, []string, bool, map[string]bo
 		l.fail(piProblemUnreadable)
 		return false, nil, false, nil
 	}
+	// Version stays raw: one that is not a string must not cost the manifest Pi reads.
 	var pkg struct {
 		Pi      json.RawMessage `json:"pi"`
-		Version string          `json:"version"`
+		Version json.RawMessage `json:"version"`
 	}
 	if json.Unmarshal(trimBOM(data), &pkg) != nil {
 		return false, nil, false, nil
 	}
 	if dir == "." {
-		l.version = pkg.Version
+		_ = json.Unmarshal(pkg.Version, &l.version)
 	}
 	var pi map[string]json.RawMessage
 	if json.Unmarshal(pkg.Pi, &pi) != nil || pi == nil {
