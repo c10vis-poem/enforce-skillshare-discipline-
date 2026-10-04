@@ -89,7 +89,12 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		rows    []piRowState
 		problem string
 	}
-	managed := s.piManaged(target)
+	managed, globalManaged := s.piManaged(target), s.piManaged(target)
+	if s.GlobalConfigPath != "" {
+		global := *s
+		global.ConfigPath = s.GlobalConfigPath
+		globalManaged = global.piManaged(target)
+	}
 	globals := map[string]*globalPkg{}
 	globalOrder := []*globalPkg{}
 	unresolvedGlobal := false
@@ -222,7 +227,7 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		if g.entry.hasRules {
 			pkg.Rules = g.entry.rules
 		}
-		pkg.ManagedBy = piManagedBy(managed, g.entry.source, g.pkg.src)
+		pkg.ManagedBy = piManagedBy(globalManaged, g.entry.source, g.pkg.src)
 		reference, readOnly := piOverrideReference(g.entry.source, g.pkg, agentDir, projectDir)
 		pkg.ReadOnly = readOnly
 		for _, r := range g.rows {
