@@ -9,6 +9,26 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ---
 
+## [0.24.3] - 2026-10-04
+
+
+### New Features
+
+* **source:** add the sourcewalk walker and sourcefs write boundary for proposal 274 ([#385](https://github.com/runkids/skillshare/issues/385)) ([8c60f51](https://github.com/runkids/skillshare/commit/8c60f51b9f36939ef2e5233bd21c3aa39054319a)), closes [#274](https://github.com/runkids/skillshare/issues/274)
+
+
+### Bug Fixes
+
+* **memory:** route lessons to LEARNED.md in active guidance ([464d2fa](https://github.com/runkids/skillshare/commit/464d2fab73af0b4e63efd202cdbec8d445bbc8d0))
+* **memory:** say passive mode still saves notes on request ([3a83de1](https://github.com/runkids/skillshare/commit/3a83de16d532205f2f06b3f68d6b1171ddd4bb7c))
+* **plugin:** find the Codex CLI the desktop app ships ([#383](https://github.com/runkids/skillshare/issues/383)) ([70cb287](https://github.com/runkids/skillshare/commit/70cb2876723a07898b63201f5aa423dbc5863d4f)), closes [#338](https://github.com/runkids/skillshare/issues/338)
+
+
+### Performance
+
+* **memory:** tell agents to prefer shared notes over tool memory ([63a3df9](https://github.com/runkids/skillshare/commit/63a3df9213391ccd4da0f826150f882aa8fee209))
+* **memory:** tell agents to prefer shared notes over tool memory ([9ac9682](https://github.com/runkids/skillshare/commit/9ac9682dcc970631a4e5e238df56df30671346e8))
+
 ## [0.24.2] - 2026-10-04
 
 ### Performance
