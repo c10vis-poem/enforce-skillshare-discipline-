@@ -11,43 +11,30 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ## [0.24.5] - 2026-10-04
 
-
 ### New Features
 
-* **plugin:** check Pi npm packages for updates and show their versions ([c9e1566](https://github.com/runkids/skillshare/commit/c9e1566287f11d1e76e737c0d3885521d92d1c4f))
-* **plugin:** check Pi npm packages for updates and show their versions ([0f2ce35](https://github.com/runkids/skillshare/commit/0f2ce354fc66422e98d86a696f69fe190eae5188))
-
+- **Pi packages show their version, and Check updates finds new ones on npm** — an npm package in Pi had no recorded version and no source, so the Plugins page showed none and **Check updates** could only say to check in Pi. The version now comes from the package Pi installed, on the Plugins page and in a Pi target's **Extensions** tab, for npm, git and local packages alike. For an npm package added without a version, `check` compares it with npm's `latest`. A newer version shows as `old → new` with an **Update** button on the row and in the check's result; it opens the update preview for that one plugin and Agent and runs `pi update <source>` for that package only. A package added with a version range or tag, or one that npm resolves to a registry other than npmjs, is left to Pi.
+  ```bash
+  skillshare plugin check -g
+  skillshare plugin update pi-mcp-adapter --target pi -g
+  ```
+- **The Plugins page's Sync box puts what needs a look first** — after a run, failures come first with their message, then the other changes, and Agents that ended the same way share one row with their logos (each names itself on hover). What stayed the same folds into one **Unchanged** line that opens to one row per plugin, with Pi packages apart. The preview folds what it leaves alone the same way, below the changes it will make.
 
 ### Bug Fixes
 
-* **plugin:** ask npm which registry it uses, and keep updates that never ran ([116feb6](https://github.com/runkids/skillshare/commit/116feb6d1694eb51628ccd2976326ea4237cce34))
-* **plugin:** expect the version Codex reads from a portable manifest ([b8a39f3](https://github.com/runkids/skillshare/commit/b8a39f373a8abbad285cfecaeb7388386bf37019))
-* **plugin:** expect the version Codex reads from a portable manifest ([021e003](https://github.com/runkids/skillshare/commit/021e0037b633cac12edf79a660239540eca6c5c8))
-* **plugin:** find global owners of inherited Pi packages in project mode ([56b4f79](https://github.com/runkids/skillshare/commit/56b4f79ac4c50c10b8790d5cf30ce40da11c3ae1))
-* **plugin:** keep row updates without a new version, read npm's global config, keep odd manifests ([be661c5](https://github.com/runkids/skillshare/commit/be661c593f1dd42aa8531af13d02feb70c920a4d))
-* **plugin:** keep the Codex logo under a portable manifest ([f5a2470](https://github.com/runkids/skillshare/commit/f5a24702763a1ba5fc05faa4cb1ea55b5731f8da))
-* **plugin:** keep the global owner of a Pi project override ([eb58dec](https://github.com/runkids/skillshare/commit/eb58dec1f05e1c6645aa92eb47bca8e4ecf20d3c))
-* **plugin:** keep version check for versionless portable manifests ([04c4c95](https://github.com/runkids/skillshare/commit/04c4c95cbae698911d0be49f22db6d8f5a5e2beb))
-* **plugin:** leave npm ranges and tags to Pi, and read a lowercase userconfig ([c5571a8](https://github.com/runkids/skillshare/commit/c5571a8cae43ebf291c405969b6a2eef0cec3151))
-* **plugin:** leave private npm registries to Pi, and keep updates for Agents still behind ([cc249c1](https://github.com/runkids/skillshare/commit/cc249c149802e89da4fb38114714f9dbed4ec4e4))
-* **plugin:** name Skillshare-installed packages in Pi project views ([c31dffc](https://github.com/runkids/skillshare/commit/c31dffc450599495ae639bf107b190be0e16ca5f))
-* **plugin:** name the managed plugin of a Pi entry with a problem ([a510d2a](https://github.com/runkids/skillshare/commit/a510d2a0896c56d6c7c897df2d46e626618212ec))
-* **server:** log a disable that a .local rule overrides ([af76547](https://github.com/runkids/skillshare/commit/af7654712c466fc369a4ace6531f39a736894153))
-* **server:** report toggles that .local ignore rules override ([d8c1437](https://github.com/runkids/skillshare/commit/d8c14372349c978483b9a205ec89a847d6a229e9))
-* **server:** report toggles that .local ignore rules override ([d4c2f6e](https://github.com/runkids/skillshare/commit/d4c2f6e9a091fe6b291275ec78deddce94e197e3))
-* **status:** count extension-converted agents as synced ([a265155](https://github.com/runkids/skillshare/commit/a265155844326cb6a5d941c4c6c264f61934705e))
-* **status:** count extension-converted agents as synced ([f403ea5](https://github.com/runkids/skillshare/commit/f403ea5a6f0aad9d3b571cdc6436b189a9437dfb)), closes [#391](https://github.com/runkids/skillshare/issues/391)
-* **status:** count one extension output per agent ([c43bb76](https://github.com/runkids/skillshare/commit/c43bb763f963455c273d133b66d5d3b9f6c6a730))
-* **status:** count only links for agents the target expects ([640e853](https://github.com/runkids/skillshare/commit/640e853c992c321df731c02a485415984dfc44aa))
-* **status:** expect only the agents a target would sync ([9f39b24](https://github.com/runkids/skillshare/commit/9f39b2458ec380ed7e492b3b162acd921f59fc81))
-* **status:** expect only the agents a target would sync ([47a98b8](https://github.com/runkids/skillshare/commit/47a98b81ff2becef23d496d37e137baecfa078bf)), closes [#395](https://github.com/runkids/skillshare/issues/395)
-* **status:** report drift when an extension agent's source changed ([51a3be1](https://github.com/runkids/skillshare/commit/51a3be1ca607df1040db677de20f99fef900ca71))
-* **ui:** keep Skillshare-installed Pi plugins out of Pi packages ([43b857b](https://github.com/runkids/skillshare/commit/43b857b2e83f6b37c18fb00ae82b09fb19f83d6c))
-* **ui:** keep Skillshare-installed Pi plugins out of Pi packages ([4a2ff0d](https://github.com/runkids/skillshare/commit/4a2ff0dcde5f7eab66502008da87e919dfd2b1c8))
-* **ui:** leave managed plugins out of the Import dialog ([a62b140](https://github.com/runkids/skillshare/commit/a62b140b1584cfcdf04f75ca90fcbc05021cb989))
-* **ui:** make the mixed folder switch read as partly on ([6cc1022](https://github.com/runkids/skillshare/commit/6cc10220be7e7eb5e91ebdd98cf7116d9370e3d1))
-* **ui:** prefer the installed version for every Pi package ([9ea4d65](https://github.com/runkids/skillshare/commit/9ea4d655df3b278778bdd92a07cfaaba185478fc))
-* **ui:** show the version Pi installed, and clear an update that was already done ([ff618b6](https://github.com/runkids/skillshare/commit/ff618b60341e2c670e0a3c6fca98d55b7b2f46ba))
+- **Agents synced through an agent extension no longer show as drift** — a target that converts agents (for example to `reviewer.toml`) was reported as `0/N` with drift by `status`, `doctor` and the dashboard after every successful sync, because the converted names never matched the sources. Converted outputs now count as synced, and editing an agent in the source shows as drift until the next sync. Outputs written by earlier releases count as current until that sync records their source. Refs: #391.
+  ```bash
+  skillshare sync agents
+  skillshare status
+  ```
+- **`status` expects only the agents a target would sync** — `status` counted every agent against each target, while `sync` leaves out the ones `.agentignore`, the target's include/exclude and an agent's `targets` frontmatter exclude, so such a target showed `N/M` with drift after a complete sync, in the table and in `--json`. `status` now applies the same filters, and a leftover link for an agent the target no longer syncs no longer stands in for a missing one. `doctor` and the dashboard already filtered this way. Refs: #395.
+- **Updating a Codex plugin that ships a portable `plugin.json` no longer fails on every sync** — Codex installs from a root `plugin.json` ahead of `.codex-plugin/plugin.json`, and reports `1.0.0` when that manifest has no version. Skillshare expected the version from `.codex-plugin/plugin.json`, so a package that ships both failed with `native update returned version 1.0.0; expected 4.10.3`. Skillshare now expects the version Codex reads, keeps the logo from `.codex-plugin/plugin.json`, and still checks the version of a package whose portable manifest has none.
+  ```bash
+  skillshare sync plugins
+  ```
+- **Disabling a skill that `.skillignore.local` keeps on now fails with the reason** — a `!` rule in `.skillignore.local` is applied after `.skillignore`, so the skill stayed enabled while the dashboard reported success. Single and batch toggles now report such a skill as failed and name the file that overrides it, the attempt is logged, and **Settings › Files** shows the `.local` rules above the editor.
+- **Plugins Skillshare installs into Pi are listed and named as plugins** — a plugin installed from a Git source and bound only to Pi landed in **Pi packages**, and Pi's **Extensions** tabs titled it by its state path, in global and project views. It now stays under the managed plugins, and the tabs show its name with the **Managed by Skillshare** tag. The **Import** dialog leaves out what Skillshare already manages and says when an Agent has nothing left to import.
+- **A folder switch that is partly on reads as partly on** — in the resource tree, the mixed state looked like a stuck off switch; it now has a half-tone track and a dash, like an indeterminate checkbox.
 
 ## [0.24.4] - 2026-10-04
 
