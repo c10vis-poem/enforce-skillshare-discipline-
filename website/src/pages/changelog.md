@@ -9,6 +9,17 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ---
 
+## [0.24.4] - 2026-10-04
+
+
+### Bug Fixes
+
+* **memory:** say which notes belong in project versus shared memory ([417a674](https://github.com/runkids/skillshare/commit/417a67440968bf5f235ce71a306348f7812634f2))
+* **memory:** say which notes belong in project versus shared memory ([91ad0cb](https://github.com/runkids/skillshare/commit/91ad0cba3aceda4d682e43ac49e77d13443cc2ab))
+* **memory:** scope the global examples to cross-project facts ([b466a06](https://github.com/runkids/skillshare/commit/b466a06d11f3706a10866007c215b5a7b90b277a))
+* **sync:** skip nested target dotdirs when discovering source skills ([b58d510](https://github.com/runkids/skillshare/commit/b58d510ec6acf95670b7e54c8c0c312ce0906406))
+* **sync:** skip nested target dotdirs when discovering source skills ([881d08e](https://github.com/runkids/skillshare/commit/881d08e52ebf070f7328934dd2bbe1f4900a476c))
+
 ## [0.24.3] - 2026-10-04
 
 ### New Features
