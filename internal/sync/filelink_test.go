@@ -259,6 +259,20 @@ func TestSyncedExtensionOutputs_CountsTrackedRenamedOutputs(t *testing.T) {
 	}
 }
 
+func TestSyncedExtensionOutputs_OneOutputPerAgent(t *testing.T) {
+	src, tgt, agents := agentFixture(t)
+	spec := &ExtensionSpec{Run: []string{"cat"}, Dir: src, Name: "id", OutputExt: "toml"}
+	if _, err := SyncAgentsTransform(agents, src, tgt, "copy", spec, false, false); err != nil {
+		t.Fatal(err)
+	}
+	// A second agent flattening to the same name must not reuse the one output.
+	twins := append(agents, agents[0])
+
+	if n := SyncedExtensionOutputs(tgt, twins); n != 1 {
+		t.Errorf("colliding agents = %d, want 1", n)
+	}
+}
+
 func TestSyncedExtensionOutputs_ChangedSourceIsDrift(t *testing.T) {
 	src, tgt, agents := agentFixture(t)
 	spec := &ExtensionSpec{Run: []string{"cat"}, Dir: src, Name: "id", OutputExt: "toml"}

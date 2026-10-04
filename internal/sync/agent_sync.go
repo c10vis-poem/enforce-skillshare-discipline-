@@ -297,15 +297,17 @@ func SyncedAgentCopies(targetDir string, agents []resource.DiscoveredResource, p
 // spec. Refs #391.
 func SyncedExtensionOutputs(targetDir string, agents []resource.DiscoveredResource) int {
 	copies := loadCopyTracker(targetDir)
+	used := make(map[string]bool) // one output satisfies one agent, even when flat names collide
 	n := 0
 	for _, a := range agents {
 		stem := strings.TrimSuffix(a.FlatName, filepath.Ext(a.FlatName))
 		for key := range copies.m.Managed {
-			if strings.TrimSuffix(key, filepath.Ext(key)) != stem {
+			if used[key] || strings.TrimSuffix(key, filepath.Ext(key)) != stem {
 				continue
 			}
 			rel := filepath.FromSlash(key)
 			if copies.owns(rel) && copies.sourceMatches(rel, a.AbsPath) {
+				used[key] = true
 				n++
 				break
 			}
