@@ -117,8 +117,10 @@ func inspect(root string, explicit ...string) (Candidate, error) {
 			}
 			info.Components = manifestComponents(root, spec.target, m, info.Components)
 		}
-		// The first native manifest wins; explicit invalid manifests remain errors.
-		if _, exists := c.TargetInfo[spec.target]; !exists {
+		// The first native manifest wins; explicit invalid manifests remain errors. Codex is the
+		// exception: it installs from a portable root plugin.json ahead of .codex-plugin/plugin.json,
+		// and reports 1.0.0 when that manifest has no version.
+		if _, exists := c.TargetInfo[spec.target]; !exists || spec.path == "plugin.json" && spec.target == "codex" && info.Problem == "" {
 			c.TargetInfo[spec.target] = info
 		}
 		if spec.path == "plugin.json" && spec.target == "codex" {
