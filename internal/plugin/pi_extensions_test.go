@@ -425,6 +425,25 @@ func TestPiExtensionsUnruledInAnOverrideIsTheInheritedSelection(t *testing.T) {
 	assertRows(t, got, "extensions/a.ts:loads", "extensions/c.ts:skipped", "extensions/b.ts:")
 }
 
+// A project view names the plugin Skillshare installed, for the project's entry and an inherited global one.
+func TestPiProjectExtensionsNameTheManagedPlugin(t *testing.T) {
+	for _, project := range []bool{true, false} {
+		f := newPiFixture(t)
+		root := filepath.Join(f.home, "code", "acme")
+		writeTree(t, f.home, map[string]string{"config.yaml": "plugins:\n  packages:\n    powers:\n      bindings:\n        pi:\n          id: " + f.pkg + "\n"})
+		f.global(map[string]any{"packages": []any{f.pkg}})
+		entries := []any{}
+		if project {
+			entries = append(entries, map[string]any{"source": f.pkg, "autoload": false, "extensions": []string{"-extensions/a.ts"}})
+		}
+		f.writeJSON(filepath.Join(root, ".pi", "settings.json"), map[string]any{"packages": entries})
+		f.svc.ProjectRoot = root
+		if got := f.view("pi").Packages[0]; got.ManagedBy != "powers" {
+			t.Fatalf("project entry %v: managedBy = %q, scope %s", project, got.ManagedBy, got.Scope)
+		}
+	}
+}
+
 func TestPiExtensionsMarksAnExtraInPisFolder(t *testing.T) {
 	f := newPiFixture(t)
 	extra := filepath.Join(f.home, "extras", "pi-ext")

@@ -89,6 +89,7 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		rows    []piRowState
 		problem string
 	}
+	managed := s.piManaged(target)
 	globals := map[string]*globalPkg{}
 	globalOrder := []*globalPkg{}
 	unresolvedGlobal := false
@@ -146,8 +147,10 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 			v.Packages = append(v.Packages, pkg)
 			continue
 		}
-		id := resolvePiSource(e.source, agentDir, projectDir, "project").identity
+		src := resolvePiSource(e.source, agentDir, projectDir, "project")
+		id := src.identity
 		pkg.Identity = redactSource(id)
+		pkg.ManagedBy = piManagedBy(managed, e.source, src)
 		if id != "" && lastProject[id] != e.index {
 			pkg.Problem = "duplicate"
 			v.Packages = append(v.Packages, pkg)
@@ -217,6 +220,7 @@ func (s *Service) piProjectState(ctx context.Context, target string) (*piProject
 		if g.entry.hasRules {
 			pkg.Rules = g.entry.rules
 		}
+		pkg.ManagedBy = piManagedBy(managed, g.entry.source, g.pkg.src)
 		reference, readOnly := piOverrideReference(g.entry.source, g.pkg, agentDir, projectDir)
 		pkg.ReadOnly = readOnly
 		for _, r := range g.rows {
