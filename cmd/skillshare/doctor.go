@@ -15,6 +15,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
 	"skillshare/internal/skillignore"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/trash"
@@ -242,6 +243,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	checkSource(cfg, result, discovered, discoverErr)
 	checkAgentsSource(cfg, result)
 	checkSkillignore(result, stats)
+	checkUndeclaredSourceLinks(cfg.EffectiveSkillsSource(), result)
 	checkSymlinkSupport(result)
 	checkTheme(result)
 
@@ -304,6 +306,25 @@ func checkSkillignore(result *doctorResult, stats *skillignore.IgnoreStats) {
 	result.addCheck("skillignore", checkPass, ".skillignore: "+msg, details)
 }
 
+// checkUndeclaredSourceLinks reports first-level links without following them.
+func checkUndeclaredSourceLinks(source string, result *doctorResult) {
+	root := utils.ResolveSymlink(source)
+	entries, err := sourcewalk.ReadDir(root, sourcewalk.Options{})
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(root, entry.Name())
+		info, err := entry.Info()
+		if err != nil || !utils.IsLinkMode(path, info.Mode()) {
+			continue
+		}
+		message := entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
+		ui.Row(ui.MarkNone, "Source link", message, doctorWidth)
+		result.addInfo("undeclared_source_links", message)
+	}
+}
+
 func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
 	info, err := os.Stat(cfg.EffectiveSkillsSource())
 	if err != nil {
@@ -325,7 +346,7 @@ func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.Dis
 	if discoverErr == nil {
 		skillCount = len(discovered)
 	} else {
-		entries, _ := os.ReadDir(cfg.EffectiveSkillsSource())
+		entries, _ := sourcewalk.ReadDir(cfg.EffectiveSkillsSource(), sourcewalk.Options{})
 		for _, e := range entries {
 			if e.IsDir() && !utils.IsHidden(e.Name()) {
 				skillCount++
@@ -805,7 +826,7 @@ func checkMissingTrackedRepos(source string, result *doctorResult, isProject boo
 }
 
 func checkSkillsValidity(source string, result *doctorResult, discovered []sync.DiscoveredSkill) {
-	entries, err := os.ReadDir(source)
+	entries, err := sourcewalk.ReadDir(source, sourcewalk.Options{})
 	if err != nil {
 		return
 	}
