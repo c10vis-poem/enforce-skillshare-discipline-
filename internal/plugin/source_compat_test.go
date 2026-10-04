@@ -131,6 +131,23 @@ func TestCodexPortableManifestPrecedesNative(t *testing.T) {
 	}
 }
 
+// Codex reports 1.0.0 for a portable manifest without a version; expecting it keeps the
+// post-update version check instead of skipping it.
+func TestCodexExpectsDefaultVersionOfVersionlessPortableManifest(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "plugin.json", `{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"demo"}`)
+	d, err := Discover(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Candidates[0].TargetInfo["codex"].Version; got != "1.0.0" {
+		t.Fatalf("Codex version = %q, want 1.0.0", got)
+	}
+	if got := d.Candidates[0].TargetInfo["cursor"].Version; got != "" {
+		t.Fatalf("cursor version = %q, want none", got)
+	}
+}
+
 func TestCodexLogoComesFromTheManifestInsideThePlugin(t *testing.T) {
 	root := fixture(t)
 	writeFile(t, root, ".codex-plugin/plugin.json", `{"name":"demo","version":"1.0.0","skills":"./skills","interface":{"logo":"./logo.png"}}`)

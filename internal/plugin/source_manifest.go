@@ -129,6 +129,10 @@ func inspect(root string, explicit ...string) (Candidate, error) {
 					c.TargetInfo[target] = info
 				}
 			}
+			if codex := c.TargetInfo["codex"]; codex.Manifest == "plugin.json" && codex.Version == "" {
+				codex.Version = "1.0.0"
+				c.TargetInfo["codex"] = codex
+			}
 		}
 	}
 	if info, ok := c.TargetInfo["claude"]; ok && info.Problem == "" {
