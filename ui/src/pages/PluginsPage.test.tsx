@@ -174,6 +174,16 @@ describe('PluginsPage', () => {
     expect(await screen.findByText('1.4.0')).toBeInTheDocument();
     expect(screen.queryByText('1.0.0')).not.toBeInTheDocument();
   });
+  it('shows the version Pi has installed for any Pi package, git ones included', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({
+      targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'sync'], npm: true }],
+      packages: { tool: { bindings: { pi: { id: 'git:github.com/acme/tool', version: '1.0.0' } } } },
+      hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'git:github.com/acme/tool', version: '1.1.0', enabled: true }] }],
+    });
+    mount();
+    expect(await screen.findByText('1.1.0')).toBeInTheDocument();
+    expect(screen.queryByText('1.0.0')).not.toBeInTheDocument();
+  });
   it('clears the row update when the package already reached that version before the update ran', async () => {
     vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true }], packages: { driver: { bindings: { pi: { id: 'npm:driver' } } } }, hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] }] });
     vi.mocked(pluginsApi.preview)

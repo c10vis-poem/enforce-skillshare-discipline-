@@ -32,13 +32,14 @@ export const syncAction = (b: PluginBinding, host?: PluginInventory['hosts'][num
   return !host || host.error || exists ? '' : 'install';
 };
 /**
- * A binding's version: what config recorded, else what the Agent reports installed. For an npm
- * package Pi's answer comes first: it reads the installed package, and one recorded at import
- * goes stale with the next pi update.
+ * A binding's version: what config recorded, else what the Agent reports installed. On a Pi
+ * target Pi's answer comes first: it reads each installed package's package.json, npm, git or
+ * local, and a version recorded at import goes stale with the next pi update.
  */
-export const bindingVersion = (inventory: Pick<PluginInventory, 'hosts'>, target: PluginTarget, b: PluginBinding) => {
+export const bindingVersion = (inventory: Pick<PluginInventory, 'hosts' | 'targetDefinitions'>, target: PluginTarget, b: PluginBinding) => {
   const installed = inventory.hosts.find((h) => h.target === target)?.installed.find((i) => i.id === b.id)?.version;
-  return b.id.startsWith('npm:') ? installed ?? b.version : b.version ?? installed;
+  const pi = inventory.targetDefinitions?.some((d) => d.target === target && d.npm);
+  return pi ? installed ?? b.version : b.version ?? installed;
 };
 /**
  * The command that adds this plugin from its source on another machine, '' when the source is a
