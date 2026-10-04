@@ -85,7 +85,7 @@ func countLinkedAgents(ac config.ResourceTargetConfig, targetDir string, agents 
 	if ac.Extension != "" {
 		return sync.SyncedExtensionOutputs(targetDir, agents)
 	}
-	linked, _ := countAgentLinksAndBroken(targetDir)
+	linked, _ := countAgentLinksAndBroken(targetDir, agents)
 	return linked + sync.SyncedAgentCopies(targetDir, agents, preserved...)
 }
 
