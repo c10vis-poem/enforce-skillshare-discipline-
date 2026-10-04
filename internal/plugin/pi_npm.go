@@ -1,18 +1,15 @@
 package plugin
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"slices"
 	"strings"
 	"time"
 )
@@ -161,7 +158,7 @@ func (s *Service) npmVersions(ctx context.Context, target, id string, h Host, la
 		return nil, nil
 	}
 	settings, err := s.piSettingsPath(target)
-	if err != nil || !npmUsesPublicRegistry(filepath.Join(filepath.Dir(settings), "npm"), name) {
+	if err != nil || !npmUsesPublicRegistry(ctx, filepath.Join(filepath.Dir(settings), "npm"), name) {
 		return nil, nil
 	}
 	for _, item := range h.Installed {
@@ -180,68 +177,45 @@ func (s *Service) npmVersions(ctx context.Context, target, id string, h Host, la
 	return installed, latest
 }
 
-// npmGlobalConfig is the global npmrc npm reads: the one the environment names, else
-// $PREFIX/etc/npmrc, with the prefix from the environment or the npm on PATH; "" when neither
-// tells.
-func npmGlobalConfig() string {
-	if path := cmp.Or(os.Getenv("npm_config_globalconfig"), os.Getenv("NPM_CONFIG_GLOBALCONFIG")); path != "" {
-		return path
-	}
-	prefix := cmp.Or(os.Getenv("npm_config_prefix"), os.Getenv("NPM_CONFIG_PREFIX"))
-	if prefix == "" {
-		npm, err := exec.LookPath("npm")
-		if err != nil {
-			return ""
-		}
-		// npm sits in $PREFIX/bin, or in $PREFIX itself on Windows.
-		prefix = filepath.Dir(npm)
-		if runtime.GOOS != "windows" {
-			prefix = filepath.Dir(prefix)
-		}
-	}
-	return filepath.Join(prefix, "etc", "npmrc")
+// npmConfig runs `npm config get` with keys in dir, where Pi runs npm; tests stand in for it.
+var npmConfig = func(ctx context.Context, dir string, keys ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "npm", append([]string{"config", "get"}, keys...)...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	return string(out), err
 }
 
-// npmUsesPublicRegistry reports whether npm, run in dir as Pi runs it, fetches name from the
-// public registry: no registry setting for the package's scope, or for everything, names
-// another one in the environment or in the .npmrc files npm reads. When the global one
-// can't be found, the answer is no, so a private name never goes to npmjs.
-// ponytail: npm's builtin config, inside its own install, is not read; ask `npm config get`
-// if a registry set only there must be seen.
-func npmUsesPublicRegistry(dir, name string) bool {
+// npmUsesPublicRegistry asks npm, in the folder Pi runs it in, which registry it fetches name
+// from, for everything and for the package's scope. npm resolves its environment, every .npmrc
+// and the overrides they make itself. Another registry, or npm not answering, is a no, so a
+// private name never goes to npmjs.
+func npmUsesPublicRegistry(ctx context.Context, dir, name string) bool {
 	keys := []string{"registry"}
 	if scope, _, ok := strings.Cut(name, "/"); ok && strings.HasPrefix(scope, "@") {
 		keys = append(keys, scope+":registry")
 	}
-	public := func(value string) bool {
-		value = strings.TrimSuffix(strings.Trim(strings.TrimSpace(value), `"'`), "/")
-		return value == "" || strings.TrimSuffix(npmRegistry, "/") == value || value == "https://registry.npmjs.org"
-	}
-	for _, key := range keys {
-		if !public(os.Getenv("npm_config_"+key)) || !public(os.Getenv("NPM_CONFIG_"+strings.ToUpper(key))) {
-			return false
-		}
-	}
-	user := cmp.Or(os.Getenv("npm_config_userconfig"), os.Getenv("NPM_CONFIG_USERCONFIG"))
-	if user == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			user = filepath.Join(home, ".npmrc")
-		}
-	}
-	global := npmGlobalConfig()
-	if global == "" {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	out, err := npmConfig(ctx, dir, keys...)
+	if err != nil {
 		return false
 	}
-	for _, path := range []string{filepath.Join(dir, ".npmrc"), user, global} {
-		data, err := os.ReadFile(path)
-		if err != nil {
+	// One key prints its value; several print key=value lines, "undefined" for one not set.
+	values := map[string]string{"registry": strings.TrimSpace(out)}
+	if len(keys) > 1 {
+		for line := range strings.SplitSeq(out, "\n") {
+			if key, value, ok := strings.Cut(strings.TrimSpace(line), "="); ok {
+				values[key] = value
+			}
+		}
+	}
+	for _, key := range keys {
+		value := strings.TrimSuffix(strings.TrimSpace(values[key]), "/")
+		if key != "registry" && (value == "" || value == "undefined") {
 			continue
 		}
-		for line := range strings.SplitSeq(string(data), "\n") {
-			key, value, ok := strings.Cut(line, "=")
-			if ok && slices.Contains(keys, strings.TrimSpace(key)) && !public(value) {
-				return false
-			}
+		if value != "https://registry.npmjs.org" {
+			return false
 		}
 	}
 	return true
