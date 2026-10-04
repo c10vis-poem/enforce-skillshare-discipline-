@@ -148,6 +148,21 @@ func TestCodexExpectsDefaultVersionOfVersionlessPortableManifest(t *testing.T) {
 	}
 }
 
+// Codex overlays .codex-plugin/plugin.json on a portable manifest, so its logo still applies.
+func TestCodexKeepsNativeLogoUnderPortableManifest(t *testing.T) {
+	root := fixture(t)
+	writeFile(t, root, ".codex-plugin/plugin.json", `{"name":"demo","version":"1.0.0","skills":"./skills","interface":{"logo":"./logo.png"}}`)
+	writeFile(t, root, "logo.png", "png-bytes")
+	writeFile(t, root, "plugin.json", `{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"demo"}`)
+	d, err := Discover(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Candidates[0].TargetInfo["codex"].Logo; got != "data:image/png;base64,cG5nLWJ5dGVz" {
+		t.Fatalf("native logo lost: %q", got)
+	}
+}
+
 func TestCodexLogoComesFromTheManifestInsideThePlugin(t *testing.T) {
 	root := fixture(t)
 	writeFile(t, root, ".codex-plugin/plugin.json", `{"name":"demo","version":"1.0.0","skills":"./skills","interface":{"logo":"./logo.png"}}`)

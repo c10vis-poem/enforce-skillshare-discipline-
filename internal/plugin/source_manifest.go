@@ -120,7 +120,8 @@ func inspect(root string, explicit ...string) (Candidate, error) {
 		// The first native manifest wins; explicit invalid manifests remain errors. Codex is the
 		// exception: it installs from a portable root plugin.json ahead of .codex-plugin/plugin.json,
 		// and reports 1.0.0 when that manifest has no version.
-		if _, exists := c.TargetInfo[spec.target]; !exists || spec.path == "plugin.json" && spec.target == "codex" && info.Problem == "" {
+		native, exists := c.TargetInfo[spec.target]
+		if !exists || spec.path == "plugin.json" && spec.target == "codex" && info.Problem == "" {
 			c.TargetInfo[spec.target] = info
 		}
 		if spec.path == "plugin.json" && spec.target == "codex" {
@@ -129,8 +130,14 @@ func inspect(root string, explicit ...string) (Candidate, error) {
 					c.TargetInfo[target] = info
 				}
 			}
-			if codex := c.TargetInfo["codex"]; codex.Manifest == "plugin.json" && codex.Version == "" {
-				codex.Version = "1.0.0"
+			if codex := c.TargetInfo["codex"]; codex.Manifest == "plugin.json" {
+				// .codex-plugin/plugin.json still overlays the portable manifest, so keep its logo.
+				if codex.Logo == "" {
+					codex.Logo = native.Logo
+				}
+				if codex.Version == "" {
+					codex.Version = "1.0.0"
+				}
 				c.TargetInfo["codex"] = codex
 			}
 		}
