@@ -101,7 +101,7 @@ func TestInspectIgnoresMarkersInCodeExamples(t *testing.T) {
 
 func TestInstructionsNameWhereNotesBelong(t *testing.T) {
 	global := Instructions("/notes", "", ModeActive)
-	if !strings.Contains(global, "keeps that project's notes there") || strings.Contains(global, "Keep notes about this project here") {
+	if !strings.Contains(global, "keeps that project's notes there") || !strings.Contains(global, "applies across your projects") || strings.Contains(global, "Keep notes about this project here") || strings.Contains(global, "a decision with its reason") {
 		t.Errorf("global = %q", global)
 	}
 	project := Instructions("notes", "/repo", ModeActive)
