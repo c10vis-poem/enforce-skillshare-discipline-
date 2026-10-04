@@ -178,11 +178,12 @@ has a `.pi` folder, Pi changes its packages only after you trust the project in 
 Pi keeps one entry per package name. If Pi already has the same source, `add` imports
 it; another version of the package is installed, and Pi replaces that entry's source.
 `update` runs `pi update`, except for a package pinned to an exact version, which Pi
-keeps: add the package again with the new version instead. `check` compares the version in
-the installed package's `package.json` with the version npm's `latest` tag names on the
-public registry, and `update` leaves a package that is already at that version alone. A
-package from a private registry, or one whose version is not a plain `X.Y.Z`, is reported as
-something to check in Pi. The dashboard shows the installed version of every Pi package, on
+keeps: add the package again with the new version instead. For a package added without a
+version, `check` compares the version in the installed package's `package.json` with the
+version npm's `latest` tag names on the public registry, and `update` leaves a package that is
+already at that version alone. A package added with a version range or tag, one that the
+environment or an `.npmrc` sends to another registry, or one whose version is not a plain
+`X.Y.Z`, is reported as something to check in Pi. The dashboard shows the installed version of every Pi package, on
 the Plugins page and in a Pi target's Extensions tab. When you turned off some of the
 package's extensions, Pi keeps those rules on the new version, and Skillshare records them
 again so a later reinstall restores them. A Pi package that another Skillshare package

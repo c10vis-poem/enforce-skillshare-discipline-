@@ -351,6 +351,38 @@ func TestNpmPackageCheckLeavesAPrivateRegistryToPi(t *testing.T) {
 	}
 }
 
+// npm's latest says nothing about a package Pi keeps to a range or a tag.
+func TestNpmPackageCheckLeavesAVersionRangeToPi(t *testing.T) {
+	fakeNpmRegistry(t, "2.0.0")
+	var commands []string
+	s := fakePiNpm(t, &commands)
+	applyPluginRequest(t, s, Request{Action: "add", Source: "npm:demo@^1.2.0", Targets: []string{"pi"}})
+	writePluginFile(t, os.Getenv("HOME"), ".pi/agent/npm/node_modules/demo/package.json", `{"version":"1.3.0"}`)
+	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "native-check" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
+// npm reads its environment case-insensitively, so a lowercase userconfig names the .npmrc too.
+func TestNpmPackageCheckReadsALowercaseUserconfig(t *testing.T) {
+	fakeNpmRegistry(t, "1.2.0")
+	s := installedNpmDemo(t, "1.0.0")
+	npmrc := filepath.Join(t.TempDir(), "npmrc")
+	writePluginFile(t, filepath.Dir(npmrc), filepath.Base(npmrc), "registry=https://npm.example.com/\n")
+	t.Setenv("npm_config_userconfig", npmrc)
+	p, err := s.Preview(context.Background(), Request{Action: "check", Name: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := p.Changes[0]; c.Action != "native-check" {
+		t.Fatalf("changes: %+v", p.Changes)
+	}
+}
+
 func TestDiscoverExplainsNpmPackagesCannotBePreviewed(t *testing.T) {
 	_, err := Discover(context.Background(), "npm:demo")
 	if err == nil || !strings.Contains(err.Error(), "plugin add npm:") {

@@ -152,7 +152,7 @@ skillshare plugin add npm:@scope/package@1.2.0 --target pi --no-tui -g
 
 Pi 會下載套件並執行它的 install script，Skillshare 無法事先檢查內容；加入前請先在 pi.dev 或 npm 確認套件。`discover` 不接受 npm 來源，npm 來源也不接受 `--source-ref`、`--entry` 或 `--plugin`。只有 Pi target 能接受 npm 來源，包括執行 `pi` 的 Pi 帳號；執行其他執行檔的帳號，請用那個執行檔安裝後再匯入。搭配 `--project` 時，Pi 會把套件裝進專案的設定；專案一旦有 `.pi` 資料夾，要先在 Pi 信任這個專案，Pi 才會修改它的套件。
 
-Pi 每個套件名稱只保留一筆。Pi 已經有相同來源時，`add` 會匯入它；同一套件的其他版本則會安裝，由 Pi 替換那一筆的來源。`update` 會執行 `pi update`，但釘在精確版本的套件 Pi 會維持原版本，請改用新版本重新加入。`check` 會拿已安裝套件 `package.json` 裡的版本，和公開 registry 上 npm `latest` 標籤指向的版本比較；`update` 遇到已經是該版本的套件時不做任何事。來自私有 registry 的套件，或版本不是單純 `X.Y.Z` 的套件，會顯示為需要在 Pi 裡檢查。dashboard 會在 Plugins 頁面和 Pi target 的 Extensions 分頁顯示每個 Pi 套件的已安裝版本。如果你關掉了套件裡的某些 extension，Pi 會把這些規則保留到新版本，Skillshare 也會重新記錄，之後重裝時會還原。已經由另一個 Skillshare 套件管理的 Pi 套件會被拒絕，請改為更新或移除那一個。
+Pi 每個套件名稱只保留一筆。Pi 已經有相同來源時，`add` 會匯入它；同一套件的其他版本則會安裝，由 Pi 替換那一筆的來源。`update` 會執行 `pi update`，但釘在精確版本的套件 Pi 會維持原版本，請改用新版本重新加入。對於沒有指定版本就加入的套件，`check` 會拿已安裝套件 `package.json` 裡的版本，和公開 registry 上 npm `latest` 標籤指向的版本比較；`update` 遇到已經是該版本的套件時不做任何事。帶版本範圍或標籤加入的套件、被環境變數或 `.npmrc` 指向其他 registry 的套件，或版本不是單純 `X.Y.Z` 的套件，會顯示為需要在 Pi 裡檢查。dashboard 會在 Plugins 頁面和 Pi target 的 Extensions 分頁顯示每個 Pi 套件的已安裝版本。如果你關掉了套件裡的某些 extension，Pi 會把這些規則保留到新版本，Skillshare 也會重新記錄，之後重裝時會還原。已經由另一個 Skillshare 套件管理的 Pi 套件會被拒絕，請改為更新或移除那一個。
 
 在 dashboard 的新增對話框，可以直接貼上 `pi install npm:<套件>` 指令或套件的 pi.dev 網址，兩者都會轉成對應的 `npm:` 來源。
 

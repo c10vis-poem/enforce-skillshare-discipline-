@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -147,15 +148,17 @@ func (s *Service) recordPiEntry(ctx context.Context, target string, b *Binding) 
 // npmRegistry is where an update check asks for a package's latest version; tests point it elsewhere.
 var npmRegistry = "https://registry.npmjs.org"
 
-// npmVersions is the installed and latest plain X.Y.Z versions of an unpinned npm package, nil
+// npmVersions is the installed and latest plain X.Y.Z versions of an npm package added without a version, nil
 // where either is unknown. latests holds the registry's answers for one preview.
 // ponytail: asks the public registry only; a package from a private registry or an .npmrc
 // scope reads as unknown, and the check falls back to the native client.
 func (s *Service) npmVersions(ctx context.Context, target, id string, h Host, latests map[string][]int) (installed, latest []int) {
-	if !isNpmSource(id) || pinnedNpm(id) != "" {
+	// Pi keeps a package added with a version, range or tag to that spec; only one added
+	// without a version follows npm's latest.
+	name, spec := npmSpec(id)
+	if !isNpmSource(id) || spec != "" {
 		return nil, nil
 	}
-	name, _ := npmSpec(id)
 	settings, err := s.piSettingsPath(target)
 	if err != nil || !npmUsesPublicRegistry(filepath.Join(filepath.Dir(settings), "npm"), name) {
 		return nil, nil
@@ -195,7 +198,7 @@ func npmUsesPublicRegistry(dir, name string) bool {
 			return false
 		}
 	}
-	user := os.Getenv("NPM_CONFIG_USERCONFIG")
+	user := cmp.Or(os.Getenv("npm_config_userconfig"), os.Getenv("NPM_CONFIG_USERCONFIG"))
 	if user == "" {
 		if home, err := os.UserHomeDir(); err == nil {
 			user = filepath.Join(home, ".npmrc")
