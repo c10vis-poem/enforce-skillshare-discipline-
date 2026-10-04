@@ -288,11 +288,13 @@ func SyncedAgentCopies(targetDir string, agents []resource.DiscoveredResource, p
 }
 
 // SyncedExtensionOutputs counts agents whose extension output is tracked in
-// the target's manifest and unchanged since sync. An extension renames the
-// output per output_ext and transforms its content, so neither the source
-// name nor the source content can be compared; the manifest hash is the only
-// record of what sync wrote. Any output_ext is matched by stem, so callers
-// need not load the extension spec. Refs #391.
+// the target's manifest, unchanged since sync, and converted from the
+// source's current content. An extension renames the output per output_ext
+// and transforms its content, so neither the source name nor the source
+// content can be compared with the output; the manifest's output hash and
+// source fingerprint are the record of what sync wrote and from what. Any
+// output_ext is matched by stem, so callers need not load the extension
+// spec. Refs #391.
 func SyncedExtensionOutputs(targetDir string, agents []resource.DiscoveredResource) int {
 	copies := loadCopyTracker(targetDir)
 	n := 0
@@ -302,7 +304,8 @@ func SyncedExtensionOutputs(targetDir string, agents []resource.DiscoveredResour
 			if strings.TrimSuffix(key, filepath.Ext(key)) != stem {
 				continue
 			}
-			if copies.owns(filepath.FromSlash(key)) {
+			rel := filepath.FromSlash(key)
+			if copies.owns(rel) && copies.sourceMatches(rel, a.AbsPath) {
 				n++
 				break
 			}
@@ -516,6 +519,7 @@ func SyncAgentsTransform(agents []resource.DiscoveredResource, sourceDir, target
 		}
 		if readErr == nil && bytes.Equal(existing, out) && !force {
 			copies.record(name) // adopts outputs made before tracking
+			copies.recordSource(name, agent.AbsPath)
 			result.Linked = append(result.Linked, name)
 			continue
 		}
@@ -527,6 +531,7 @@ func SyncAgentsTransform(agents []resource.DiscoveredResource, sourceDir, target
 			continue
 		}
 		copies.record(name)
+		copies.recordSource(name, agent.AbsPath)
 		if readErr == nil {
 			result.Updated = append(result.Updated, name)
 		} else {

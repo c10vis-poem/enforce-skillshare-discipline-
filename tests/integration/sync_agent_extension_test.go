@@ -80,6 +80,19 @@ func TestStatus_AgentsExtension_CountsConvertedOutputs(t *testing.T) {
 	if !strings.Contains(doctor.Stdout, "2/2 linked") {
 		t.Errorf("doctor should report 2/2 linked, got:\n%s", doctor.Stdout)
 	}
+
+	// A changed source is drift until it is converted again.
+	createAgentSource(t, sb, map[string]string{"reviewer.md": "body v2"})
+	res = sb.RunCLI("status", "--json")
+	res.AssertSuccess(t)
+	if !strings.Contains(res.Stdout, `"linked": 1`) || !strings.Contains(res.Stdout, `"drift": true`) {
+		t.Errorf("status --json should report drift after a source change, got:\n%s", res.Stdout)
+	}
+	sb.RunCLI("sync", "agents").AssertSuccess(t)
+	res = sb.RunCLI("status", "--json")
+	if !strings.Contains(res.Stdout, `"linked": 2`) || !strings.Contains(res.Stdout, `"drift": false`) {
+		t.Errorf("status --json should report 2/2 after resync, got:\n%s", res.Stdout)
+	}
 }
 
 func TestSync_AgentsExtension_RejectsMergeMode(t *testing.T) {
