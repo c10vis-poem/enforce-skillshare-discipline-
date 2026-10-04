@@ -326,7 +326,10 @@ never supplies native trust approval flags.
 
 - Claude requires its native `.claude-plugin/plugin.json` package.
 - Codex accepts `.codex-plugin/plugin.json` and recognized portable root
-  `plugin.json` packages. A Claude-only package is not silently converted.
+  `plugin.json` packages. When a package has both, Codex installs from the portable
+  root `plugin.json`, so Skillshare expects that manifest's version, or `1.0.0`
+  when it has none.
+  A Claude-only package is not silently converted.
 - Sources may contain a marketplace with local plugin entries. External catalog
   catalogs are merged by plugin name/path. Conflicting paths are rejected; external
   entries are reported with instructions to add their repository directly or
