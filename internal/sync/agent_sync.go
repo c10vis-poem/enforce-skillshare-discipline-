@@ -287,6 +287,30 @@ func SyncedAgentCopies(targetDir string, agents []resource.DiscoveredResource, p
 	return n
 }
 
+// SyncedExtensionOutputs counts agents whose extension output is tracked in
+// the target's manifest and unchanged since sync. An extension renames the
+// output per output_ext and transforms its content, so neither the source
+// name nor the source content can be compared; the manifest hash is the only
+// record of what sync wrote. Any output_ext is matched by stem, so callers
+// need not load the extension spec. Refs #391.
+func SyncedExtensionOutputs(targetDir string, agents []resource.DiscoveredResource) int {
+	copies := loadCopyTracker(targetDir)
+	n := 0
+	for _, a := range agents {
+		stem := strings.TrimSuffix(a.FlatName, filepath.Ext(a.FlatName))
+		for key := range copies.m.Managed {
+			if strings.TrimSuffix(key, filepath.Ext(key)) != stem {
+				continue
+			}
+			if copies.owns(filepath.FromSlash(key)) {
+				n++
+				break
+			}
+		}
+	}
+	return n
+}
+
 // syncAgentsSymlink creates a single directory symlink from targetDir to sourceDir.
 // If targetDir already exists as a real directory, it's replaced only with force.
 func syncAgentsSymlink(sourceDir, targetDir string, dryRun, force bool, projectRoot string) (*AgentSyncResult, error) {
