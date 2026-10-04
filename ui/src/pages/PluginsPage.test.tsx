@@ -200,15 +200,22 @@ describe('PluginsPage', () => {
         { target: 'omo', label: 'omo', project: false, operations: ['add', 'sync'], npm: true },
         { target: 'codex', label: 'Codex', project: false, operations: ['add', 'sync'] },
       ],
-      packages: { demo: { bindings: { codex: { id: 'demo@market' } } }, driver: { bindings: { omo: { id: 'npm:@scope/driver' } } } },
+      packages: {
+        demo: { bindings: { codex: { id: 'demo@market' } } },
+        driver: { bindings: { omo: { id: 'npm:@scope/driver' } } },
+        // Skillshare installs this one from its source, even though only a Pi target has it.
+        powers: { source: 'owner/powers', bindings: { omo: { id: 'local:/state/powers/content', source: 'owner/powers' } } },
+      },
       hosts: [],
     });
     mount();
     const pi = (await screen.findByRole('heading', { name: 'plugins.piTitle' })).closest('section')!;
     const managed = screen.getByRole('heading', { name: 'plugins.managedTitle' }).closest('section')!;
     expect(pi).toHaveTextContent('driver');
+    expect(pi).not.toHaveTextContent('powers');
     expect(managed).not.toHaveTextContent('driver');
     expect(managed).toHaveTextContent('demo');
+    expect(managed).toHaveTextContent('powers');
   });
   it('offers an imported npm package to the other Pi targets, installing it from its identifier', async () => {
     vi.mocked(pluginsApi.list).mockResolvedValue({

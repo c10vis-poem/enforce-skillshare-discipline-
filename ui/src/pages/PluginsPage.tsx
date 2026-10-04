@@ -135,12 +135,14 @@ export default function PluginsPage() {
       ],
     });
   };
-  // A package bound only to Pi targets is a Pi package: it gets its own list, in the same rows.
+  // A package Pi installs itself (no source Skillshare copies from) and bound only to Pi targets
+  // is a Pi package: it gets its own list, in the same rows. A plugin Skillshare installs stays above.
   const piTargets = new Set((data?.targetDefinitions ?? []).filter((d) => d.npm).map((d) => d.target));
   const names = Object.keys(data?.packages ?? {});
   const isPi = (name: string) => {
-    const bound = Object.keys(data!.packages[name].bindings);
-    return bound.length > 0 && bound.every((target) => piTargets.has(target));
+    const pack = data!.packages[name];
+    const bound = Object.entries(pack.bindings);
+    return !pack.source && bound.length > 0 && bound.every(([target, b]) => piTargets.has(target) && !b?.source);
   };
   const piPackages = names.filter(isPi);
   const plugins = names.filter((name) => !isPi(name));

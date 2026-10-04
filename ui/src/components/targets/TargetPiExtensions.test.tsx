@@ -105,6 +105,11 @@ describe('Pi target Extensions tab', () => {
     expect(screen.queryByText('Package default')).not.toBeInTheDocument();
   });
 
+  it('names a package Skillshare installs by its plugin, not its state path', async () => {
+    show(global({ packages: [{ ...global().packages[0], managedBy: 'superpowers' }] }));
+    expect(await screen.findByRole('region', { name: 'superpowers' })).toBeInTheDocument();
+  });
+
   it('collapses a package to its header', async () => {
     const user = userEvent.setup();
     show(global());
