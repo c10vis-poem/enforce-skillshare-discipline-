@@ -61,6 +61,7 @@ source recovery; target backups do not replace source version control.
   `uninstall <link>` removes only the link, `uninstall <link>/<skill>` trashes the skill
   from the real checkout, and an unavailable link target holds back pruning.
   This includes read failures while traversing the target or its subdirectories,
-  even after some skills have been discovered.
+  even after some skills have been discovered. Dashboard file lists include
+  `SKILL.md` and attachments even when the followed link itself is the skill root.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.
