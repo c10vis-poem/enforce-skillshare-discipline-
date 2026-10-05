@@ -136,9 +136,15 @@ func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 		return f.skip(name, unavailableReason(err), true)
 	}
 	dir.Close()
-	target, err := filepath.EvalSymlinks(path)
+	// Readlink first: on Windows, EvalSymlinks leaves a junction unresolved
+	// (Go 1.23+ reports it as irregular, not a symlink), which would make the
+	// walk below descend into the link entry itself and find nothing.
+	target, err := utils.ResolveLinkTarget(path)
 	if err != nil {
 		return f.skip(name, unavailableReason(err), true)
+	}
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		target = resolved
 	}
 	if within(f.root, target) {
 		return f.skip(name, "target is the source or a parent of it", false)
