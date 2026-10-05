@@ -228,14 +228,19 @@ func cmdUpdate(args []string) error {
 				return filepath.SkipDir
 			}
 
-			// Tracked repo
-			if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+			// Followed checkouts are skipped whatever their name: a root SKILL.md
+			// would otherwise schedule them as a regular update below.
+			if info.IsDir() {
 				if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
 					if warning != "" {
 						resolveWarnings = append(resolveWarnings, warning)
 					}
 					return filepath.SkipDir
 				}
+			}
+
+			// Tracked repo
+			if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
 				if install.IsGitRepo(path) {
 					rel, _ := filepath.Rel(walkRoot, path)
 					if !seen[rel] {

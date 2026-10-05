@@ -136,3 +136,67 @@ func TestUpdateAllSkipsFollowedCheckoutWithMetadata(t *testing.T) {
 		}
 	}
 }
+
+// A followed checkout linked under a name without the "_" prefix must be
+// skipped too: its root SKILL.md plus a metadata source would otherwise make
+// --all treat it as a regular skill and pull the user's own checkout.
+func TestUpdateAllSkipsFollowedCheckoutWithoutPrefix(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		t.Run(fmt.Sprintf("project=%t", project), func(t *testing.T) {
+			root := t.TempDir()
+			testutil.SetIsolatedXDG(t, root)
+			t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+			source := filepath.Join(root, "skills")
+			cfg := &config.Config{Source: source, FollowSourceLinks: true}
+			if err := cfg.Save(); err != nil {
+				t.Fatal(err)
+			}
+			if project {
+				projectCfg := &config.ProjectConfig{Sources: config.ProjectSources{Skills: source}, FollowSourceLinks: true}
+				if err := projectCfg.Save(root); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.MkdirAll(source, 0755); err != nil {
+				t.Fatal(err)
+			}
+			remote := testutil.SetupBareRemoteRepo(t, root)
+			testutil.SeedRemoteBranch(t, root, remote, "main", map[string]string{"SKILL.md": "# Safe skill\n"})
+			checkout := filepath.Join(root, "checkout")
+			testutil.RunGit(t, "", "clone", remote, checkout)
+			before := testutil.RunGit(t, checkout, "rev-parse", "HEAD")
+			seed := filepath.Join(root, "seed-main")
+			if err := os.WriteFile(filepath.Join(seed, "SKILL.md"), []byte("# Updated skill\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			testutil.RunGit(t, seed, "add", ".")
+			testutil.RunGit(t, seed, "commit", "-m", "advance remote")
+			testutil.RunGit(t, seed, "push", "origin", "HEAD:main")
+			if err := os.Symlink(checkout, filepath.Join(source, "dev-skills")); err != nil {
+				t.Fatal(err)
+			}
+			store := install.LoadMetadataOrNew(source)
+			store.Set("dev-skills", &install.MetadataEntry{Source: "file://" + remote})
+			if err := store.Save(source); err != nil {
+				t.Fatal(err)
+			}
+			output := captureStdoutStderr(t, func() {
+				var err error
+				if project {
+					_, err = cmdUpdateProject([]string{"--all", "--force"}, root)
+				} else {
+					err = cmdUpdate([]string{"-g", "--all", "--force"})
+				}
+				if err != nil {
+					t.Errorf("update --all: %v", err)
+				}
+			})
+			if !strings.Contains(output, "dev-skills: followed source link, not updated by --all") {
+				t.Fatalf("skip warning missing: %s", output)
+			}
+			if got := testutil.RunGit(t, checkout, "rev-parse", "HEAD"); got != before {
+				t.Fatalf("HEAD changed: %s", got)
+			}
+		})
+	}
+}
