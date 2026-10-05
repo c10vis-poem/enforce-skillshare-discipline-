@@ -29,6 +29,9 @@ land in the real checkout, and that trashing the junction never touches the chec
   follow_source_links: true to follow it`.
 - `_self` (junction to the source root) and `_tgt` (junction to the sync target)
   are always skipped with a warning naming the reason.
+- Junction chains: `_chain` → `alias` (junction) → a second checkout is followed and
+  `_chain__qux` is synced; `_tgt2`, a junction to the sync target spelled through a
+  junction to the home folder, is skipped as a target overlap.
 
 ## Environment
 
@@ -79,6 +82,8 @@ still works, but git-status lines in the report differ.
   `checkout entries: bar, foo` after restore.
 - `uninstall the link itself` section: `_dev-skills link exists: False`, `checkout
   entries: bar, foo`, trash shows `link →`, restore yields `LinkType=Junction`.
+- `junction chain` section: doctor shows `_chain: followed as a directory` and `_tgt2`
+  skipped with `target overlaps sync target`; `_chain__qux` is a junction with `read=yes`.
 - `follow off` section: the `Set follow_source_links: true` doctor line.
 
 Report which token (full or basic-user) and architecture the result came from.

@@ -70,6 +70,15 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 cmd /c "mklink /J `"$S\_dev-skills`" `"$D`"" 2>&1 | ForEach-Object { Log "$_" }
 cmd /c "mklink /J `"$S\_self`" `"$S`"" 2>&1 | ForEach-Object { Log "$_" }
 cmd /c "mklink /J `"$S\_tgt`" `"$H\.claude\skills`"" 2>&1 | ForEach-Object { Log "$_" }
+# Junction chains: EvalSymlinks leaves a junction in place, so the policy must resolve them itself.
+# _chain -> alias (junction) -> second checkout; _tgt2 -> <junction to home>\.claude\skills (overlap through a junction).
+$D2 = "$Root\drive\chain-skills"
+New-Item -ItemType Directory -Force "$D2\qux", "$Root\alias-parent" | Out-Null
+"---`nname: qux`ndescription: Qux behind a junction chain`n---`nqux v1`n" | Set-Content -NoNewline "$D2\qux\SKILL.md"
+cmd /c "mklink /J `"$Root\alias`" `"$D2`"" 2>&1 | ForEach-Object { Log "$_" }
+cmd /c "mklink /J `"$S\_chain`" `"$Root\alias`"" 2>&1 | ForEach-Object { Log "$_" }
+cmd /c "mklink /J `"$Root\alias-parent\home`" `"$H`"" 2>&1 | ForEach-Object { Log "$_" }
+cmd /c "mklink /J `"$S\_tgt2`" `"$Root\alias-parent\home\.claude\skills`"" 2>&1 | ForEach-Object { Log "$_" }
 @"
 source: '$S'
 mode: merge
@@ -87,7 +96,7 @@ Log "source.path=$($st.source.path)"
 if (-not $st -or ($st.source.path.TrimEnd('\') -ine $S)) { Log 'ABORT: config is not under the test root'; Log 'DONE'; exit 1 }
 
 $T = "$H\.claude\skills"
-function InspectAll { Inspect "$T\_dev-skills__foo"; Inspect "$T\_dev-skills__bar"; Inspect "$T\demo-skill" }
+function InspectAll { Inspect "$T\_dev-skills__foo"; Inspect "$T\_dev-skills__bar"; Inspect "$T\_chain__qux"; Inspect "$T\demo-skill" }
 
 Section 'list / doctor (follow on)'
 Run @('list', '--no-tui')
@@ -136,6 +145,11 @@ Run @('trash', 'restore', '_dev-skills')
 Inspect "$S\_dev-skills"
 Run @('sync')
 Inspect "$T\_dev-skills__foo"
+
+Section 'junction chain: _chain discovered, _tgt2 skipped as overlap'
+Run @('doctor')
+Log (($script:LastOut -split "`r?`n" | Select-String '_chain|_tgt2') -join "`n")
+Inspect "$T\_chain__qux"
 
 Section 'follow off: links invisible'
 (Get-Content "$env:APPDATA\skillshare\config.yaml") -replace 'follow_source_links: true', 'follow_source_links: false' | Set-Content "$env:APPDATA\skillshare\config.yaml"

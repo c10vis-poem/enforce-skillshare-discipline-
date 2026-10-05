@@ -181,14 +181,15 @@ skillshare sync
 If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
 
 :::warning Updates change the real checkout
-`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes. `skillshare update --all` skips followed links with a warning for that reason; update them by name.
+`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes. `skillshare update --all` skips followed links with a warning for that reason; update them by name. `skillshare install <url> --track --update` and the dashboard's update refuse to pull a followed checkout that has uncommitted changes, because a blocking audit finding would otherwise roll the checkout back with `git reset --hard`; commit or stash first.
 :::
 
 #### Safety guards
 
 - A link pointing at the source root or one of its ancestors is skipped.
 - A link overlapping a sync target is skipped. This is decided from the link text, so it also applies when the target directory does not exist yet.
-- A link whose target is missing or not a directory is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
+- A link whose target is missing or unreadable is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
+- A link to a file (a shared `.skillignore`, say) is not a directory link. It stays an ordinary entry and never affects pruning.
 
 #### How discovery decides
 
@@ -204,9 +205,13 @@ flowchart TD
     H -- yes --> I[Skipped with a warning: cycle]
     H -- no --> J{Link points into or around a sync target?}
     J -- yes --> K[Skipped with a warning: target overlap]
-    J -- no --> F{Target exists and is a directory?}
+    J -- no --> F{Target exists?}
     F -- no --> G[Skipped with a warning; this run deletes nothing]
-    F -- yes --> L[Treated as a directory under the link name, one level only]
+    F -- yes --> N{Target is a directory?}
+    N -- no --> O[Ordinary entry, such as a link to a shared file]
+    N -- yes --> R{Target readable?}
+    R -- no --> G
+    R -- yes --> L[Treated as a directory under the link name, one level only]
     L --> M[Skills keep logical paths such as source/_dev-skills/foo]
 ```
 
@@ -221,7 +226,7 @@ skillshare sync
 
 While the drive is mounted, `_dev-skills` behaves like any other tracked-repo group. When it is not mounted:
 
-- `list`, `sync`, `status`, `update --all`, and the dashboard skip the link and print one warning naming it.
+- `list`, `sync`, `status`, `update --all`, `audit`, and the dashboard skip the link and print one warning naming it. `sync --json` lists it under `warnings`; `audit --format json` lists it under `warnings` and sets `incomplete: true`, so automation can tell a partial run from a complete one.
 - That run makes **no deletions**: target links and copies that came from the drive stay in place, orphan copies are not cleaned up, and install metadata for its skills is kept, because an unavailable link means the inventory is incomplete, not that the skills were removed.
 - In symlink mode, the target links point at the unmounted path, so the AI tools cannot read those skills until the drive is back. In copy mode, the copies keep working.
 - `skillshare doctor` shows those target links as waiting for the source link, as a warning, and does not suggest pruning them.
@@ -231,9 +236,11 @@ The mount path must stay the same between sessions. On macOS that is `/Volumes/<
 
 #### Writes through the link
 
-Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
+Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
 
-On Unix, committing the source repo stages the link as an absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
+`--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare uninstall _dev-skills` for the link, or name the skills to trash.
+
+On Unix, committing the source repo stages the link entry itself, that is its target text, which is usually a machine-local absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
 
 #### Windows
 
