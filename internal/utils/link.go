@@ -27,9 +27,10 @@ func IsLinkMode(path string, m fs.FileMode) bool {
 }
 
 // IsJunction reports whether path is a Windows junction, as opposed to a symlink.
+// With GODEBUG=winsymlink=0 Go reports a junction as ModeSymlink, so check both.
 func IsJunction(path string) bool {
 	info, err := os.Lstat(path)
-	return err == nil && info.Mode()&fs.ModeIrregular != 0 && isJunction(path)
+	return err == nil && info.Mode()&(fs.ModeIrregular|fs.ModeSymlink) != 0 && isJunction(path)
 }
 
 // isJunction reports whether path is a Windows junction (mount point).
