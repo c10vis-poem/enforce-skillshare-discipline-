@@ -210,6 +210,24 @@ flowchart TD
     L --> M[Skills keep logical paths such as source/_dev-skills/foo]
 ```
 
+#### Skills on an external drive
+
+Keep a checkout on an external drive and link it into the source:
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+While the drive is mounted, `_dev-skills` behaves like any other tracked-repo group. When it is not mounted:
+
+- `list`, `sync`, `status`, `update --all`, and the dashboard skip the link and print one warning naming it.
+- That run makes **no deletions**: target links and copies that came from the drive stay in place, orphan copies are not cleaned up, and install metadata for its skills is kept, because an unavailable link means the inventory is incomplete, not that the skills were removed.
+- In symlink mode, the target links point at the unmounted path, so the AI tools cannot read those skills until the drive is back. In copy mode, the copies keep working.
+- Nothing has to be re-registered: mount the drive and run `skillshare sync` again.
+
+The mount path must stay the same between sessions. On macOS that is `/Volumes/<name>`, so keep the volume name fixed. On Windows, a drive letter that changes between plugs leaves the junction pointing at the wrong place; assign a fixed letter in Disk Management or use a mounted folder path instead.
+
 #### Writes through the link
 
 Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
