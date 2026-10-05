@@ -5,10 +5,42 @@ package integration
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"skillshare/internal/testutil"
+	"skillshare/internal/utils"
 )
+
+func TestUninstall_FollowedLinkRootSkillRefused(t *testing.T) {
+	for _, args := range [][]string{{"dev"}, {"--all"}, {"dev", "--json"}} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			sb := testutil.NewSandbox(t)
+			defer sb.Cleanup()
+			checkout := filepath.Join(sb.Root, "code", "dev-skills")
+			sb.WriteFile(filepath.Join(checkout, "SKILL.md"), "---\nname: dev\n---\n# dev")
+			sb.WriteFile(filepath.Join(checkout, "child", "SKILL.md"), "---\nname: child\n---\n# child")
+			link := filepath.Join(sb.SourcePath, "dev")
+			sb.CreateSymlink(checkout, link)
+			sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets: {}\n")
+			result := sb.RunCLI(append([]string{"uninstall", "--force"}, args...)...)
+			result.AssertFailure(t)
+			result.AssertAnyOutputContains(t, "dev is the linked folder itself; use unlink to remove the link")
+			if !utils.IsSymlinkOrJunction(link) {
+				t.Fatal("link was removed")
+			}
+			for _, rel := range []string{"SKILL.md", "child/SKILL.md"} {
+				if !sb.FileExists(filepath.Join(link, filepath.FromSlash(rel))) {
+					t.Fatalf("skill disappeared through link: %s", rel)
+				}
+			}
+			sb.RunCLI("unlink", "dev").AssertSuccess(t)
+			if utils.IsSymlinkOrJunction(link) || !sb.FileExists(filepath.Join(checkout, "SKILL.md")) {
+				t.Fatal("unlink did not remove only the link")
+			}
+		})
+	}
+}
 
 func TestUninstall_NestedSkillBelowFollowedSourceLink(t *testing.T) {
 	for _, follow := range []bool{true, false} {

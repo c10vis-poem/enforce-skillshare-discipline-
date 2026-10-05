@@ -117,6 +117,27 @@ func TestFollowKeepsLinkEntrySemantics(t *testing.T) {
 	}
 }
 
+func TestCheckSkillMoveOut_RefusesFollowedRootSkill(t *testing.T) {
+	r, _, ext := followFixture(t)
+	follow := sourcewalk.NewFollow(r.Dir(), nil)
+	link := filepath.Join(r.Dir(), "_f")
+	if err := CheckSkillMoveOut(r.Dir(), link, follow); !errors.Is(err, ErrLinkedSkillRoot) {
+		t.Fatalf("root skill move = %v, want ErrLinkedSkillRoot", err)
+	}
+	if err := CheckSkillMoveOut(r.Dir(), filepath.Join(link, "child"), follow); err != nil {
+		t.Fatalf("nested skill move: %v", err)
+	}
+	if err := CheckMoveOut(r.Dir(), link, follow); err != nil {
+		t.Fatalf("explicit link move: %v", err)
+	}
+	if err := os.Remove(filepath.Join(ext, "SKILL.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckSkillMoveOut(r.Dir(), link, follow); err != nil {
+		t.Fatalf("container link move: %v", err)
+	}
+}
+
 func TestNoPolicyKeepsRefusals(t *testing.T) {
 	_, plain, _ := followFixture(t)
 	name := filepath.Join("_f", "child", "SKILL.md")

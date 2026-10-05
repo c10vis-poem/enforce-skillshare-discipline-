@@ -103,7 +103,9 @@ Glob マッチングは大文字・小文字を区別しません: `"Core-*"` �
 Glob パターンは source フォルダ内の**トップレベルのディレクトリ名**に対してマッチします。ネストされた skill（例: `frontend/react-hooks`）は `"react-*"` にマッチしません — サブディレクトリ内の skill を対象にするには `--group frontend` を使ってください。
 :::
 
-`--group` は `_dev-skills` のような[たどられた source リンク](../targets/configuration.md#follow_source_links)を拒否します。実際のチェックアウトからすべての skill を移動してしまうためです。リンクのエントリを削除するには `skillshare uninstall _dev-skills` を使い、チェックアウトから skill を trash に移動するには skill を名前で指定してください（`skillshare uninstall _dev-skills/foo`）。
+`--group` は `_dev-skills` のような[たどられた source リンク](../targets/configuration.md#follow_source_links)を拒否します。実際のチェックアウトからすべての skill を移動してしまうためです。リンクのエントリを削除するには `skillshare unlink _dev-skills` を使い、チェックアウトから skill を trash に移動するには skill を名前で指定してください（`skillshare uninstall _dev-skills/foo`）。
+
+リンク先フォルダーの直下に `SKILL.md` がある場合、そのルート skill の uninstall は拒否されます。移動するとリンクが削除され、入れ子の skill もすべて見えなくなるためです。[`unlink`](./unlink.md) でリンクだけを削除してください。チェックアウトは変更されません。
 
 ## すべて削除
 

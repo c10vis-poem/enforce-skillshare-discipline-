@@ -280,7 +280,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		if err := sourcefs.CheckMoveOut(source, skill.SourcePath, walk.Follow); err != nil {
+		if err := sourcefs.CheckSkillMoveOut(source, skill.SourcePath, walk.Follow); err != nil {
 			res.Success = false
 			res.Error = err.Error()
 			results = append(results, res)

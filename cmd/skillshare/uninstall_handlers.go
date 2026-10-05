@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -113,7 +114,7 @@ func performUninstallQuiet(target *uninstallTarget, sourceDir, trashDir string, 
 		groupSkillCount = len(countGroupSkills(target.path))
 	}
 
-	if err := sourcefs.CheckMoveOut(sourceDir, target.path, follow); err != nil {
+	if err := sourcefs.CheckSkillMoveOut(sourceDir, target.path, follow); err != nil {
 		return "", err
 	}
 	if _, err := trash.MoveToTrash(target.path, target.name, trashDir); err != nil {
@@ -132,7 +133,7 @@ func performUninstallQuiet(target *uninstallTarget, sourceDir, trashDir string, 
 // performUninstall moves the skill to trash (verbose single-target output).
 // Note: .gitignore cleanup is handled in batch by the caller.
 func performUninstall(target *uninstallTarget, mode *uninstallMode) error {
-	if err := sourcefs.CheckMoveOut(mode.sourceDir, target.path, mode.walk.Follow); err != nil {
+	if err := sourcefs.CheckSkillMoveOut(mode.sourceDir, target.path, mode.walk.Follow); err != nil {
 		return err
 	}
 	if _, err := trash.MoveToTrash(target.path, target.name, mode.trashDir); err != nil {
@@ -489,7 +490,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 			}
 			if err := performUninstall(t, mode); err != nil {
 				failed = append(failed, fmt.Sprintf("%s: %v", t.name, err))
-				if mode.reportAfterFinalize {
+				if mode.reportAfterFinalize || errors.Is(err, sourcefs.ErrLinkedSkillRoot) {
 					ui.Warning("Failed to uninstall %s: %v", t.name, err)
 				}
 			} else {

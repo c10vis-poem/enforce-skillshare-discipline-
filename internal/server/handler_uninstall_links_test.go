@@ -13,6 +13,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/trash"
+	"skillshare/internal/utils"
 )
 
 func uninstallLinkedSkill(t *testing.T, s *Server, name string, batch bool) (*httptest.ResponseRecorder, bool) {
@@ -109,6 +110,51 @@ func testUninstallFollowedLink(t *testing.T, batch bool) {
 
 func TestHandleUninstallSkill_FollowedLink(t *testing.T) {
 	testUninstallFollowedLink(t, false)
+}
+
+func TestHandleUninstallSkill_FollowedLinkRootRefused(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		for _, project := range []bool{false, true} {
+			for _, name := range []string{"_dev", "dev"} {
+				t.Run(map[bool]string{false: "single", true: "batch"}[batch]+"/"+map[bool]string{false: "global", true: "project"}[project]+"/"+name, func(t *testing.T) {
+					s, src := newTestServer(t)
+					if project {
+						src = t.TempDir()
+						s = NewProject(s.cfg, &config.ProjectConfig{
+							Sources: config.ProjectSources{Skills: src}, FollowSourceLinks: true,
+						}, t.TempDir(), "127.0.0.1:0", "", "")
+					} else {
+						s.cfg.FollowSourceLinks = true
+					}
+					if err := s.saveConfig(); err != nil {
+						t.Fatal(err)
+					}
+					target := t.TempDir()
+					addSkill(t, target, ".")
+					addSkill(t, target, "child")
+					link := filepath.Join(src, name)
+					if err := os.Symlink(target, link); err != nil {
+						t.Fatal(err)
+					}
+					rr, success := uninstallLinkedSkill(t, s, name, batch)
+					if success || (!batch && rr.Code != http.StatusBadRequest) || !strings.Contains(rr.Body.String(), name+" is the linked folder itself; use unlink to remove the link") {
+						t.Fatalf("expected linked root refusal: %d: %s", rr.Code, rr.Body.String())
+					}
+					if !utils.IsSymlinkOrJunction(link) {
+						t.Fatal("link was removed")
+					}
+					for _, rel := range []string{"SKILL.md", "child/SKILL.md"} {
+						if _, err := os.Stat(filepath.Join(link, filepath.FromSlash(rel))); err != nil {
+							t.Fatalf("skill disappeared through link: %s: %v", rel, err)
+						}
+					}
+					if items := trash.List(s.trashBase()); len(items) != 0 {
+						t.Fatalf("linked root moved to trash: %+v", items)
+					}
+				})
+			}
+		}
+	}
 }
 
 func TestHandleUninstallSkill_ExactNameBeforeLinkedBasename(t *testing.T) {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -558,8 +559,12 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := sourcefs.CheckMoveOut(source, d.SourcePath, walk.Follow); err != nil {
-			writeError(w, http.StatusConflict, err.Error())
+		if err := sourcefs.CheckSkillMoveOut(source, d.SourcePath, walk.Follow); err != nil {
+			status := http.StatusConflict
+			if errors.Is(err, sourcefs.ErrLinkedSkillRoot) {
+				status = http.StatusBadRequest
+			}
+			writeError(w, status, err.Error())
 			return
 		}
 		trashName := baseName
