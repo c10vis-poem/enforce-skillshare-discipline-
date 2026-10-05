@@ -188,15 +188,17 @@ skillshare sync
 
 `~/code/dev-skills` に `.git` エントリが含まれていれば、`_dev-skills` は Tracked リポジトリのグループになり、その子ディレクトリが Skill として検出されます。Sync は他の Skill と同様にそれらをリンクまたはコピーします。symlink モードでは、実際のチェックアウト内のファイルを編集するとすぐに Target に反映されます。copy モードでは再度 sync が必要です。
 
+`.git` ファイルを持つ Git worktree と submodule もチェックアウトです。`update --all` はそれらをスキップし、ダッシュボードは更新を拒否します。
+
 :::warning update は実際のチェックアウトを変更します
-`skillshare update _dev-skills` は、別途管理される clone ではなく `~/code/dev-skills` の中で git を実行します。`skillshare update _dev-skills --force` はその実際のチェックアウトをリセットし、ローカルの変更を破棄します。この理由から、`skillshare update --all` はたどられたリンクを警告付きでスキップします。名前を指定して update してください。`skillshare install <url> --track --update` は、コミットされていない変更があるたどられたチェックアウトの pull を拒否します。ブロックする audit の検出結果によって `git reset --hard` で巻き戻される可能性があるため、先にコミットするか stash してください。ダッシュボードは強制再試行を含め、たどられた Git チェックアウトを更新しません。ユーザーが管理してください。
+`skillshare update _dev-skills` は、別途管理される clone ではなく `~/code/dev-skills` の中で git を実行します。`skillshare update _dev-skills --force` はその実際のチェックアウトをリセットし、ローカルの変更を破棄します。この理由から、`skillshare update --all` は `--force` を指定しても、たどられたリンクを警告付きでスキップします。名前を指定して update してください。`skillshare install <url> --track --update` は、コミットされていない変更があるたどられたチェックアウトの pull を拒否します。ブロックする audit の検出結果によって `git reset --hard` で巻き戻される可能性があるため、先にコミットするか stash してください。ダッシュボードは強制再試行を含め、たどられた Git チェックアウトを更新しません。ユーザーが管理してください。
 :::
 
 #### 安全ガード {#safety-guards}
 
 - Source ルートまたはその祖先ディレクトリを指すリンクはスキップされます。
 - Sync の Target と重なるリンクはスキップされます。これはリンクのテキストから判断されるため、Target ディレクトリがまだ存在しない場合にも適用されます。
-- リンク先が存在しない、または読み取れないリンクは警告付きでスキップされます。リンク先やそのサブディレクトリの走査中に読み取りに失敗した場合も、一部の Skill がすでに検出されていても、そのリンクは利用不可として扱われます。その実行では **prune、孤立コピーの削除、メタデータの削除は一切行われません**。マウントされていない外部ドライブは安全です。再マウントして sync を再実行してください。`skillshare doctor` は、その Source リンクの背後にあるぶら下がった Target リンクを、prune すべき壊れたリンクではなく、そのリンクを待っているものとして一覧表示します。
+- リンク先が存在しない、または読み取れないリンクは警告付きでスキップされます。リンク先やそのサブディレクトリの走査中に読み取りに失敗した場合も、一部の Skill がすでに検出されていても、そのリンクは利用不可として扱われます。その実行では **prune、孤立コピーの削除、メタデータの削除は一切行われません**。マウントされていない外部ドライブは安全です。再マウントして sync を再実行してください。`skillshare doctor` は、その Source リンクの背後にあるぶら下がった Target リンクを、prune すべき壊れたリンクではなく、そのリンクを待っているものとして一覧表示します。 この判定はリンクに保存された行き先を使うため、`target_naming: standard` でも機能します。
 - ファイルへのリンク（たとえば共有の `.skillignore`）はディレクトリリンクではありません。通常のエントリのままで、prune に影響することはありません。
 
 #### discovery の判断方法 {#how-discovery-decides}
@@ -247,6 +249,12 @@ skillshare sync
 リンクの背後にある Skill への書き込みは、実際のチェックアウトに反映されます。ダッシュボードでのコンテンツ編集、`skillshare install --into _dev-skills`、リンクされたディレクトリ内の通常の Skill の置き換えは、いずれも `~/code/dev-skills` を変更します。`skillshare uninstall _dev-skills/<child>` はその子を実際のチェックアウトから trash に移動します。`skillshare unlink _dev-skills` はリンクのエントリのみを削除し、実際のチェックアウトは決して削除しません。trash にはそのリンクが一覧表示され、`restore` でリンクが再作成されます。`skillshare trash restore _dev-skills/<child>` は同じポリシーの下で子を実際のチェックアウトに戻します。チェックアウトの下にネストされたリンクが別の場所を指している場合、restore は失敗し、trash のエントリは保持されます。チェックアウトの外に出るパス（`..`、または外部を指すネストされたリンク）は引き続き拒否されます。
 
 リンク先フォルダーの直下に `SKILL.md` がある場合も同じです。そのルート skill の `uninstall` は拒否されます。ダッシュボードの **Unlink** または `skillshare unlink _dev-skills` で、リンク先を変更せずにリンクだけを削除してください。
+
+ダッシュボードでの Target 割り当てが frontmatter を書き込む場合も、同じ書き込み境界が適用されます。ネストされた `SKILL.md` リンクは、リンク先を変更せずに拒否されます。一括割り当てではその Skill の拒否理由を返し、通常の Skill の処理を続けます。
+
+追従するリンクの背後にある Skill を置き換えるときは、置き換えが成功するまで元の Skill を保持し、コピーに失敗した場合は元に戻します。取り込む内容のリンクは実際のファイルやディレクトリとしてコピーされ、リンク先がないものはスキップされます。
+
+Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。
 
 `update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare unlink _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
 

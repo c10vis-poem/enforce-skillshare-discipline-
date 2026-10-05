@@ -351,8 +351,9 @@ func GetTrackedRepos(sourceDir string, walk ...sourcewalk.Options) ([]string, er
 }
 
 // GetMissingTrackedRepos returns tracked metadata entries whose repo clone is absent.
-func GetMissingTrackedRepos(sourceDir string) ([]TrackedRepoMeta, error) {
-	return getMissingTrackedReposImpl(sourceDir)
+// An optional walk policy recognizes existing followed source checkouts.
+func GetMissingTrackedRepos(sourceDir string, walks ...sourcewalk.Options) ([]TrackedRepoMeta, error) {
+	return getMissingTrackedReposImpl(sourceDir, walks...)
 }
 
 // RehydrateMissingTrackedRepos re-clones tracked repos declared in metadata whose

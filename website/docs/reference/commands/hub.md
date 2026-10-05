@@ -103,6 +103,8 @@ skillshare hub default --reset      # Clear default → community hub
 
 Build a `skillshare-hub.json` index file from installed skills. The generated index can be consumed by [`search --hub`](./search.md#private-index-search) for private, offline skill discovery.
 
+With [`follow_source_links: true`](../targets/configuration.md#follow_source_links) in the active config, the index includes skills behind first-level source links, including with `--source`. The dashboard's built-in search and Hub draft candidates use the same discovery policy.
+
 ### Usage
 
 ```bash

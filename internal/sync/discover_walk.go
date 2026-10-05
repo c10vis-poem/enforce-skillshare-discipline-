@@ -188,8 +188,7 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 
 		// Collect tracked repos: _-prefixed directories that are git repos
 		if info.IsDir() && info.Name() != "." && utils.IsTrackedRepoDir(info.Name()) {
-			gitDir := filepath.Join(path, ".git")
-			if _, statErr := os.Stat(gitDir); statErr == nil {
+			if install.IsGitRepo(path) {
 				if opts.collectTracked {
 					relPath, relErr := filepath.Rel(walkRoot, path)
 					if relErr == nil && relPath != "." {

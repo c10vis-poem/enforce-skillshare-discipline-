@@ -12,6 +12,7 @@ import (
 
 	"skillshare/internal/audit"
 	"skillshare/internal/install"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 )
 
@@ -53,13 +54,13 @@ type SkillEntry struct {
 // name, description, source are populated.
 // If auditSkills is true, each skill is scanned with audit.ScanSkill
 // and risk fields are populated.
-func BuildIndex(sourcePath string, full bool, auditSkills bool) (*Index, error) {
+func BuildIndex(sourcePath string, full bool, auditSkills bool, walk ...sourcewalk.Options) (*Index, error) {
 	// Fail fast if source directory does not exist.
 	if _, err := os.Stat(sourcePath); err != nil {
 		return nil, fmt.Errorf("source directory: %w", err)
 	}
 
-	discovered, err := ssync.DiscoverSourceSkills(sourcePath)
+	discovered, err := ssync.DiscoverSourceSkills(sourcePath, walk...)
 	if err != nil {
 		return nil, err
 	}

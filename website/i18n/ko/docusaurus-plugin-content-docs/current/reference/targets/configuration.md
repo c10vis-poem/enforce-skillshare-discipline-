@@ -186,15 +186,17 @@ skillshare sync
 
 `~/code/dev-skills`에 `.git` 항목이 있으면 `_dev-skills`는 tracked repo 그룹이 되고, 그 하위 항목들이 skill로 발견됩니다. sync는 다른 skill과 마찬가지로 이를 링크하거나 복사합니다. symlink 모드에서는 실제 checkout에서 편집한 파일이 target에 즉시 반영되며, copy 모드에서는 sync를 한 번 더 실행해야 합니다.
 
+`.git` 파일이 있는 Git worktree와 submodule도 체크아웃입니다. `update --all`은 이들을 건너뛰며 대시보드는 업데이트를 거부합니다.
+
 :::warning update는 실제 checkout을 변경합니다
-`skillshare update _dev-skills`는 별도의 관리형 clone이 아니라 `~/code/dev-skills` 안에서 git을 실행합니다. `skillshare update _dev-skills --force`는 그 실제 checkout을 reset하고 로컬 변경 사항을 버립니다. 같은 이유로 `skillshare update --all`은 따라간 링크를 경고와 함께 건너뛰므로, 이름을 지정해 update하세요. `skillshare install <url> --track --update`는 커밋하지 않은 변경이 있는 연결된 체크아웃의 pull을 거부합니다. 차단 수준의 audit 결과로 `git reset --hard`가 실행될 수 있으므로 먼저 커밋하거나 stash하세요. 대시보드는 강제 재시도를 포함해 연결된 Git 체크아웃을 업데이트하지 않습니다. 사용자가 직접 관리합니다.
+`skillshare update _dev-skills`는 별도의 관리형 clone이 아니라 `~/code/dev-skills` 안에서 git을 실행합니다. `skillshare update _dev-skills --force`는 그 실제 checkout을 reset하고 로컬 변경 사항을 버립니다. 같은 이유로 `skillshare update --all`은 `--force`를 지정해도 따라간 링크를 경고와 함께 건너뛰므로, 이름을 지정해 update하세요. `skillshare install <url> --track --update`는 커밋하지 않은 변경이 있는 연결된 체크아웃의 pull을 거부합니다. 차단 수준의 audit 결과로 `git reset --hard`가 실행될 수 있으므로 먼저 커밋하거나 stash하세요. 대시보드는 강제 재시도를 포함해 연결된 Git 체크아웃을 업데이트하지 않습니다. 사용자가 직접 관리합니다.
 :::
 
 #### 안전 장치 {#safety-guards}
 
 - source 루트 또는 그 상위 디렉터리를 가리키는 링크는 건너뜁니다.
 - sync target과 겹치는 링크는 건너뜁니다. 이는 링크 텍스트로 판단하므로, target 디렉터리가 아직 존재하지 않는 경우에도 적용됩니다.
-- 대상이 없거나 읽을 수 없는 링크는 경고와 함께 건너뜁니다. 대상이나 그 하위 디렉터리를 순회하는 중 읽기에 실패해도, 일부 skill이 이미 발견되었더라도 해당 링크를 사용할 수 없는 것으로 처리합니다. 그 실행에서는 **pruning, orphan 복사본 삭제, 메타데이터 삭제를 전혀 수행하지 않습니다**. 마운트되지 않은 외장 드라이브는 안전합니다. 다시 마운트하고 sync를 다시 실행하세요. `skillshare doctor`는 그 source 링크 뒤에 있는 dangling target 링크를 prune할 깨진 링크가 아니라, 해당 source 링크를 기다리는 중으로 표시합니다.
+- 대상이 없거나 읽을 수 없는 링크는 경고와 함께 건너뜁니다. 대상이나 그 하위 디렉터리를 순회하는 중 읽기에 실패해도, 일부 skill이 이미 발견되었더라도 해당 링크를 사용할 수 없는 것으로 처리합니다. 그 실행에서는 **pruning, orphan 복사본 삭제, 메타데이터 삭제를 전혀 수행하지 않습니다**. 마운트되지 않은 외장 드라이브는 안전합니다. 다시 마운트하고 sync를 다시 실행하세요. `skillshare doctor`는 그 source 링크 뒤에 있는 dangling target 링크를 prune할 깨진 링크가 아니라, 해당 source 링크를 기다리는 중으로 표시합니다. 이 분류는 링크에 저장된 경로를 사용하므로 `target_naming: standard`에서도 동작합니다.
 - 파일을 가리키는 링크(예: 공유 `.skillignore`)는 디렉터리 링크가 아닙니다. 일반 항목으로 남으며 pruning에 영향을 주지 않습니다.
 
 #### discovery의 판단 방식 {#how-discovery-decides}
@@ -245,6 +247,12 @@ skillshare sync
 링크 뒤에 있는 skill에 대한 쓰기는 실제 checkout에 반영됩니다. 대시보드에서 내용을 편집하거나, `skillshare install --into _dev-skills`를 실행하거나, 링크된 디렉터리 안의 일반 skill을 교체하는 것은 모두 `~/code/dev-skills`를 변경합니다. `skillshare uninstall _dev-skills/<child>`는 그 하위 항목을 실제 checkout에서 휴지통으로 이동합니다. `skillshare unlink _dev-skills`는 링크 항목만 제거하며 실제 checkout은 결코 제거하지 않습니다. 휴지통에는 링크가 나열되고 `restore`는 링크를 다시 만듭니다. `skillshare trash restore _dev-skills/<child>`는 같은 정책에 따라 하위 항목을 실제 checkout에 되돌려 놓으며, checkout 아래에 다른 곳으로 이어지는 중첩 링크가 있으면 복원은 실패하고 휴지통 항목은 유지됩니다. checkout을 벗어나는 경로(`..`, 또는 바깥으로 이어지는 중첩 링크)는 여전히 거부됩니다.
 
 링크된 폴더 바로 아래에 `SKILL.md`가 있는 경우도 같습니다. 해당 루트 skill의 `uninstall`은 거부됩니다. 대시보드의 **Unlink** 또는 `skillshare unlink _dev-skills`로 대상을 변경하지 않고 링크만 제거하세요.
+
+대시보드의 Target 할당이 frontmatter를 쓸 때도 같은 쓰기 경계가 적용됩니다. 중첩된 `SKILL.md` 링크는 대상을 변경하지 않고 거부합니다. 일괄 할당은 해당 Skill의 거부 사유를 보고하고 일반 Skill 처리를 계속합니다.
+
+따라가는 링크 내부의 Skill을 교체할 때는 교체가 성공할 때까지 기존 Skill을 보존하고, 복사가 실패하면 복원합니다. 가져오는 콘텐츠의 링크는 실제 파일이나 디렉터리로 복사하며, 대상이 없는 링크는 건너뜁니다.
+
+Skill을 다른 파일시스템의 trash로 옮길 때 내부 파일 및 디렉터리 링크는 원래 대상 문자열을 가진 링크로 보존됩니다. 링크 대상은 복사하거나 삭제하지 않습니다.
 
 `--group`은 `update`와 `check`에서 링크 이름을 받습니다(`skillshare update --group _dev-skills`). `_dev-skills/sub`처럼 링크 아래에 중첩된 그룹은 `--group`에서 받지 않으므로, 대신 skill 이름을 지정하세요. `skillshare uninstall --group _dev-skills`는 실제 checkout을 비워 버리기 때문에 거부됩니다. 링크를 제거하려면 `skillshare unlink _dev-skills`를 사용하고, 휴지통으로 보낼 skill은 이름을 지정하세요.
 

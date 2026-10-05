@@ -200,3 +200,44 @@ func TestTrashBrokenLink(t *testing.T) {
 		t.Fatalf("restored link = %q, %v", got, err)
 	}
 }
+
+func TestTrashCrossDevicePreservesNestedLinks(t *testing.T) {
+	base := t.TempDir()
+	source := filepath.Join(base, "source")
+	skill := filepath.Join(source, "foo")
+	if err := os.MkdirAll(filepath.Join(skill, "assets"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill, "assets", "note.txt"), []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	links := map[string]string{"file-link": "assets/note.txt", "dir-link": "assets"}
+	for name, target := range links {
+		if err := os.Symlink(target, filepath.Join(skill, name)); err != nil {
+			t.Skip(err)
+		}
+	}
+	trashed, err := moveToTrash(skill, "foo", filepath.Join(base, "trash"), func(string, string) error { return fmt.Errorf("cross-device rename") })
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertLinks := func(dir string) {
+		t.Helper()
+		for name, target := range links {
+			if got, err := os.Readlink(filepath.Join(dir, name)); err != nil || got != target {
+				t.Errorf("%s: target = %q, %v; want %q", name, got, err, target)
+			}
+		}
+	}
+	assertLinks(trashed)
+	if _, err := os.Lstat(skill); !os.IsNotExist(err) {
+		t.Fatalf("original still exists: %v", err)
+	}
+	if err := Restore(&TrashEntry{Name: "foo", Path: trashed}, source); err != nil {
+		t.Fatal(err)
+	}
+	assertLinks(skill)
+	if got, err := os.ReadFile(filepath.Join(skill, "dir-link", "note.txt")); err != nil || string(got) != "keep" {
+		t.Fatalf("restored content = %q, %v", got, err)
+	}
+}

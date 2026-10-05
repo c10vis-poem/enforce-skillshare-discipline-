@@ -26,11 +26,11 @@ func isGitInstalled() bool {
 	return err == nil
 }
 
-// IsGitRepo checks if path is a git repository
+// IsGitRepo recognizes .git directories and gitdir files used by worktrees/submodules.
 func IsGitRepo(path string) bool {
 	gitDir := filepath.Join(path, ".git")
 	info, err := os.Stat(gitDir)
-	return err == nil && info.IsDir()
+	return err == nil && (info.IsDir() || info.Mode().IsRegular())
 }
 
 // gitCommandTimeout is the maximum time for a git network operation.

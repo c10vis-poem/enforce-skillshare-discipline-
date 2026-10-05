@@ -608,6 +608,14 @@
     "note": "Inspect local plugin inventory"
   },
   {
+    "file": "internal/plugin/omp_extensions.go",
+    "function": "(*ompInventory).entries",
+    "callee": "os.ReadDir",
+    "root": "dir",
+    "reason": "plugin",
+    "note": "Inspect native OMP extension and plugin directories, not the skills source"
+  },
+  {
     "file": "internal/plugin/pi_extensions_discover.go",
     "function": "(*piLayout).autoEntries",
     "callee": "(*os.File).ReadDir",
@@ -699,9 +707,9 @@
     "file": "internal/server/handler_skills.go",
     "function": "(*Server).handleGetSkill",
     "callee": "filepath.Walk",
-    "root": "d.SourcePath",
+    "root": "walkRoot",
     "reason": "skill-dir",
-    "note": "Read individual skill contents; followed single skills deferred to step 4"
+    "note": "Read individual skill contents after resolving a followed root"
   },
   {
     "file": "internal/server/handler_targets.go",
@@ -721,7 +729,7 @@
   },
   {
     "file": "internal/sourcefs/sourcefs.go",
-    "function": "(*Root).CopyIn",
+    "function": "(*Root).copyTreeIn",
     "callee": "filepath.Walk",
     "root": "src",
     "reason": "skill-dir",

@@ -32,12 +32,13 @@ Check `skillshare <command> --help` if the installed version differs from these 
 - MCP uses its own receiving targets and source definitions. Read [mcp.md](references/mcp.md)
   before editing MCP settings or importing native configurations. Its Agent notes cover
   what is specific to Claude Code, Codex, OpenCode and Pi: scopes and files, names and
-  credentials they refuse, Pi's built-in MCP and `piOptions`, the portable `tools` policy,
+  credentials they refuse, Pi's built-in MCP and `piOptions`, OMP's native MCP and preserved enable/disable lists, the portable `tools` policy,
   upgrading Pi settings from 0.22, turning a global server off in one project, and `mcp.projects` for many folders from
   one config.
 - Plugins keep their native components together. Read [plugins.md](references/plugins.md)
   for installation, import, sync selection, updates, and native compatibility limits
-  across Claude, Codex, Cursor, Antigravity, Pi, and OpenCode, including Pi packages from pi.dev.
+  across Claude, Codex, Cursor, Antigravity, Pi, OMP, and OpenCode, including Pi packages from pi.dev
+  and OMP marketplace plugins and standalone extension selection.
 - Hooks preserve each Agent's native event map or extension/plugin code. Read
   [hooks.md](references/hooks.md) before import, synchronization or recovery.
 
@@ -149,6 +150,9 @@ skillshare hub default my-hub                            # Set default hub
 skillshare hub remove my-hub                             # Remove a hub
 skillshare hub index --source ~/.config/skillshare/skills/ --full --audit  # Build hub index
 ```
+The active `follow_source_links` setting also applies to `hub index` (including
+`--source`), built-in dashboard search, and Hub draft candidates.
+
 ## References
 
 Read the matching file for command flags, examples, and limitations. Avoid loading all

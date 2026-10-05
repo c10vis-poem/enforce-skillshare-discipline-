@@ -90,3 +90,36 @@ func TestSwapStagedIntoSource_FollowedLinkReplacesInCheckout(t *testing.T) {
 		t.Fatalf("link was replaced: %v", err)
 	}
 }
+
+func TestSwapStagedIntoSource_FollowedCopyFailureKeepsOldSkill(t *testing.T) {
+	source, checkout, staged := t.TempDir(), t.TempDir(), t.TempDir()
+	dest := filepath.Join(checkout, "foo")
+	if err := os.Mkdir(dest, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "SKILL.md"), []byte("old skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(checkout, filepath.Join(source, "linked")); err != nil {
+		t.Skip(err)
+	}
+	if err := os.WriteFile(filepath.Join(staged, "SKILL.md"), []byte("new skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// A cyclic file link fails even as root, after an earlier file was copied.
+	if err := os.Symlink("z-loop", filepath.Join(staged, "z-loop")); err != nil {
+		t.Skip(err)
+	}
+	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "linked", "foo"), sourcewalk.NewFollow(source, nil)); err == nil {
+		t.Fatal("expected copy failure")
+	}
+	if got, err := os.ReadFile(filepath.Join(dest, "SKILL.md")); err != nil || string(got) != "old skill" {
+		t.Fatalf("old skill lost: %q, %v", got, err)
+	}
+	if entries, err := os.ReadDir(checkout); err != nil || len(entries) != 1 || entries[0].Name() != "foo" {
+		t.Fatalf("checkout leftovers: %v, %v", entries, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(staged, "SKILL.md")); err != nil || string(got) != "new skill" {
+		t.Fatalf("staged tree lost: %q, %v", got, err)
+	}
+}

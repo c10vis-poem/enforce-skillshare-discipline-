@@ -56,7 +56,7 @@ func (s *Server) handleHubDraftCandidates(w http.ResponseWriter, r *http.Request
 	s.mu.RLock()
 	source := s.skillsSource()
 	s.mu.RUnlock()
-	entries, err := hub.DraftCandidates(source)
+	entries, err := hub.DraftCandidates(source, s.skillsWalk())
 	if err != nil {
 		draftError(w, err)
 		return

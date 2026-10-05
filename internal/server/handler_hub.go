@@ -12,7 +12,7 @@ func (s *Server) handleHubIndex(w http.ResponseWriter, r *http.Request) {
 	sourcePath := s.skillsSource()
 	s.mu.RUnlock()
 
-	idx, err := hub.BuildIndex(sourcePath, false, false)
+	idx, err := hub.BuildIndex(sourcePath, false, false, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

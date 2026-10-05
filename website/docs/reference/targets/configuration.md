@@ -186,15 +186,17 @@ A link you create yourself (`ln -s ~/code/dev-skills ~/.config/skillshare/skills
 
 If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
 
+Git worktrees and submodules with a `.git` file are also checkouts: `update --all` skips them, and the dashboard refuses to update them.
+
 :::warning Updates change the real checkout
-`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes. `skillshare update --all` skips followed links with a warning for that reason; update them by name. `skillshare install <url> --track --update` refuses to pull a followed checkout with uncommitted changes, because a blocking audit finding could roll it back with `git reset --hard`; commit or stash first. The dashboard never updates followed Git checkouts, including force retries; they are managed by you.
+`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes. `skillshare update --all` skips followed links with a warning for that reason, including with `--force`; update them by name. `skillshare install <url> --track --update` refuses to pull a followed checkout with uncommitted changes, because a blocking audit finding could roll it back with `git reset --hard`; commit or stash first. The dashboard never updates followed Git checkouts, including force retries; they are managed by you.
 :::
 
 #### Safety guards
 
 - A link pointing at the source root or one of its ancestors is skipped.
 - A link overlapping a sync target is skipped. This is decided from the link text, so it also applies when the target directory does not exist yet.
-- A link whose target is missing or unreadable is skipped with a warning. A read failure while traversing the target or any of its subdirectories also marks the link as unavailable, even if discovery has already returned some skills. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
+- A link whose target is missing or unreadable is skipped with a warning. A read failure while traversing the target or any of its subdirectories also marks the link as unavailable, even if discovery has already returned some skills. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune. This classification uses the stored link destination, so it also works with `target_naming: standard`.
 - A link to a file (a shared `.skillignore`, say) is not a directory link. It stays an ordinary entry and never affects pruning.
 
 #### How discovery decides
@@ -245,6 +247,12 @@ The mount path must stay the same between sessions. On macOS that is `/Volumes/<
 Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare unlink _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
 
 This also applies when `SKILL.md` is at the linked folder’s root, where `uninstall` is refused. Use the dashboard **Unlink** action or `skillshare unlink _dev-skills` to remove the link without changing its target.
+
+When dashboard target assignment writes frontmatter, it also uses this boundary: a nested `SKILL.md` link is refused without changing its target. Batch assignment reports the refusal for that skill and continues with regular skills.
+
+Replacing a skill behind a followed link keeps the old skill until the replacement succeeds; a copy failure restores it. Links in incoming staged content are copied as real files or directories, and dangling links are skipped.
+
+When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted.
 
 `--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare unlink _dev-skills` for the link, or name the skills to trash.
 
@@ -330,11 +338,11 @@ targets:
     config_dir: ~/.codex-work    # skills go to ~/.codex-work/skills
 ```
 
-Codex reads the shared `~/.agents/skills` as well, but an account owns only its own directory, so its skills go to `<config_dir>/skills`. Pi works the same way. Only Claude has an agents directory.
+Codex reads the shared `~/.agents/skills` as well, but an account owns only its own directory, so its skills go to `<config_dir>/skills`. Pi and OMP work the same way. Only Claude has an agents directory.
 
 | Field | Description |
 |-------|-------------|
-| `agent` | The built-in Agent: `claude` (`CLAUDE_CONFIG_DIR`), `codex` (`CODEX_HOME`) or `pi` (`PI_CODING_AGENT_DIR`) |
+| `agent` | The built-in Agent: `claude` (`CLAUDE_CONFIG_DIR`), `codex` (`CODEX_HOME`), `pi` or `omp` (both use `PI_CODING_AGENT_DIR`) |
 | `config_dir` | That account's config directory. Absolute or starting with `~`, not the Agent's default one, and used by one target only |
 | `cli` | Optional. Runs the account's [plugin commands](/docs/reference/commands/plugin#accounts) with a compatible CLI instead of the Agent's own, such as `omo` for Pi. A name found on `PATH`, or an absolute path that may start with `~`. One executable without arguments; shell aliases are not seen |
 
@@ -350,7 +358,7 @@ targets:
 
 `cli` changes only which program installs and removes plugins. Skills, agents and MCP servers are written to `config_dir` as before.
 
-`mode`, `include`, `exclude` and the other target settings work as on any target. A `skills.path` or `agents.path` you write yourself wins over the derived one. The target name can also be used as an [MCP target](/docs/reference/commands/mcp#accounts), as a [plugin target](/docs/reference/commands/plugin#accounts) and as a [hooks target](/docs/reference/commands/hooks#accounts).
+`mode`, `include`, `exclude` and the other target settings work as on any target. A `skills.path` or `agents.path` you write yourself wins over the derived one. The target name can also be used as an [MCP target](/docs/reference/commands/mcp#accounts). For Agents supported by those resources, it can also be a [plugin target](/docs/reference/commands/plugin#accounts) or a [hooks target](/docs/reference/commands/hooks#accounts). OMP accounts support skills, instructions, files, MCP and native code hooks, but not plugin sync. Their Extensions tab inventories native modules and offers [selection editing](/docs/reference/commands/plugin#omp) only when the native version, file identity and settings scope are verified; it is not a runtime status monitor.
 
 #### Instruction file {#target-instructions}
 

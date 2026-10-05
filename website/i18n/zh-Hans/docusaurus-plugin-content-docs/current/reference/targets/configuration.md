@@ -186,15 +186,17 @@ skillshare sync
 
 如果 `~/code/dev-skills` 包含 `.git` 条目，`_dev-skills` 就会成为一个 tracked repo 分组，其子目录会被发现为 Skill。Sync 会像对待其他 Skill 一样链接或复制它们。在 symlink 模式下，在真实 checkout 中编辑文件会立即反映到 Target；copy 模式则需要再执行一次 sync。
 
+使用 `.git` 文件的 Git worktree 和 submodule 也是 checkout：`update --all` 会跳过它们，dashboard 会拒绝更新它们。
+
 :::warning update 会修改真实的 checkout
-`skillshare update _dev-skills` 会在 `~/code/dev-skills` 内部运行 git，而不是在一个单独管理的克隆中。`skillshare update _dev-skills --force` 会重置这个真实的 checkout 并丢弃其本地修改。正因如此，`skillshare update --all` 会跳过被跟随的链接并给出警告；请按名称单独更新它们。`skillshare install <url> --track --update` 会拒绝拉取存在未提交修改的链接 checkout，因为阻断级别的 audit 结果可能通过 `git reset --hard` 回滚它；请先 commit 或 stash。dashboard 永远不会更新链接指向的 Git checkout，包括强制重试；这些 checkout 由你管理。
+`skillshare update _dev-skills` 会在 `~/code/dev-skills` 内部运行 git，而不是在一个单独管理的克隆中。`skillshare update _dev-skills --force` 会重置这个真实的 checkout 并丢弃其本地修改。正因如此，`skillshare update --all`（即使加上 `--force`） 会跳过被跟随的链接并给出警告；请按名称单独更新它们。`skillshare install <url> --track --update` 会拒绝拉取存在未提交修改的链接 checkout，因为阻断级别的 audit 结果可能通过 `git reset --hard` 回滚它；请先 commit 或 stash。dashboard 永远不会更新链接指向的 Git checkout，包括强制重试；这些 checkout 由你管理。
 :::
 
 #### 安全防护 {#safety-guards}
 
 - 指向 Source 根目录或其任一上级目录的链接会被跳过。
 - 与某个 Sync Target 重叠的链接会被跳过。这是根据链接文本判断的，因此即使 Target 目录尚不存在也同样适用。
-- 目标缺失或不可读的链接会被跳过并给出警告。遍历目标或其子目录时读取失败，也会将该链接标记为不可用，即使已经发现部分 Skill。该次运行**不会执行任何清理（prune）、孤立副本删除或元数据删除**。未挂载的外置硬盘是安全的：重新挂载后再执行一次 sync 即可。`skillshare doctor` 会把该 Source 链接背后的失效 Target 链接列为正在等待它，而不是列为需要清理的损坏链接。
+- 目标缺失或不可读的链接会被跳过并给出警告。遍历目标或其子目录时读取失败，也会将该链接标记为不可用，即使已经发现部分 Skill。该次运行**不会执行任何清理（prune）、孤立副本删除或元数据删除**。未挂载的外置硬盘是安全的：重新挂载后再执行一次 sync 即可。`skillshare doctor` 会把该 Source 链接背后的失效 Target 链接列为正在等待它，而不是列为需要清理的损坏链接。 这个分类依据链接保存的目标路径，因此也适用于 `target_naming: standard`。
 - 指向文件的链接（例如共享的 `.skillignore`）不是目录链接。它仍是普通条目，从不影响清理。
 
 #### 发现阶段如何判断 {#how-discovery-decides}
@@ -245,6 +247,12 @@ skillshare sync
 对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare unlink _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
 
 链接文件夹的根目录包含 `SKILL.md` 时也适用；`uninstall` 会拒绝移除该根级 skill。请使用 dashboard 的 **Unlink** 或 `skillshare unlink _dev-skills`，只移除链接而不改变目标文件夹。
+
+dashboard 的 Target 分配写入 frontmatter 时，也遵守这个写入边界：嵌套的 `SKILL.md` 链接会被拒绝，不会修改链接目标。批量分配会报告该 Skill 的拒绝原因，并继续处理普通 Skill。
+
+替换被跟随链接内的 Skill 时，会保留旧 Skill 直到替换成功；复制失败会恢复旧内容。传入内容中的链接会复制为实际文件或目录，目标不存在的链接会跳过。
+
+跨文件系统将 Skill 移入 trash 时，内部文件和目录链接会保留为链接，并保持原始目标文本；不会复制或删除链接目标。
 
 `update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare unlink _dev-skills`，或按名称指定要移到 trash 的 Skill。
 

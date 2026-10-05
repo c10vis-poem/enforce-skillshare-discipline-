@@ -252,7 +252,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	if !isProject {
 		checkGitStatus(cfg.EffectiveSkillsSource(), result)
 	}
-	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject)
+	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject, walk)
 
 	checkSkillsValidity(cfg.EffectiveSkillsSource(), walk, result, discovered)
 	checkSkillIntegrity(result, discovered, walk.Follow)
@@ -834,8 +834,8 @@ func checkGitStatus(source string, result *doctorResult) {
 }
 
 // checkSkillsValidity checks if all skills have valid SKILL.md files
-func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool) {
-	missingRepos, err := install.GetMissingTrackedRepos(source)
+func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool, walks ...sourcewalk.Options) {
+	missingRepos, err := install.GetMissingTrackedRepos(source, walks...)
 	if err != nil || len(missingRepos) == 0 {
 		return
 	}
@@ -1071,7 +1071,7 @@ func checkBrokenSymlinks(cfg *config.Config, follow *sourcewalk.Follow, result *
 		}
 		var broken, waiting []string
 		for _, b := range findBrokenSymlinks(target.SkillsConfig().Path) {
-			if behindUnavailableLink(b, unavailable) {
+			if behindUnavailableLink(filepath.Join(target.SkillsConfig().Path, b), cfg.EffectiveSkillsSource(), unavailable) {
 				waiting = append(waiting, b)
 			} else {
 				broken = append(broken, b)
@@ -1105,9 +1105,21 @@ func checkBrokenSymlinks(cfg *config.Config, follow *sourcewalk.Follow, result *
 	}
 }
 
-// behindUnavailableLink reports whether a flattened target entry such as
-// _dev-skills__foo belongs to a first-level source link named in unavailable.
-func behindUnavailableLink(entry string, unavailable []string) bool {
+// behindUnavailableLink classifies broken links by their stored destination,
+// so frontmatter-based target names work as well as flattened names.
+func behindUnavailableLink(path, source string, unavailable []string) bool {
+	if destination, err := utils.ResolveLinkTarget(path); err == nil {
+		destination = sourcewalk.Canonical(destination)
+		for _, name := range unavailable {
+			root := sourcewalk.Canonical(filepath.Join(source, name))
+			if utils.PathsEqual(destination, root) || utils.PathHasPrefix(destination, root+string(filepath.Separator)) {
+				return true
+			}
+		}
+		return false
+	}
+	// Some link types cannot expose their target; retain the flattened-name fallback.
+	entry := filepath.Base(path)
 	for _, name := range unavailable {
 		if entry == name || strings.HasPrefix(entry, name+"__") {
 			return true

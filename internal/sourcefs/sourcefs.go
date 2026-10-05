@@ -459,7 +459,8 @@ func (r *Root) moveInAnchored(src, name string) error {
 // (see IsCrossDevice) and keeps its contract: name must not exist yet, and
 // every directory and file is created through the root, so a link that
 // appears at or above name after the check is still refused by the handle.
-// Links inside src are copied as the content they point at.
+// Links inside src are copied as the content they point at. Dangling links
+// are skipped; other resolution errors fail the copy. Directory cycles fail.
 func (r *Root) CopyIn(src, name string) error {
 	if l, rest, ok, err := r.through(name); ok || err != nil {
 		if err != nil {
@@ -473,6 +474,20 @@ func (r *Root) CopyIn(src, name string) error {
 	if _, err := r.root.Lstat(name); err == nil {
 		return fmt.Errorf("%s already exists", filepath.Join(r.dir, name))
 	}
+	return r.copyTreeIn(src, name, make(map[string]bool))
+}
+
+func (r *Root) copyTreeIn(src, name string, active map[string]bool) error {
+	resolved, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+	if active[resolved] {
+		return fmt.Errorf("directory link cycle while copying %s", src)
+	}
+	active[resolved] = true
+	defer delete(active, resolved)
+	src = resolved
 	return filepath.Walk(src, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -482,6 +497,18 @@ func (r *Root) CopyIn(src, name string) error {
 			return err
 		}
 		dst := filepath.Join(name, rel)
+		if utils.IsLinkMode(path, info.Mode()) {
+			targetInfo, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				return nil // A dangling staged link has no content to copy.
+			}
+			if err != nil {
+				return err
+			}
+			if targetInfo.IsDir() {
+				return r.copyTreeIn(path, dst, active)
+			}
+		}
 		if info.IsDir() {
 			return r.root.Mkdir(dst, info.Mode().Perm())
 		}

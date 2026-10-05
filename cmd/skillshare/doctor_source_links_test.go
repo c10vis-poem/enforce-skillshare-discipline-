@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"skillshare/internal/config"
 	"skillshare/internal/sourcewalk"
 )
 
@@ -129,5 +131,61 @@ func TestCheckUndeclaredSourceLinks_FollowEnabled(t *testing.T) {
 	}
 	if result.warnings != 2 {
 		t.Errorf("want a warning per skipped link, got %+v", result)
+	}
+}
+
+func TestDoctorBrokenLinksUseSourceDestination(t *testing.T) {
+	for _, relative := range []bool{false, true} {
+		for _, broken := range []bool{false, true} {
+			t.Run(fmt.Sprintf("relative=%t/broken=%t", relative, broken), func(t *testing.T) {
+				base := t.TempDir()
+				source, target := filepath.Join(base, "source"), filepath.Join(base, "target")
+				for _, dir := range []string{source, target} {
+					if err := os.MkdirAll(dir, 0755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.Symlink(filepath.Join(base, "unmounted"), filepath.Join(source, "_dev-skills")); err != nil {
+					t.Fatal(err)
+				}
+				destination := filepath.Join(source, "_dev-skills", "foo")
+				if relative {
+					var err error
+					destination, err = filepath.Rel(target, destination)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.Symlink(destination, filepath.Join(target, "frontmatter-name")); err != nil {
+					t.Fatal(err)
+				}
+				if broken {
+					// Its basename resembles a flattened followed skill, but its source is unrelated.
+					if err := os.Symlink(filepath.Join(source, "missing"), filepath.Join(target, "_dev-skills__unrelated")); err != nil {
+						t.Fatal(err)
+					}
+				}
+				cfg := &config.Config{Source: source, FollowSourceLinks: true, Targets: map[string]config.TargetConfig{"test": {Skills: &config.ResourceTargetConfig{Path: target, TargetNaming: "standard"}}}}
+				walk := cfg.SkillsWalk()
+				if _, err := sourcewalk.ReadDir(source, walk); err != nil {
+					t.Fatal(err)
+				}
+				result := &doctorResult{}
+				output := captureStdout(t, func() { checkBrokenSymlinks(cfg, walk.Follow, result) })
+				expectedErrors := 0
+				if broken {
+					expectedErrors = 1
+				}
+				if result.errors != expectedErrors || result.warnings != 1 || !strings.Contains(output, "kept until it is back: frontmatter-name") {
+					t.Fatalf("misclassified link destinations: %q %+v", output, result)
+				}
+				if !broken && strings.Contains(output, "prune the broken links") {
+					t.Fatalf("unavailable link suggested pruning: %s", output)
+				}
+				if broken && !strings.Contains(output, "broken symlink: _dev-skills__unrelated") {
+					t.Fatalf("unrelated link not broken: %s", output)
+				}
+			})
+		}
 	}
 }

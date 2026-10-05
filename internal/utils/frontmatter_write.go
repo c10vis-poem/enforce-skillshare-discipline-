@@ -18,13 +18,23 @@ func SetFrontmatterList(filePath string, field string, values []string) error {
 		return err
 	}
 
+	data, err = RewriteFrontmatterList(data, field, values)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filePath, data, 0644)
+}
+
+// RewriteFrontmatterList returns updated frontmatter while preserving the body.
+// It has the same field and removal semantics as SetFrontmatterList.
+func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte, error) {
 	content := string(data)
 	fmRaw, body := splitFrontmatterAndBody(content)
 
 	var fm map[string]any
 	if fmRaw != "" {
 		if err := yaml.Unmarshal([]byte(fmRaw), &fm); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if fm == nil {
@@ -73,7 +83,7 @@ func SetFrontmatterList(filePath string, field string, values []string) error {
 
 	fmBytes, err := MarshalYAML(fm)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var sb strings.Builder
@@ -84,7 +94,7 @@ func SetFrontmatterList(filePath string, field string, values []string) error {
 		sb.WriteString(body)
 	}
 
-	return os.WriteFile(filePath, []byte(sb.String()), 0644)
+	return []byte(sb.String()), nil
 }
 
 // splitFrontmatterAndBody splits SKILL.md content into raw frontmatter YAML

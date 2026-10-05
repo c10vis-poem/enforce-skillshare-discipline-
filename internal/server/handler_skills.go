@@ -250,9 +250,13 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				skillMdContent = string(data)
 			}
 
-			// List all files in the skill directory
+			// List files from the followed root, keeping response paths relative to it.
+			walkRoot := d.SourcePath
+			if resolved, ok := walk.Follow.Resolve(walkRoot); ok {
+				walkRoot = resolved
+			}
 			files := make([]string, 0)
-			filepath.Walk(d.SourcePath, func(path string, info os.FileInfo, err error) error {
+			filepath.Walk(walkRoot, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return nil
 				}
@@ -260,7 +264,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 					return filepath.SkipDir
 				}
 				if !info.IsDir() {
-					rel, _ := filepath.Rel(d.SourcePath, path)
+					rel, _ := filepath.Rel(walkRoot, path)
 					// Normalize separators
 					rel = strings.ReplaceAll(rel, "\\", "/")
 					files = append(files, rel)

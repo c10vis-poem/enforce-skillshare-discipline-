@@ -40,13 +40,13 @@ type TrackedRepoMeta struct {
 
 // getMissingTrackedReposImpl returns tracked repositories declared in .metadata.json
 // whose clone directories are absent or no longer contain a git checkout.
-func getMissingTrackedReposImpl(sourceDir string) ([]TrackedRepoMeta, error) {
+func getMissingTrackedReposImpl(sourceDir string, walks ...sourcewalk.Options) ([]TrackedRepoMeta, error) {
 	store, err := LoadMetadata(sourceDir)
 	if err != nil {
 		return nil, err
 	}
 
-	existingRepos, err := GetTrackedRepos(sourceDir)
+	existingRepos, err := GetTrackedRepos(sourceDir, walks...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func rehydrateMissingTrackedReposImpl(sourceDir string, parseOpts ParseOptions, 
 	if err != nil {
 		return nil, err
 	}
-	existingRepos, err := GetTrackedRepos(sourceDir)
+	existingRepos, err := GetTrackedRepos(sourceDir, sourcewalk.Options{Follow: opts.SourceFollow})
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +234,7 @@ func getTrackedReposImpl(sourceDir string, walk sourcewalk.Options) ([]string, e
 		}
 		// Look for _-prefixed directories that are git repos
 		if info.IsDir() && len(info.Name()) > 0 && info.Name()[0] == '_' {
-			gitDir := filepath.Join(path, ".git")
-			if _, statErr := os.Stat(gitDir); statErr == nil {
+			if IsGitRepo(path) {
 				relPath, relErr := filepath.Rel(walkRoot, path)
 				if relErr == nil {
 					repos = append(repos, relPath)

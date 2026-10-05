@@ -267,7 +267,7 @@ func cmdUpdate(args []string) error {
 			return fmt.Errorf("failed to scan skills: %w", err)
 		}
 		resolveWarnings = append(resolveWarnings, ssync.SourceLinkWarnings(walk, false)...)
-		missingRepos, _ := install.GetMissingTrackedRepos(sourcePath)
+		missingRepos, _ := install.GetMissingTrackedRepos(sourcePath, walk)
 		for _, repo := range missingRepos {
 			if !seen[repo.Name] {
 				seen[repo.Name] = true

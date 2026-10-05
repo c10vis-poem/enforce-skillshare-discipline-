@@ -472,6 +472,16 @@ func TestIsGitRepo_True(t *testing.T) {
 	}
 }
 
+func TestIsGitRepo_GitdirFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: /external/gitdir\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !IsGitRepo(dir) {
+		t.Fatal("gitdir file checkout not recognized")
+	}
+}
+
 func TestIsGitRepo_False(t *testing.T) {
 	dir := t.TempDir()
 	if IsGitRepo(dir) {

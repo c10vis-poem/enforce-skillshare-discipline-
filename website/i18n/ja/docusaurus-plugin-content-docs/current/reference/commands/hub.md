@@ -103,6 +103,8 @@ skillshare hub default --reset      # デフォルトをクリア → community 
 
 インストール済みの Skill から `skillshare-hub.json` インデックスファイルを構築します。生成されたインデックスは、プライベートかつオフラインでの Skill 発見のために [`search --hub`](./search.md#private-index-search) で利用できます。
 
+有効な設定で [`follow_source_links: true`](../targets/configuration.md#follow_source_links) を指定すると、`--source` 使用時も第1階層の Source リンクの背後にある Skill がインデックスに含まれます。ダッシュボードの組み込み検索と Hub ドラフト候補も同じ検出ポリシーを使います。
+
 ### 使い方
 
 ```bash

@@ -80,7 +80,7 @@ func cmdStatusProjectJSON(root string) error {
 		Skillignore: buildSkillignoreJSON(stats),
 	}
 	output.SkillCount = len(discovered)
-	output.TrackedRepos = buildTrackedRepoJSON(runtime.sourcePath, trackedRepos, discovered)
+	output.TrackedRepos = buildTrackedRepoJSON(runtime.sourcePath, trackedRepos, discovered, walk)
 
 	for _, entry := range runtime.config.Targets {
 		target, ok := runtime.targets[entry.Name]
