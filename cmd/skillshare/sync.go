@@ -48,6 +48,9 @@ type syncJSONOutput struct {
 	ContextCost   *contextCostJSON       `json:"context_cost,omitempty"`
 	MCP           *mcp.Result            `json:"mcp,omitempty"`
 	Hooks         *hooks.Result          `json:"hooks,omitempty"`
+	// Warnings lists source links the run did not follow; a run that kept
+	// target entries because a link was unavailable says so here.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 type syncJSONTargetDetail struct {
@@ -267,7 +270,7 @@ func cmdSync(args []string) error {
 		if hasAll && !jsonOutput {
 			ui.Section("Skills")
 		}
-		stats, results, projIgnoreStats, projCtxCost, invalid, err := cmdSyncProject(cwd, dryRun, force, jsonOutput, quiet)
+		stats, results, projIgnoreStats, projCtxCost, invalid, linkWarnings, err := cmdSyncProject(cwd, dryRun, force, jsonOutput, quiet)
 		stats.ProjectScope = true
 
 		// Append agent sync when kind=all or --all
@@ -292,10 +295,10 @@ func cmdSync(args []string) error {
 					if err == nil {
 						err = extrasErr
 					}
-					return syncOutputJSON(results, dryRun, start, projIgnoreStats, err, projCtxCost, mcpResult, hooksResult, extrasEntries)
+					return syncOutputJSON(results, dryRun, start, projIgnoreStats, err, projCtxCost, mcpResult, hooksResult, linkWarnings, extrasEntries)
 				}
 			}
-			return syncOutputJSON(results, dryRun, start, projIgnoreStats, err, projCtxCost, mcpResult, hooksResult)
+			return syncOutputJSON(results, dryRun, start, projIgnoreStats, err, projCtxCost, mcpResult, hooksResult, linkWarnings)
 		}
 		err = finishNative(err)
 		if hasAll {
@@ -377,8 +380,9 @@ func cmdSync(args []string) error {
 		reportCollisions(discoveredSkills, cfg.Targets)
 	}
 	sourceIncomplete := walk.Follow.Incomplete()
+	linkWarnings := sync.SourceLinkWarnings(walk, sourceIncomplete)
 	if !jsonOutput {
-		for _, w := range sync.SourceLinkWarnings(walk, sourceIncomplete) {
+		for _, w := range linkWarnings {
 			ui.Warning("%s", w)
 		}
 	}
@@ -481,9 +485,9 @@ func cmdSync(args []string) error {
 			if syncErr == nil {
 				syncErr = extrasErr
 			}
-			return syncOutputJSON(results, dryRun, start, ignoreStats, syncErr, ctxCost, mcpResult, hooksResult, extrasEntries)
+			return syncOutputJSON(results, dryRun, start, ignoreStats, syncErr, ctxCost, mcpResult, hooksResult, linkWarnings, extrasEntries)
 		}
-		return syncOutputJSON(results, dryRun, start, ignoreStats, syncErr, ctxCost, mcpResult, hooksResult)
+		return syncOutputJSON(results, dryRun, start, ignoreStats, syncErr, ctxCost, mcpResult, hooksResult, linkWarnings)
 	}
 
 	var extrasErr error
@@ -625,7 +629,7 @@ func printIgnoredSkills(stats *skillignore.IgnoreStats) {
 
 // syncOutputJSON converts sync results to JSON and writes to stdout.
 // extras is optional and included when --all is used.
-func syncOutputJSON(results []syncTargetResult, dryRun bool, start time.Time, iStats *skillignore.IgnoreStats, syncErr error, ctxCost *contextCostJSON, mcpResult *mcp.Result, hooksResult *hooks.Result, extras ...[]syncExtrasJSONEntry) error {
+func syncOutputJSON(results []syncTargetResult, dryRun bool, start time.Time, iStats *skillignore.IgnoreStats, syncErr error, ctxCost *contextCostJSON, mcpResult *mcp.Result, hooksResult *hooks.Result, warnings []string, extras ...[]syncExtrasJSONEntry) error {
 	var totals syncModeStats
 	var details []syncJSONTargetDetail
 	for _, r := range results {
@@ -654,6 +658,7 @@ func syncOutputJSON(results []syncTargetResult, dryRun bool, start time.Time, iS
 		DryRun:   dryRun,
 		Duration: formatDuration(start),
 		Details:  details,
+		Warnings: warnings,
 	}
 	ignoredSkills := []string{}
 	if iStats != nil && len(iStats.IgnoredSkills) > 0 {

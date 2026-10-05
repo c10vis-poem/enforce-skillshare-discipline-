@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -60,5 +61,28 @@ targets:
 	}
 	if !sb.FileExists(filepath.Join(copyTarget, "_dev-skills__foo", "SKILL.md")) {
 		t.Error("copy of an unavailable skill was deleted")
+	}
+}
+
+// Automation reading --json must see why nothing was pruned.
+func TestSync_FollowSourceLinks_JSONReportsUnavailableLink(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.CreateSkill("local", map[string]string{"SKILL.md": "# local"})
+	sb.CreateSymlink(filepath.Join(sb.Root, "gone"), filepath.Join(sb.SourcePath, "_dev-skills"))
+	target := sb.CreateTarget("claude")
+	sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets:\n  claude:\n    path: " + target + "\n")
+
+	result := sb.RunCLI("sync", "--json")
+	result.AssertSuccess(t)
+	var out struct {
+		Warnings []string `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &out); err != nil {
+		t.Fatalf("parse json: %v\n%s", err, result.Stdout)
+	}
+	want := "source link _dev-skills not followed: target is missing; kept existing target entries, nothing pruned this run"
+	if !reflect.DeepEqual(out.Warnings, []string{want}) {
+		t.Fatalf("warnings = %q", out.Warnings)
 	}
 }

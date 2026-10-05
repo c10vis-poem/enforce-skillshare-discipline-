@@ -70,3 +70,25 @@ func TestInstall_ReplacesSkillBelowFollowedSourceLink(t *testing.T) {
 		t.Error("the link itself was replaced")
 	}
 }
+
+// --group on the link would move every skill out of the user's checkout,
+// while uninstalling the link by name removes only the link entry.
+func TestUninstall_GroupOnFollowedSourceLinkIsRefused(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	checkout := filepath.Join(sb.Root, "code", "dev-skills")
+	sb.WriteFile(filepath.Join(checkout, "foo", "SKILL.md"), "---\nname: foo\n---\n# foo")
+	link := filepath.Join(sb.SourcePath, "_dev-skills")
+	sb.CreateSymlink(checkout, link)
+	sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets: {}\n")
+
+	result := sb.RunCLI("uninstall", "--group", "_dev-skills", "--force")
+	result.AssertFailure(t)
+	result.AssertAnyOutputContains(t, "followed source link")
+	if _, err := os.Stat(filepath.Join(checkout, "foo", "SKILL.md")); err != nil {
+		t.Errorf("checkout skill touched: %v", err)
+	}
+	if !sb.IsSymlink(link) {
+		t.Error("the link itself was removed")
+	}
+}
