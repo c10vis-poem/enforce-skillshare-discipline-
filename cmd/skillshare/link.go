@@ -33,7 +33,7 @@ func loadLinkScope(args []string) (*linkScope, []string, error) {
 	if i := slices.Index(args, "--"); i >= 0 {
 		positional, args = args[i:], args[:i]
 	}
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--name")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -87,6 +87,10 @@ func loadLinkScope(args []string) (*linkScope, []string, error) {
 
 func cmdLink(args []string) error {
 	start := time.Now()
+	if wantsHelp(optionArgs(args)) {
+		printLinkHelp()
+		return nil
+	}
 	scope, rest, err := loadLinkScope(args)
 	if err != nil {
 		return err
@@ -156,6 +160,10 @@ func cmdLink(args []string) error {
 
 func cmdUnlink(args []string) error {
 	start := time.Now()
+	if wantsHelp(optionArgs(args)) {
+		printUnlinkHelp()
+		return nil
+	}
 	scope, rest, err := loadLinkScope(args)
 	if err != nil {
 		return err
@@ -237,4 +245,13 @@ func printUnlinkHelp() {
 			helpRow{"skillshare unlink -- -local", "Remove a link whose name starts with -"},
 		),
 	)
+}
+
+// optionArgs returns the arguments before a -- terminator, so help is shown
+// before any config is loaded or created and a name after -- is left alone.
+func optionArgs(args []string) []string {
+	if i := slices.Index(args, "--"); i >= 0 {
+		return args[:i]
+	}
+	return args
 }

@@ -158,6 +158,33 @@ func TestUnlink_OptionTerminator(t *testing.T) {
 	}
 }
 
+func TestLink_HelpWithoutConfig(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	os.Remove(sb.ConfigPath)
+	for _, args := range [][]string{{"link", "-h"}, {"link", "--help", "-p"}, {"unlink", "--help"}} {
+		result := sb.RunCLIInDir(sb.Root, args...)
+		result.AssertSuccess(t)
+		result.AssertOutputContains(t, "Usage")
+	}
+	if _, err := os.Stat(sb.ConfigPath); !os.IsNotExist(err) {
+		t.Fatalf("help created a config: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sb.Root, ".skillshare")); !os.IsNotExist(err) {
+		t.Fatalf("help created a project config: %v", err)
+	}
+}
+
+func TestLink_NameValueLooksLikeModeFlag(t *testing.T) {
+	sb, checkout := linkSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+	sb.RunCLI("link", checkout, "--name", "-g").AssertSuccess(t)
+	if !utils.IsSymlinkOrJunction(filepath.Join(sb.SourcePath, "-g")) {
+		t.Fatal("link -g not created")
+	}
+}
+
 func TestLink_OptionTerminatorPath(t *testing.T) {
 	sb, _ := linkSandbox(t)
 	defer sb.Cleanup()
