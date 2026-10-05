@@ -10,9 +10,9 @@ import (
 
 func TestCreateJunctionPathWithCmdMetacharacters(t *testing.T) {
 	base := t.TempDir()
-	target := filepath.Join(base, "target&more")
+	target := filepath.Join(base, "target&more%TEMP%")
 	os.MkdirAll(target, 0755)
-	link := filepath.Join(base, "link&echo")
+	link := filepath.Join(base, "link&echo%TEMP%")
 
 	if err := CreateJunction(link, target); err != nil {
 		t.Fatal(err)
