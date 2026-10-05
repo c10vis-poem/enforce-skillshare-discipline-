@@ -77,6 +77,9 @@ Or simply re-run `skillshare init --force` (global) or `skillshare init -p --for
 # Source directory (where you edit skills)
 source: ~/.config/skillshare/skills
 
+# Follow directory links directly under the skills source (opt-in)
+# follow_source_links: true
+
 # Default sync mode for new targets
 mode: merge
 
@@ -153,6 +156,55 @@ source: ~/.config/skillshare/skills
 ```
 
 **Default:** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+Opt in to discovering skills through a symlink (Unix) or junction (Windows) placed directly under the skills source.
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Global and project config |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+With the default `false`, discovery ignores first-level links and `skillshare doctor` reports them as not followed. With `true`, a first-level link to a directory is treated as that directory under its link name. Links deeper inside the tree are not followed for discovery. This setting is separate from linking the source root itself, which is already supported without opting in.
+
+For example, link an existing checkout into the source:
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
+
+:::warning Updates change the real checkout
+`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes.
+:::
+
+#### Safety guards
+
+- A link whose target is missing or not a directory is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again.
+- A link pointing at the source root or one of its ancestors is skipped.
+- A link overlapping a sync target is skipped.
+
+#### Current limits
+
+Dashboard content editing of a skill behind the link, `skillshare uninstall _dev-skills/<child>`, and replacing a regular skill inside the linked directory are refused by the source write boundary. Support for these writes is planned for a later change. `skillshare uninstall _dev-skills` removes the link only, never the real checkout.
+
+On Unix, committing the source repo stages the link as an absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
+
+#### Windows
+
+Directory junctions created with `mklink /J` are the intended mechanism:
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+The drive letter must stay stable. This behavior is **not yet verified** on real Windows hardware.
 
 ### `mode`
 
@@ -895,6 +947,9 @@ Project config uses a different format from global config.
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# Follow directory links directly under the project skills source (opt-in)
+# follow_source_links: true
+
 # Targets — string or object form
 targets:
   - claude                    # String: known target with defaults
@@ -919,6 +974,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links` (project)
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Project config (`.skillshare/config.yaml`) |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+Follows directory links directly under the project skills source (normally `.skillshare/skills/`), one level only. The same [discovery behavior, safety guards, and current limits](#follow_source_links) apply as in global mode.
 
 ### `targets` (project)
 
