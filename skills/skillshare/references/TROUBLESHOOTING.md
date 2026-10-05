@@ -69,3 +69,5 @@ source recovery; target backups do not replace source version control.
   when `target_naming: standard` uses a frontmatter name.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.
+
+Replacing a skill behind a followed link keeps the old skill until the replacement succeeds; a copy failure restores it. Links in incoming staged content are copied as real files or directories, and dangling links are skipped.

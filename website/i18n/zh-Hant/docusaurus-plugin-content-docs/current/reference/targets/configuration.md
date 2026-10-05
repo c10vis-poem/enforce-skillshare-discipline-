@@ -240,6 +240,8 @@ skillshare sync
 
 對連結背後 Skill 的寫入都會落在真實的 checkout：在 dashboard 編輯內容、`skillshare install --into _dev-skills`，以及替換連結目錄內的一般 Skill，都會改動 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 會把該子目錄從真實 checkout 移到垃圾桶。`skillshare uninstall _dev-skills` 只移除連結項目本身，絕不會動到真實 checkout；垃圾桶會列出該連結，`restore` 會重新建立它。`skillshare trash restore _dev-skills/<child>` 會依同樣的原則把子目錄放回真實 checkout；若 checkout 底下有通往其他地方的巢狀連結，還原會失敗並保留垃圾桶項目。會逃出 checkout 的路徑（`..`，或通往外部的巢狀連結）仍會被拒絕。
 
+替換被跟隨連結內的 Skill 時，會保留舊 Skill 直到替換成功；複製失敗會還原舊內容。傳入內容中的連結會複製為實際檔案或目錄，目標不存在的連結會跳過。
+
 跨檔案系統將 Skill 移入 trash 時，內部檔案與目錄連結會保留為連結，並保持原始目標文字；不會複製或刪除連結目標。
 
 `update` 與 `check` 的 `--group` 接受連結名稱（`skillshare update --group _dev-skills`）。位於連結底下的巢狀群組（例如 `_dev-skills/sub`）不被 `--group` 接受；請改為指定其 Skill 名稱。`skillshare uninstall --group _dev-skills` 會被拒絕，因為它會清空真實 checkout：要移除連結請用 `skillshare uninstall _dev-skills`，或指定要丟進垃圾桶的 Skill 名稱。
