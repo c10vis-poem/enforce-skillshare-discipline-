@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -63,11 +64,14 @@ func setJunctionTarget(linkPath, target string) error {
 	}
 	defer syscall.CloseHandle(h)
 
-	sub, err := syscall.UTF16FromString(`\??\` + target)
+	// The substitute name is an NT path: \??\C:\x. A Win32 extended path such
+	// as \\?\C:\x or \\?\Volume{GUID}\x only needs its prefix swapped.
+	display := strings.TrimPrefix(target, `\\?\`)
+	sub, err := syscall.UTF16FromString(`\??\` + display)
 	if err != nil {
 		return err
 	}
-	print, err := syscall.UTF16FromString(target)
+	print, err := syscall.UTF16FromString(display)
 	if err != nil {
 		return err
 	}
