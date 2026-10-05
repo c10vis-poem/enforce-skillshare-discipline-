@@ -42,6 +42,10 @@ func CreateJunction(linkPath, sourcePath string) error {
 	if err != nil {
 		return fmt.Errorf("create junction %s: %w", linkPath, err)
 	}
+	// Like mklink /J, refuse a network path: a junction cannot point at one.
+	if strings.HasPrefix(target, `\\`) && !strings.HasPrefix(target, `\\?\`) {
+		return fmt.Errorf("create junction %s: a junction cannot target the network path %s", linkPath, target)
+	}
 	if err := os.Mkdir(linkPath, 0777); err != nil {
 		return err
 	}

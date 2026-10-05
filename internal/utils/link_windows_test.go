@@ -39,3 +39,14 @@ func TestCreateJunctionExtendedPathTarget(t *testing.T) {
 		t.Fatalf("cannot read through the junction: %v", err)
 	}
 }
+
+func TestCreateJunctionRefusesNetworkPath(t *testing.T) {
+	link := filepath.Join(t.TempDir(), "link")
+
+	if err := CreateJunction(link, `\\localhost\C$\Users`); err == nil {
+		t.Fatal("expected an error for a UNC target")
+	}
+	if _, err := os.Lstat(link); !os.IsNotExist(err) {
+		t.Fatalf("link was left behind: %v", err)
+	}
+}
