@@ -322,6 +322,7 @@ internal/skillignore/write.go	AddPattern	os.MkdirAll	filepath.Dir(filePath)	sour
 internal/skillignore/write.go	AddPattern	os.WriteFile	filePath	source-unmigrated
 internal/skillignore/write.go	RemovePattern	os.WriteFile	filePath	source-unmigrated
 internal/sourcefs/sourcefs.go	(*Root).MoveIn	os.Rename	src, filepath.Join(r.dir, name)	sourcefs
+internal/sourcefs/sourcefs.go	(*Root).moveInAnchored	os.RemoveAll	src	sourcefs
 internal/sourcefs/sourcefs.go	Create	os.MkdirAll	dir	sourcefs
 internal/sync/agent_sync.go	PruneOrphanAgentLinks	os.Remove	filepath.Join(targetDir, name)	target
 internal/sync/agent_sync.go	PullAgent	os.RemoveAll	destPath	agents

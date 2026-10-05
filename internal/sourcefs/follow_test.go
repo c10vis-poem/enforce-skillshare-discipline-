@@ -56,6 +56,38 @@ func TestFollowWritesLandInTarget(t *testing.T) {
 	}
 }
 
+func TestFollowMoveInStaysInOpenedTargetAfterRebind(t *testing.T) {
+	r, _, ext := followFixture(t)
+	name := filepath.Join("_f", "child", "new")
+	if err := r.CheckNoLink(name); err != nil {
+		t.Fatal(err)
+	}
+	// Rebind the target pathname after the second root was opened.
+	other := filepath.Join(filepath.Dir(ext), "other")
+	mustWrite(t, filepath.Join(other, "child", "SKILL.md"), "other")
+	saved := ext + "-saved"
+	if err := os.Rename(ext, saved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(other, ext); err != nil {
+		t.Fatal(err)
+	}
+	staged := filepath.Join(t.TempDir(), "staged")
+	mustWrite(t, filepath.Join(staged, "SKILL.md"), "staged")
+	if err := r.MoveIn(staged, name); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(saved, "child", "new", "SKILL.md")); string(data) != "staged" {
+		t.Fatalf("opened checkout file = %q", data)
+	}
+	if _, err := os.Lstat(filepath.Join(other, "child", "new")); !os.IsNotExist(err) {
+		t.Fatalf("move landed in the rebound directory: %v", err)
+	}
+	if _, err := os.Lstat(staged); !os.IsNotExist(err) {
+		t.Fatalf("staged dir left behind: %v", err)
+	}
+}
+
 func TestFollowStillRefusesEscapes(t *testing.T) {
 	r, _, _ := followFixture(t)
 	for _, name := range []string{

@@ -393,7 +393,7 @@ func (r *Root) MoveIn(src, name string) error {
 		if err != nil {
 			return err
 		}
-		return l.MoveIn(src, rest)
+		return l.moveInAnchored(src, rest)
 	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
@@ -405,6 +405,30 @@ func (r *Root) MoveIn(src, name string) error {
 		return err
 	}
 	return os.Rename(src, filepath.Join(r.dir, name))
+}
+
+// moveInAnchored is MoveIn for a root opened at a followed link's target.
+// That target's pathname can be rebound to another directory after the root
+// was opened, so a pathname rename could land outside the opened checkout.
+// Instead src is copied through the handle to a temporary name beside name,
+// renamed into place through the handle, and only then removed.
+func (r *Root) moveInAnchored(src, name string) error {
+	if err := r.CheckNoLink(name); err != nil {
+		return err
+	}
+	if _, err := r.root.Lstat(name); err == nil {
+		return fmt.Errorf("%s already exists", filepath.Join(r.dir, name))
+	}
+	temp := filepath.Join(filepath.Dir(name), ".skillshare-"+filepath.Base(name)+"."+strconv.FormatInt(time.Now().UnixNano(), 36))
+	if err := r.CopyIn(src, temp); err != nil {
+		_ = r.root.RemoveAll(temp)
+		return err
+	}
+	if err := r.root.Rename(temp, name); err != nil {
+		_ = r.root.RemoveAll(temp)
+		return err
+	}
+	return os.RemoveAll(src)
 }
 
 // CopyIn copies the directory tree src, which lives outside the root, to
