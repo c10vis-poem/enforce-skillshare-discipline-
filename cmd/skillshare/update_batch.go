@@ -33,10 +33,12 @@ func (uc *updateContext) isProject() bool {
 func (uc *updateContext) auditScanFn() auditScanFunc {
 	if uc.isProject() {
 		return func(path string) (*audit.Result, error) {
-			return audit.ScanSkillForProject(path, uc.projectRoot)
+			return audit.ScanSkillForProject(path, uc.projectRoot, uc.follow)
 		}
 	}
-	return audit.ScanSkill
+	return func(path string) (*audit.Result, error) {
+		return audit.ScanSkillWithFollow(path, uc.follow)
+	}
 }
 
 func (uc *updateContext) makeInstallOpts() install.InstallOptions {

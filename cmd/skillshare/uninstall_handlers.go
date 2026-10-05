@@ -274,7 +274,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 	}
 
 	for _, group := range opts.groups {
-		groupTargets, err := resolveGroupSkills(group, mode.sourceDir)
+		groupTargets, err := resolveGroupSkills(group, mode.sourceDir, mode.walk)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 			continue
