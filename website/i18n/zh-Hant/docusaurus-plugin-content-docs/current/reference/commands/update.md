@@ -65,7 +65,7 @@ flowchart TD
 
 | Flag | 說明 |
 |------|-------------|
-| `--all, -a` | 更新所有 tracked 儲存庫/skills，或在 `update agents --all` 中更新所有 agents |
+| `--all, -a` | 更新所有 tracked 儲存庫/skills，或在 `update agents --all` 中更新所有 agents。位於[已跟進的 source 連結](../targets/configuration.md#follow_source_links)背後的 tracked repo 會被略過並顯示警告，因為那是你自己的 checkout；請以名稱更新它 |
 | `--group, -G <name>` | 更新群組中所有可更新的 skills，或某個 agent 子目錄中所有 agents |
 | `--force, -f` | 捨棄本機變更並強制執行，即使有 audit 發現的問題 |
 | `--dry-run, -n` | 預覽而不做任何變更 |

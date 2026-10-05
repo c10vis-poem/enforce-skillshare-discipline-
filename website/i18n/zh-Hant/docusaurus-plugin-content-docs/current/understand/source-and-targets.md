@@ -84,7 +84,9 @@ flowchart TD
 - Git 追蹤變更的地方（用於跨機器同步）
 
 :::tip Symlink 化的 source 目錄
-Source 目錄本身可以是一個 symlink — 在使用 dotfiles 管理工具（GNU Stow、chezmoi、yadm）時很常見。例如 `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`。skillshare 會在掃描前解析 symlink，因此所有指令都能無縫運作。也支援多層串接的 symlink。
+Source 目錄本身可以是一個 symlink — 在使用 dotfiles 管理工具（GNU Stow、chezmoi、yadm）時很常見。例如 `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`。skillshare 會在掃描前解析 source 根目錄，因此各指令都能以該根目錄無縫運作。也支援多層串接的 source 根目錄 symlink。
+
+直接位於 skills source **底下**的連結則是另一個需自行啟用的功能：在 Global 或 Project 設定中設定 `follow_source_links: true`，就會以連結名稱跟進第一層的目錄 symlink（Unix）或 junction（Windows）。預設為 `false`；discovery 會忽略這些連結，`doctor` 會把它們回報為未跟進。更深處的連結在 discovery 時不會被跟進。範例、判斷流程、安全防護與透過連結寫入，請參閱[設定 — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
 :::
 
 **結構：**

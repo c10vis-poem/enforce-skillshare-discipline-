@@ -65,7 +65,7 @@ flowchart TD
 
 | Flag | 설명 |
 |------|-------------|
-| `--all, -a` | 모든 tracked 저장소/skill을 업데이트하거나, `update agents --all`로 사용 시 모든 agent를 업데이트 |
+| `--all, -a` | 모든 tracked 저장소/skill을 업데이트하거나, `update agents --all`로 사용 시 모든 agent를 업데이트. [따라간 source 링크](../targets/configuration.md#follow_source_links) 뒤의 tracked repo는 여러분 자신의 checkout이므로 경고와 함께 건너뜁니다. 이름을 지정해 update하세요 |
 | `--group, -G <name>` | 그룹 내 업데이트 가능한 모든 skill을 업데이트하거나, agent 하위 디렉터리의 모든 agent를 업데이트 |
 | `--force, -f` | 로컬 변경 사항을 버리고 audit findings에도 불구하고 진행 |
 | `--dry-run, -n` | 변경 없이 미리보기 |

@@ -369,6 +369,8 @@ skillshare install anthropics/skills/skills/pdf
 
 使用 `--update` 刷新，或使用 `--force` 覆盖。
 
+对位于[被跟随的 source link](../targets/configuration.md#follow_source_links) 背后的 tracked repo 使用 `--update` 时，如果该 checkout 存在未提交的修改，会拒绝拉取，因为一旦出现阻断级别的 audit 结果，就会用 `git reset --hard` 回滚它。请先 commit 或 stash。
+
 ### 跨路径重复
 
 如果某个仓库已经安装在某个位置，而你尝试将它安装到**另一个不同**的位置，skillshare 会阻止该操作：

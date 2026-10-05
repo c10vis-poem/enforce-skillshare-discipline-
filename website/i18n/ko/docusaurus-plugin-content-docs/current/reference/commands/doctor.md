@@ -118,11 +118,11 @@ Version
 | Source | source 디렉터리 존재 여부 및 읽기 가능 여부 |
 | Agents | agents source 디렉터리 존재 여부 (구성된 경우) |
 | Skillignore | `.skillignore` (및 `.skillignore.local`) 활성 패턴과 무시된 skill 수 |
-| Source link | skills source 바로 아래의 symlink 또는 Windows junction마다 info 한 줄. discovery가 따라가지 않으므로 그 내용은 skillshare에 보이지 않습니다 |
+| Source link | skills source 바로 아래의 symlink 또는 Windows junction마다 한 줄. [`follow_source_links`](../targets/configuration.md#follow_source_links)가 꺼져 있을 때(기본값): info, `not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it`. 켜져 있을 때: info `followed as a directory (follow_source_links)`, 또는 warning `not followed: <reason>`(대상 없음, source 루트 또는 그 상위, sync target 겹침) |
 | Links | 시스템이 symlink를 생성할 수 있는지 여부 |
 | Git | 저장소 상태 및 remote 구성 |
 
-Source link 검사는 global과 project mode 모두에서 수행됩니다. source 루트는 discovery와 같은 방식으로 해석되며, 바로 아래 항목만 검사합니다. 링크를 따라가거나 내용을 읽지 않습니다. 해당 링크가 없으면 출력이 추가되지 않습니다. 각 링크는 `doctor --json`에서 status `info`인 `undeclared_source_links` 검사로도 나타납니다.
+Source link 검사는 global과 project mode 모두에서 수행됩니다. source 루트는 discovery와 같은 방식으로 해석되며, 바로 아래 항목만 검사합니다. 해당 링크가 없으면 출력이 추가되지 않습니다. 각 링크는 `doctor --json`에서 `undeclared_source_links` 검사로도 나타나며, status는 `info`이고 정책에 따라 건너뛴 링크는 `warning`입니다.
 
 ### Targets
 
@@ -230,7 +230,7 @@ extras가 구성된 경우 다음을 검증합니다:
 - Skill 수준 `targets:` 필드 검증 (알 수 없는 target 이름에 대해 경고)
 - 마지막 backup 타임스탬프 (global mode)
 - Trash 상태 (항목 수, 총 용량, 가장 오래된 항목의 경과 시간)
-- target 내 깨진 symlink
+- target 내 깨진 symlink. 대상을 사용할 수 없는 source 링크(마운트되지 않은 드라이브) 뒤의 target 링크는 prune 제안 없이 `N links behind an unavailable source link, kept until it is back`이라는 warning으로 따로 보고됩니다. `sync`는 이를 의도적으로 유지하며, `doctor --json`에서 `broken_symlinks` 검사는 `error` 대신 `warning`입니다.
 
 :::note Project Mode
 project에 `.skillshare/config.yaml`이 있으면 `skillshare doctor`는 자동으로 project mode로 실행됩니다.
@@ -276,6 +276,8 @@ Source에서 skill이 제거되었지만 symlink는 남아있음:
 ```bash
 skillshare sync  # 고아 symlink를 정리함
 ```
+
+해당 줄이 대신 `behind an unavailable source link, kept until it is back`이라고 표시되면, 그 skill은 대상이 사라진 [따라간 source 링크](../targets/configuration.md#follow_source_links) 뒤에 있는 것입니다. prune할 것은 없습니다. 드라이브를 마운트하거나 checkout을 복구한 뒤 `skillshare sync`를 실행하세요.
 
 ### "Skills without SKILL.md"
 

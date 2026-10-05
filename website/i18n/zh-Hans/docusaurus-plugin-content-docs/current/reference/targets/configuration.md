@@ -77,6 +77,9 @@ targets:
 # Source 目录（你编辑 Skill 的地方）
 source: ~/.config/skillshare/skills
 
+# 跟随 Skill Source 根目录下第一层的目录链接（需显式开启）
+# follow_source_links: true
+
 # 新 Target 的默认 Sync 模式
 mode: merge
 
@@ -153,6 +156,101 @@ source: ~/.config/skillshare/skills
 ```
 
 **默认值：** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+显式开启后，可以通过直接放在 Skill Source 根目录下的 symlink（Unix）或 junction（Windows）来发现 Skill。
+
+| 字段 | 类型 | 默认值 | 作用范围 |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | 全局配置和项目配置 |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+默认值为 `false` 时，发现阶段会忽略第一层的链接，`skillshare doctor` 会将它们报告为未跟随。设为 `true` 后，第一层指向目录的链接会被当作以链接名命名的目录来处理。树中更深层的链接在发现阶段不会被跟随。这个设置与把 Source 根目录本身做成链接是两回事，后者无需开启即已支持。
+
+例如，把一个现有的 checkout 链接到 Source 中：
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+如果 `~/code/dev-skills` 包含 `.git` 条目，`_dev-skills` 就会成为一个 tracked repo 分组，其子目录会被发现为 Skill。Sync 会像对待其他 Skill 一样链接或复制它们。在 symlink 模式下，在真实 checkout 中编辑文件会立即反映到 Target；copy 模式则需要再执行一次 sync。
+
+:::warning update 会修改真实的 checkout
+`skillshare update _dev-skills` 会在 `~/code/dev-skills` 内部运行 git，而不是在一个单独管理的克隆中。`skillshare update _dev-skills --force` 会重置这个真实的 checkout 并丢弃其本地修改。正因如此，`skillshare update --all` 会跳过被跟随的链接并给出警告；请按名称单独更新它们。`skillshare install <url> --track --update` 和 dashboard 的 update 会拒绝拉取存在未提交修改的被跟随 checkout，因为一旦出现阻断级别的 audit 结果，就会用 `git reset --hard` 回滚该 checkout；请先 commit 或 stash。
+:::
+
+#### 安全防护 {#safety-guards}
+
+- 指向 Source 根目录或其任一上级目录的链接会被跳过。
+- 与某个 Sync Target 重叠的链接会被跳过。这是根据链接文本判断的，因此即使 Target 目录尚不存在也同样适用。
+- 目标缺失或不可读的链接会被跳过并给出警告。该次运行**不会执行任何清理（prune）、孤立副本删除或元数据删除**。未挂载的外置硬盘是安全的：重新挂载后再执行一次 sync 即可。`skillshare doctor` 会把该 Source 链接背后的失效 Target 链接列为正在等待它，而不是列为需要清理的损坏链接。
+- 指向文件的链接（例如共享的 `.skillignore`）不是目录链接。它仍是普通条目，从不影响清理。
+
+#### 发现阶段如何判断 {#how-discovery-decides}
+
+所有读取 Source 的命令（`list`、`sync`、`update`、`status`、dashboard）都通过同一个共享的遍历器来遍历它。对于每个第一层条目，判断流程如下：
+
+```mermaid
+flowchart TD
+    A[Skill Source 根目录下的第一层条目] --> B{是 symlink 或 junction？}
+    B -- 否 --> C[普通目录或文件]
+    B -- 是 --> D{follow_source_links 已开启？}
+    D -- 否 --> E[忽略；doctor 报告为未跟随]
+    D -- 是 --> H{链接指向 Source 根目录或其上级目录？}
+    H -- 是 --> I[跳过并警告：循环]
+    H -- 否 --> J{链接指向某个 Sync Target 内部或其外围？}
+    J -- 是 --> K[跳过并警告：与 Target 重叠]
+    J -- 否 --> F{目标存在？}
+    F -- 否 --> G[跳过并警告；该次运行不删除任何内容]
+    F -- 是 --> N{目标是目录？}
+    N -- 否 --> O[普通条目，例如指向共享文件的链接]
+    N -- 是 --> R{目标可读？}
+    R -- 否 --> G
+    R -- 是 --> L[当作以链接名命名的目录处理，仅限一层]
+    L --> M[Skill 保留逻辑路径，例如 source/_dev-skills/foo]
+```
+
+#### 外置硬盘上的 Skills {#skills-on-an-external-drive}
+
+把 checkout 放在外置硬盘上，并把它链接到 Source 中：
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+硬盘挂载期间，`_dev-skills` 的行为与其他 tracked repo 分组相同。未挂载时：
+
+- `list`、`sync`、`status`、`update --all`、`audit` 和 dashboard 会跳过该链接，并打印一条点名该链接的警告。`sync --json` 会将其列在 `warnings` 下；`audit --format json` 会将其列在 `warnings` 下并设置 `incomplete: true`，这样自动化流程就能区分部分运行和完整运行。
+- 该次运行**不会删除任何内容**：来自该硬盘的 Target 链接和副本保持原样，孤立副本不会被清理，其 Skill 的安装元数据也会保留，因为链接不可用意味着清单不完整，而不是 Skill 已被移除。
+- 在 symlink 模式下，Target 链接指向未挂载的路径，因此在硬盘回来之前，AI 工具无法读取这些 Skill。在 copy 模式下，副本仍可正常使用。
+- `skillshare doctor` 会以警告形式把这些 Target 链接显示为正在等待 Source 链接，且不会建议清理它们。
+- 无需重新注册任何内容：挂载硬盘后再执行一次 `skillshare sync` 即可。
+
+挂载路径在各次会话之间必须保持不变。在 macOS 上是 `/Volumes/<name>`，因此请固定卷名。在 Windows 上，每次插拔后变化的盘符会让 junction 指向错误的位置；请在磁盘管理中分配固定盘符，或改用挂载文件夹路径。
+
+#### 经由链接的写入 {#writes-through-the-link}
+
+对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare uninstall _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
+
+`update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare uninstall _dev-skills`，或按名称指定要移到 trash 的 Skill。
+
+在 Unix 上，提交 Source 仓库时暂存的是链接条目本身，也就是它的目标文本（通常是本机的绝对路径），而不是 checkout 中的文件。请把 `/_dev-skills` 加到 skills 目录的 `.gitignore` 中。`skillshare commit`、`push` 和 `init` 在链接将被暂存时会打印警告。
+
+#### Windows
+
+用 `mklink /J` 创建的目录 junction 是预期的做法：
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+盘符必须保持稳定。已通过 `ai_docs/tests/windows_follow_source_links_runbook.md` 在 Windows 11 ARM64 上验证。
 
 ### `mode`
 
@@ -885,6 +983,9 @@ skillshare init --git-root <scope>   # global mode；如果你的 cwd 是一个�
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# 跟随项目 Skill Source 根目录下第一层的目录链接（需显式开启）
+# follow_source_links: true
+
 # Targets —— 字符串或对象形式
 targets:
   - claude                    # 字符串：带默认值的已知 Target
@@ -909,6 +1010,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links`（项目）
+
+| 字段 | 类型 | 默认值 | 作用范围 |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | 项目配置（`.skillshare/config.yaml`） |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+跟随项目 Skill Source（通常是 `.skillshare/skills/`）根目录下第一层的目录链接，仅限一层。[发现行为、安全防护和当前限制](#follow_source_links)与 Global mode 相同。
 
 ### `targets`（项目）
 

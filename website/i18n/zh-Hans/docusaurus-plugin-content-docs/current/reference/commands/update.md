@@ -65,7 +65,7 @@ flowchart TD
 
 | Flag | Description |
 |------|-------------|
-| `--all, -a` | Update all tracked repos/skills, or all agents when used as `update agents --all` |
+| `--all, -a` | Update all tracked repos/skills, or all agents when used as `update agents --all`. A tracked repo behind a [followed source link](../targets/configuration.md#follow_source_links) is skipped with a warning, since it is your own checkout; update it by name |
 | `--group, -G <name>` | Update all updatable skills in a group, or all agents in an agent subdirectory |
 | `--force, -f` | Discard local changes and proceed despite audit findings |
 | `--dry-run, -n` | Preview without making changes |

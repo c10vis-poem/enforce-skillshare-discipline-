@@ -105,6 +105,8 @@ Glob 模式只匹配 source 文件夹中的**顶层目录名**。嵌套的 skill
 不会被 `"react-*"` 匹配到——请使用 `--group frontend` 来定位某个子目录中的 skills。
 :::
 
+`--group` 会拒绝像 `_dev-skills` 这样[被跟随的 source link](../targets/configuration.md#follow_source_links)，因为它会把真实 checkout 中的所有 skills 都移走。移除链接条目请用 `skillshare uninstall _dev-skills`，或按名称指定 skills（`skillshare uninstall _dev-skills/foo`）把它们从 checkout 移到 trash。
+
 ## 移除全部
 
 使用 `--all` 一次性从 source 目录中移除所有 skills：

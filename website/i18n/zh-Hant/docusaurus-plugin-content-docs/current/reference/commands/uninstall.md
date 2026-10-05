@@ -103,6 +103,8 @@ Glob 比對不分大小寫：`"Core-*"` 會比對到 `core-auth`、`CORE-DB` 等
 Glob patterns 只會比對 source 資料夾中的**頂層目錄名稱**。巢狀 skills（例如 `frontend/react-hooks`）不會被 `"react-*"` 比對到 — 請用 `--group frontend` 來鎖定子目錄中的 skills。
 :::
 
+`--group` 會拒絕像 `_dev-skills` 這樣[已跟進的 source 連結](../targets/configuration.md#follow_source_links)，因為它會把每個 skill 都從真實的 checkout 移出。要移除連結項目請用 `skillshare uninstall _dev-skills`，或指定 skill 名稱（`skillshare uninstall _dev-skills/foo`）把它們從 checkout 丟進垃圾桶。
+
 ## 移除全部
 
 用 `--all` 一次移除 source 目錄中的每個 skill：

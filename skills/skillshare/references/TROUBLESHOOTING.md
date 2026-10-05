@@ -56,5 +56,9 @@ source recovery; target backups do not replace source version control.
 - Copy targets contain separate files; inspect differences before collecting or overwriting.
 - Removing a symlink itself is different from traversing its destination. Use
   `target remove` for detaching targets and `uninstall` for removing source resources.
+- A symlink or junction placed directly under the skills source is ignored unless
+  `follow_source_links: true` is set; then it is followed one level under its link name,
+  `uninstall <link>` removes only the link, `uninstall <link>/<skill>` trashes the skill
+  from the real checkout, and an unavailable link target holds back pruning.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.

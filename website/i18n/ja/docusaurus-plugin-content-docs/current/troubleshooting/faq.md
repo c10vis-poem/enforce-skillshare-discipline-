@@ -38,11 +38,30 @@ skillshare sync
 
 ### dotfiles マネージャー（stow/chezmoi/yadm）を使っていますが、skillshare は私のシンボリックリンクを壊しますか？
 
-いいえ。skillshare は Source と Target の両方のディレクトリで外部のシンボリックリンクを検出し、
-それらを保持します。sync、update、uninstall、list、diff、install を含むすべてのコマンドは、
-シンボリックリンク自体を削除することなく、シンボリックリンクを解決してその実体となる
-ディレクトリに対して操作します。詳細は
+いいえ。シンボリックリンクになった Source ルートや Target ディレクトリは解決され、保持されます。
 [Dotfiles Manager との互換性](/docs/reference/commands/sync#dotfiles-manager-compatibility)
+を参照してください。
+
+Skill の Source の **内部** にあるリンクは別の話です。デフォルトでは、discovery は第1階層のリンクを
+無視し、`skillshare doctor` はそれらを「たどられていない」として報告します。グローバルまたは
+プロジェクトの Config で `follow_source_links: true` を設定すると、その Source 直下のディレクトリ
+リンクを通じて Skill を検出します（1階層のみ）。より深い階層のリンクは discovery ではたどられません。
+安全ガード、リンク経由の書き込み、Windows のジャンクションに関するガイダンスについては
+[Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)
+を参照してください。
+
+`_dev-skills` のようにリンクされた Tracked リポジトリでは、`skillshare update _dev-skills` は
+実際のチェックアウトの中で git を実行し、`--force` はそのチェックアウトをリセットします。
+`skillshare uninstall _dev-skills` はリンクのみを削除し、チェックアウトは決して削除しません。
+
+### Skill を外部ドライブに置けますか？
+
+はい。`follow_source_links: true` を設定したうえで、ドライブ上のチェックアウトを Source にリンクします
+（`ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills`）。ドライブがマウントされて
+いないとき、コマンドは警告付きでそのリンクをスキップし、何も削除しません。それらの Skill の Target
+リンク、コピー、インストールメタデータはそのまま残ります。ドライブをマウントして `skillshare sync` を
+再実行すれば再開できます。マウントパスは固定してください（macOS では `/Volumes/<name>`、Windows では
+固定のドライブレター）。[外部ドライブ上の Skill](../reference/targets/configuration.md#skills-on-an-external-drive)
 を参照してください。
 
 dotfiles 経由で `config.yaml` をバージョン管理している場合は、パスを絶対パスではなく

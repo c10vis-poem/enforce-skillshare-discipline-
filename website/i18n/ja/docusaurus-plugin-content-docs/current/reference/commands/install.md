@@ -369,6 +369,8 @@ skillshare install anthropics/skills/skills/pdf
 
 更新するには `--update`、上書きするには `--force` を使用します。
 
+[たどられた source リンク](../targets/configuration.md#follow_source_links)の背後にある tracked repo に対する `--update` は、そのチェックアウトにコミットされていない変更がある間は pull を拒否します。ブロックする audit の検出結果によって `git reset --hard` で巻き戻されてしまうためです。先にコミットするか stash してください。
+
 ### クロスパスの重複
 
 リポジトリがすでに 1 箇所にインストールされていて、**別の** 場所にインストールしようとすると、skillshare は操作をブロックします。

@@ -36,7 +36,15 @@ skillshare sync
 
 ### 我在用 dotfiles 管理工具（stow/chezmoi/yadm）——skillshare 会破坏我的 symlink 吗？
 
-不会。skillshare 会检测 Source 和 Target 目录中的外部 symlink 并保留它们。所有命令——sync、update、uninstall、list、diff、install——都会解析 symlink 并对底层目录进行操作，而不会移除这些链接本身。详情参见 [Dotfiles Manager Compatibility](/docs/reference/commands/sync#dotfiles-manager-compatibility)。
+不会。被 symlink 的 Source 根目录或 Target 目录会被解析并保留；参见 [Dotfiles Manager Compatibility](/docs/reference/commands/sync#dotfiles-manager-compatibility)。
+
+Skill Source **内部**的链接则另当别论。默认情况下，发现阶段会忽略第一层的链接，`skillshare doctor` 会将它们报告为未跟随。在全局或项目配置中设置 `follow_source_links: true`，即可通过直接位于该 Source 根目录下的目录链接来发现 Skill，仅限一层。更深层的链接在发现阶段不会被跟随。安全防护、经由链接的写入以及 Windows junction 的指引，参见 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
+
+对于像 `_dev-skills` 这样被链接的 tracked repo，`skillshare update _dev-skills` 会在真实的 checkout 中运行 git，`--force` 会重置该 checkout。`skillshare uninstall _dev-skills` 只移除链接，从不移除 checkout。
+
+### 我可以把 Skill 放在外置硬盘上吗？
+
+可以，前提是 `follow_source_links: true`：把硬盘上的 checkout 链接到 Source 中（`ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills`）。硬盘未挂载时，各命令会跳过该链接并给出警告，不删除任何内容：这些 Skill 的 Target 链接、副本和安装元数据都保持原样。挂载硬盘后再执行一次 `skillshare sync` 即可恢复。请保持挂载路径稳定（macOS 上为 `/Volumes/<name>`，Windows 上为固定盘符）。参见[外置硬盘上的 Skills](../reference/targets/configuration.md#skills-on-an-external-drive)。
 
 如果你用 dotfiles 管理工具对 `config.yaml` 做版本控制，可以考虑启用 `preserve_tilde_on_save: true`，让路径以 `~/...` 的形式保存，而不是绝对路径——参见 [Configuration](/docs/reference/targets/configuration#preserve_tilde_on_save)。
 
