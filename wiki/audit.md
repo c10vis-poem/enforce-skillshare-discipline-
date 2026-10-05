@@ -56,6 +56,8 @@ Both call `internal/sourcelink`, share the uninstall routes' middleware, and ret
 
 `DELETE /api/resources/{name}` and `POST /api/uninstall/batch` (`{names: [flatName], kind?: "skill", force?: bool}`) resolve individual skills beneath followed first-level links with the same follow policy as discovery, before applying tracked-repo restrictions. They move only the selected skill through `sourcefs.CheckMoveOut`, preserving its logical path (for example, `_dev-skills/foo`) in trash for policy-aware restore. The link and sibling skills stay in place. Real tracked-repo members remain protected, and links skipped by the policy are not treated as followed. Single uninstall returns `{success, name, movedToTrash}`; batch returns per-name `results` and a `summary` with `succeeded` and `failed` counts.
 
+`POST /api/trash/{name}/restore` restores skills using the current global/project follow policy. A logical name such as `_dev-skills/foo` restores into the link target when the policy follows that link; with `follow_source_links` off, it returns HTTP 500 with the existing `is a link; edit its target directly` refusal and preserves the trash entry. Link names do not determine permission to follow. Agent restore is unchanged.
+
 ## Report
 
 Use a concise table for each dimension:

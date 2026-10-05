@@ -163,7 +163,7 @@ func (s *Server) handleRestoreTrash(w http.ResponseWriter, r *http.Request) {
 	case trashKindAgent:
 		err = trash.RestoreAgent(resolved.entry, resolved.dest)
 	default:
-		err = trash.Restore(resolved.entry, resolved.dest)
+		err = trash.Restore(resolved.entry, resolved.dest, s.skillsWalk().Follow)
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to restore: "+err.Error())
