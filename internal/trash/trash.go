@@ -184,17 +184,23 @@ func MoveAgentToTrash(agentFile, metaFile, name, trashBase string) (string, erro
 
 // TrashEntry holds information about a trashed item.
 type TrashEntry struct {
-	Name      string    // Original skill name
-	Timestamp string    // Timestamp portion of dir name
-	Path      string    // Full path to trashed directory
-	Date      time.Time // Parsed or stat-based date
-	Size      int64     // Total size in bytes
-	Kind      string    // "skill" or "agent" — set by caller
+	Name       string    // Original skill name
+	Timestamp  string    // Timestamp portion of dir name
+	Path       string    // Full path to trashed directory
+	Date       time.Time // Parsed or stat-based date
+	Size       int64     // Total size in bytes
+	Kind       string    // "skill" or "agent" — set by caller
+	LinkTarget string    // Non-empty for a trashed link; never inventory its target
 }
 
-// MoveToTrash moves a skill directory to the trash.
-// Uses os.Rename for atomic same-device moves, falls back to copy+delete.
+// MoveToTrash moves a skill directory or link entry to the trash.
+// Links keep their target intact; relative link text becomes absolute so it
+// still points to the same location after moving to trash and restoring.
 func MoveToTrash(srcPath, name, trashBase string) (string, error) {
+	return moveToTrash(srcPath, name, trashBase, os.Rename)
+}
+
+func moveToTrash(srcPath, name, trashBase string, rename func(string, string) error) (string, error) {
 	if err := validateTrashName(name); err != nil {
 		return "", fmt.Errorf("invalid trash name: %w", err)
 	}
@@ -211,8 +217,15 @@ func MoveToTrash(srcPath, name, trashBase string) (string, error) {
 		return "", fmt.Errorf("failed to create trash directory: %w", err)
 	}
 
+	if utils.IsSymlinkOrJunction(srcPath) {
+		if err := moveLink(srcPath, trashPath, rename); err != nil {
+			return "", fmt.Errorf("failed to move link to trash: %w", err)
+		}
+		return trashPath, nil
+	}
+
 	// Try atomic rename first (same device)
-	if err := os.Rename(srcPath, trashPath); err == nil {
+	if err := rename(srcPath, trashPath); err == nil {
 		return trashPath, nil
 	}
 
@@ -238,7 +251,11 @@ func List(trashBase string) []TrashEntry {
 		if shouldSkipReservedAgentTrashSubtree(base, path, d) {
 			return fs.SkipDir
 		}
-		if err != nil || !d.IsDir() || path == base {
+		if err != nil || path == base {
+			return nil
+		}
+		isLink := utils.IsLinkMode(path, d.Type())
+		if !d.IsDir() && !isLink {
 			return nil
 		}
 
@@ -258,15 +275,23 @@ func List(trashBase string) []TrashEntry {
 			}
 		}
 
+		linkTarget := ""
+		if isLink {
+			linkTarget, _ = utils.ResolveLinkTarget(path)
+		}
 		items = append(items, TrashEntry{
-			Name:      fullName,
-			Timestamp: ts,
-			Path:      path,
-			Date:      date,
-			Size:      dirSize(path),
+			LinkTarget: linkTarget,
+			Name:       fullName,
+			Timestamp:  ts,
+			Path:       path,
+			Date:       date,
+			Size:       dirSize(path),
 		})
 
-		return fs.SkipDir // don't descend into trashed content
+		if d.IsDir() {
+			return fs.SkipDir // don't descend into trashed content
+		}
+		return nil // SkipDir on a link would skip its remaining siblings
 	})
 
 	sort.Slice(items, func(i, j int) bool {
@@ -352,9 +377,13 @@ func FindByName(trashBase, name string) *TrashEntry {
 	return nil
 }
 
-// Restore moves a trashed skill back to the destination directory.
-// Returns an error if the destination already exists.
+// Restore moves a trashed skill or link entry back to the destination directory.
+// Returns an error if the destination already exists, including a broken link.
 func Restore(entry *TrashEntry, destDir string) error {
+	return restore(entry, destDir, os.Rename)
+}
+
+func restore(entry *TrashEntry, destDir string, rename func(string, string) error) error {
 	if err := validateTrashName(entry.Name); err != nil {
 		return fmt.Errorf("invalid trash entry name: %w", err)
 	}
@@ -370,12 +399,21 @@ func Restore(entry *TrashEntry, destDir string) error {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	if _, err := os.Stat(destPath); err == nil {
+	if _, err := os.Lstat(destPath); err == nil {
 		return fmt.Errorf("'%s' already exists in %s (use --force on uninstall to replace)", entry.Name, destDir)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("cannot access destination: %w", err)
+	}
+
+	if utils.IsSymlinkOrJunction(entry.Path) {
+		if err := moveLink(entry.Path, destPath, rename); err != nil {
+			return fmt.Errorf("failed to restore link: %w", err)
+		}
+		return nil
 	}
 
 	// Try atomic rename first
-	if err := os.Rename(entry.Path, destPath); err == nil {
+	if err := rename(entry.Path, destPath); err == nil {
 		return nil
 	}
 
@@ -388,6 +426,31 @@ func Restore(entry *TrashEntry, destDir string) error {
 		return fmt.Errorf("restored but failed to remove trash entry: %w", err)
 	}
 
+	return nil
+}
+
+// moveLink moves only the link entry, never copying or removing target contents.
+// Recreate relative links before removing the source so relocation preserves
+// their meaning without leaving a broken link when creation fails.
+func moveLink(src, dst string, rename func(string, string) error) error {
+	target, err := utils.ResolveLinkTarget(src)
+	if err != nil {
+		return err
+	}
+	text, readErr := os.Readlink(src)
+	if readErr == nil && filepath.IsAbs(text) {
+		if err := rename(src, dst); err == nil {
+			return nil
+		}
+	}
+	if err := os.Symlink(target, dst); err != nil {
+		return err
+	}
+	if err := os.Remove(src); err != nil {
+		// Roll back the newly created entry; neither removal follows the link.
+		os.Remove(dst)
+		return err
+	}
 	return nil
 }
 

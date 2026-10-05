@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"skillshare/internal/sourcewalk"
 )
 
 // MetadataFileName is the centralized metadata file stored in each directory.
@@ -361,8 +363,8 @@ func (s *MetadataStore) SetFromSource(name string, src *Source) *MetadataEntry {
 
 // ComputeEntryHashes walks skillPath and populates FileHashes with sha256 digests.
 // Delegates to ComputeFileHashes in meta.go.
-func (e *MetadataEntry) ComputeEntryHashes(skillPath string) error {
-	hashes, err := ComputeFileHashes(skillPath)
+func (e *MetadataEntry) ComputeEntryHashes(skillPath string, follow ...*sourcewalk.Follow) error {
+	hashes, err := ComputeFileHashes(skillPath, follow...)
 	if err != nil {
 		return err
 	}
@@ -372,12 +374,12 @@ func (e *MetadataEntry) ComputeEntryHashes(skillPath string) error {
 
 // RefreshHashes recomputes file hashes for an entry that already has them.
 // No-op if entry doesn't exist or has no FileHashes.
-func (s *MetadataStore) RefreshHashes(relPath, skillPath string) {
+func (s *MetadataStore) RefreshHashes(relPath, skillPath string, follow ...*sourcewalk.Follow) {
 	entry := s.GetByPath(relPath)
 	if entry == nil || entry.FileHashes == nil {
 		return
 	}
-	hashes, err := ComputeFileHashes(skillPath)
+	hashes, err := ComputeFileHashes(skillPath, follow...)
 	if err != nil {
 		return
 	}
@@ -404,7 +406,7 @@ func (s *MetadataStore) SetFileHashes(relPath string, hashes map[string]string) 
 
 // RefreshTrackedRootSkillHashes recomputes file hashes for tracked repositories
 // that expose a SKILL.md at the repository root.
-func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string) (bool, error) {
+func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string, follow ...*sourcewalk.Follow) (bool, error) {
 	if _, err := os.Stat(filepath.Join(repoPath, "SKILL.md")); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -417,7 +419,7 @@ func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string) 
 		return false, nil
 	}
 
-	hashes, err := ComputeFileHashes(repoPath)
+	hashes, err := ComputeFileHashes(repoPath, follow...)
 	if err != nil {
 		return false, err
 	}
@@ -430,12 +432,12 @@ func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string) 
 
 // RefreshTrackedRootSkillMetadata loads the metadata store, refreshes hashes
 // for a tracked root-skill repo, and saves only when metadata changed.
-func RefreshTrackedRootSkillMetadata(sourceDir, relPath, repoPath string) error {
+func RefreshTrackedRootSkillMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) error {
 	store, err := LoadMetadataWithMigration(sourceDir, "")
 	if err != nil {
 		return err
 	}
-	changed, err := store.RefreshTrackedRootSkillHashes(filepath.ToSlash(relPath), repoPath)
+	changed, err := store.RefreshTrackedRootSkillHashes(filepath.ToSlash(relPath), repoPath, follow...)
 	if err != nil || !changed {
 		return err
 	}

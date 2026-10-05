@@ -54,6 +54,8 @@ func (trashDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	meta := formatBytes(item.entry.Size) + " · " + timeAgo(item.entry.Date)
 	if item.entry.Kind == "agent" {
 		meta = "agent · " + meta
+	} else if item.entry.LinkTarget != "" {
+		meta = "link · " + meta
 	}
 	width := m.Width()
 	renderPrefixRow(w, alignRow(mark+" "+item.entry.Name, theme.Dim().Render(meta), width-rowIndent), width, index == m.Index())
@@ -780,6 +782,10 @@ func (m trashTUIModel) renderTrashDetailPanel(entry trash.TrashEntry, width int)
 	row("Trashed", entry.Date.Format("2006-01-02 15:04")+theme.Dim().Render(" · "+timeAgo(entry.Date)))
 	row("Size", formatBytes(entry.Size))
 	row("Path", shortenPath(entry.Path))
+	if entry.LinkTarget != "" {
+		row("Link", shortenPath(entry.LinkTarget))
+		return b.String() // A trashed link does not contain its target's content.
+	}
 
 	// Content preview — SKILL.md for skills, agent .md file for agents
 	var previewFile, previewTitle string

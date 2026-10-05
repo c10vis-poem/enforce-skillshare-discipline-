@@ -143,7 +143,11 @@ func trashList(mode runMode, cwd string, noTUI bool, kind resourceKindFilter) er
 	width := ui.RowWidth(names...)
 	fmt.Println(theme.Primary().Bold(true).Render("Trash"))
 	for _, item := range items {
-		ui.Row(ui.MarkNone, item.Name, formatBytes(item.Size)+ui.DimText(" · "+timeAgo(item.Date)), width)
+		value := formatBytes(item.Size) + ui.DimText(" · "+timeAgo(item.Date))
+		if item.LinkTarget != "" {
+			value = "link → " + utils.FoldHomePath(item.LinkTarget) + ui.DimText(" · "+timeAgo(item.Date))
+		}
+		ui.Row(ui.MarkNone, item.Name, value, width)
 	}
 
 	totalSize := trash.TotalSize(trashBase)

@@ -255,7 +255,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject)
 
 	checkSkillsValidity(cfg.EffectiveSkillsSource(), walk, result, discovered)
-	checkSkillIntegrity(result, discovered)
+	checkSkillIntegrity(result, discovered, walk.Follow)
 	checkSkillTargetsField(result, discovered, targetNamesFromConfig(cfg.Targets))
 	targetCache := checkTargets(cfg, result, isProject)
 	printSymlinkCompatHint(cfg.Targets, cfg.Mode, isProject)
@@ -904,7 +904,7 @@ func checkSkillsValidity(source string, walk sourcewalk.Options, result *doctorR
 
 // checkSkillIntegrity verifies installed skills haven't been tampered with by
 // comparing current file hashes against the stored .skillshare-meta.json hashes.
-func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill) {
+func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill, follow ...*sourcewalk.Follow) {
 	if discovered == nil {
 		return
 	}
@@ -959,7 +959,7 @@ func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill
 	verified := 0
 
 	for _, v := range toVerify {
-		current, err := install.ComputeFileHashes(v.path)
+		current, err := install.ComputeFileHashes(v.path, follow...)
 		if err != nil {
 			tampered = append(tampered, fmt.Sprintf("%s: hash error: %v", v.name, err))
 			continue

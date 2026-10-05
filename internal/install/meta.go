@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -87,7 +88,14 @@ func HasMeta(skillPath string) bool {
 // ComputeFileHashes walks skillPath and returns a map of relative file paths
 // to their "sha256:<hex>" digests. It skips .skillshare-meta.json and .git/.
 // Directory symlinks are skipped; file symlinks hash their target content.
-func ComputeFileHashes(skillPath string) (map[string]string, error) {
+// With a follow policy, a linked operation root is resolved before walking;
+// keys remain relative to the logical skill root.
+func ComputeFileHashes(skillPath string, follow ...*sourcewalk.Follow) (map[string]string, error) {
+	if len(follow) > 0 {
+		if resolved, ok := follow[0].Resolve(skillPath); ok {
+			skillPath = resolved
+		}
+	}
 	hashes := make(map[string]string)
 
 	err := filepath.Walk(skillPath, func(path string, info os.FileInfo, walkErr error) error {

@@ -138,7 +138,7 @@ func (s *Server) handleBatchSetTargets(w http.ResponseWriter, r *http.Request) {
 	// store itself is only touched under the lock.
 	hashes := make(map[string]map[string]string, len(updatedSkills))
 	for _, sk := range updatedSkills {
-		if h, err := install.ComputeFileHashes(sk.path); err == nil {
+		if h, err := install.ComputeFileHashes(sk.path, s.skillsWalk().Follow); err == nil {
 			hashes[sk.name] = h
 		}
 	}
@@ -241,7 +241,7 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 			refresh := s.skillsStore.HasFileHashes(d.RelPath)
 			s.mu.RUnlock()
 			if refresh {
-				if hashes, err := install.ComputeFileHashes(d.SourcePath); err == nil {
+				if hashes, err := install.ComputeFileHashes(d.SourcePath, s.skillsWalk().Follow); err == nil {
 					s.mu.Lock()
 					s.skillsStore.SetFileHashes(d.RelPath, hashes)
 					err := s.skillsStore.Save(s.cfg.EffectiveSkillsSource())

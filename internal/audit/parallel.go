@@ -4,6 +4,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"skillshare/internal/sourcewalk"
 )
 
 // workerCount returns a bounded worker count based on available CPUs.
@@ -37,7 +39,7 @@ type ScanOutput struct {
 // projectRoot being empty means global mode; non-empty means project mode.
 // onDone is called after each skill finishes (nil-safe); use it to drive a progress bar.
 // Returns []ScanOutput aligned by index with the input slice.
-func ParallelScan(skills []SkillInput, projectRoot string, onDone func(), registry *Registry) []ScanOutput {
+func ParallelScan(skills []SkillInput, projectRoot string, onDone func(), registry *Registry, follow ...*sourcewalk.Follow) []ScanOutput {
 	outputs := make([]ScanOutput, len(skills))
 	if len(skills) == 0 {
 		return outputs
@@ -64,15 +66,15 @@ func ParallelScan(skills []SkillInput, projectRoot string, onDone func(), regist
 				}
 			} else if registry != nil {
 				if projectRoot != "" {
-					res, err = ScanSkillFilteredForProject(input.Path, projectRoot, registry)
+					res, err = ScanSkillFilteredForProject(input.Path, projectRoot, registry, follow...)
 				} else {
-					res, err = ScanSkillFiltered(input.Path, registry)
+					res, err = ScanSkillFiltered(input.Path, registry, follow...)
 				}
 			} else {
 				if projectRoot != "" {
-					res, err = ScanSkillForProject(input.Path, projectRoot)
+					res, err = ScanSkillForProject(input.Path, projectRoot, follow...)
 				} else {
-					res, err = ScanSkill(input.Path)
+					res, err = scanSkillImpl(input.Path, nil, disabledIDsGlobal(), nil, follow...)
 				}
 			}
 			outputs[idx] = ScanOutput{

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -18,8 +19,14 @@ type mdFileInfo struct {
 
 // ScanSkill scans all scannable files in a skill directory using global rules.
 func ScanSkill(skillPath string) (*Result, error) {
+	return ScanSkillWithFollow(skillPath, nil)
+}
+
+// ScanSkillWithFollow resolves a followed source root while retaining logical
+// result paths. A nil policy keeps the ordinary ScanSkill behavior.
+func ScanSkillWithFollow(skillPath string, follow *sourcewalk.Follow) (*Result, error) {
 	disabled := disabledIDsGlobal()
-	return scanSkillImpl(skillPath, nil, disabled, nil)
+	return scanSkillImpl(skillPath, nil, disabled, nil, follow)
 }
 
 // ScanFile scans a single file using global rules.
@@ -38,13 +45,13 @@ func ScanFileForProject(filePath, projectRoot string) (*Result, error) {
 
 // ScanSkillForProject scans a skill using project-mode rules
 // (builtin + global user + project user overrides).
-func ScanSkillForProject(skillPath, projectRoot string) (*Result, error) {
+func ScanSkillForProject(skillPath, projectRoot string, follow ...*sourcewalk.Follow) (*Result, error) {
 	rules, err := RulesWithProject(projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("load project rules: %w", err)
 	}
 	disabled := disabledIDsForProject(projectRoot)
-	return scanSkillImpl(skillPath, rules, disabled, nil)
+	return scanSkillImpl(skillPath, rules, disabled, nil, follow...)
 }
 
 // ScanSkillWithRules scans all scannable files using the given rules.
@@ -57,22 +64,28 @@ func ScanSkillWithRules(skillPath string, activeRules []rule) (*Result, error) {
 
 // ScanSkillFiltered scans a skill using the given registry to control which
 // analyzers run. Pass a registry from DefaultRegistry().ForPolicy(policy).
-func ScanSkillFiltered(skillPath string, registry *Registry) (*Result, error) {
+func ScanSkillFiltered(skillPath string, registry *Registry, follow ...*sourcewalk.Follow) (*Result, error) {
 	disabled := disabledIDsGlobal()
-	return scanSkillImpl(skillPath, nil, disabled, registry)
+	return scanSkillImpl(skillPath, nil, disabled, registry, follow...)
 }
 
 // ScanSkillFilteredForProject is like ScanSkillFiltered but uses project-mode rules.
-func ScanSkillFilteredForProject(skillPath, projectRoot string, registry *Registry) (*Result, error) {
+func ScanSkillFilteredForProject(skillPath, projectRoot string, registry *Registry, follow ...*sourcewalk.Follow) (*Result, error) {
 	rules, err := RulesWithProject(projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("load project rules: %w", err)
 	}
 	disabled := disabledIDsForProject(projectRoot)
-	return scanSkillImpl(skillPath, rules, disabled, registry)
+	return scanSkillImpl(skillPath, rules, disabled, registry, follow...)
 }
 
-func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]bool, registry *Registry) (*Result, error) {
+func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]bool, registry *Registry, follow ...*sourcewalk.Follow) (*Result, error) {
+	logicalPath := skillPath
+	if len(follow) > 0 {
+		if resolved, ok := follow[0].Resolve(skillPath); ok {
+			skillPath = resolved
+		}
+	}
 	if registry == nil {
 		registry = DefaultRegistry()
 	}
@@ -85,8 +98,8 @@ func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]boo
 	}
 
 	result := &Result{
-		SkillName:  filepath.Base(skillPath),
-		ScanTarget: skillPath,
+		SkillName:  filepath.Base(logicalPath),
+		ScanTarget: logicalPath,
 	}
 
 	resolvedRules := activeRules

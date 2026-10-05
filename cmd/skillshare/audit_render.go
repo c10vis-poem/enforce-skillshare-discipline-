@@ -124,7 +124,7 @@ func launchAuditTUIWithTabs(results []*audit.Result, scanOutputs []audit.ScanOut
 		otherPaths, err := discoverForKind(otherKindFilter, otherSource, ctx.skillsWalk)
 		otherInputs := toInputsForKind(otherKindFilter, otherPaths)
 		if err == nil && len(otherPaths) > 0 {
-			otherScanResults := audit.ParallelScan(otherInputs, ctx.projectRoot, nil, ctx.registry)
+			otherScanResults := audit.ParallelScan(otherInputs, ctx.projectRoot, nil, ctx.registry, ctx.skillsWalk.Follow)
 			for i := range otherPaths {
 				if i < len(otherScanResults) {
 					sr := otherScanResults[i]

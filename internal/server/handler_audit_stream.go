@@ -30,12 +30,13 @@ func (s *Server) handleAuditStream(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	// 1. Discover skills/agents
+	walk := s.skillsWalk()
 	var skills []skillEntry
 	var err error
 	if isAgents {
 		skills, err = discoverAuditAgents(source)
 	} else {
-		skills, err = discoverAuditSkills(source, s.skillsWalk())
+		skills, err = discoverAuditSkills(source, walk)
 	}
 	if err != nil {
 		safeSend("error", map[string]string{"error": err.Error()})
@@ -79,7 +80,7 @@ func (s *Server) handleAuditStream(w http.ResponseWriter, r *http.Request) {
 	} else {
 		inputs = skillsToAuditInputs(skills)
 	}
-	outputs := audit.ParallelScan(inputs, projectRoot, onDone, nil)
+	outputs := audit.ParallelScan(inputs, projectRoot, onDone, nil, walk.Follow)
 	close(done) // signal ticker goroutine to stop
 	wg.Wait()   // wait for it to fully exit before writing to w
 

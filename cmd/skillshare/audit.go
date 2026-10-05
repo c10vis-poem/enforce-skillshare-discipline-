@@ -176,8 +176,14 @@ func cmdAudit(args []string) error {
 		if mode == modeProject {
 			projectRoot = cwd
 			cfgPath = config.ProjectConfigPath(cwd)
+			if cfg, err := config.LoadProject(cwd); err == nil {
+				opts.skillsWalk = projectSkillsWalk(cwd, cfg)
+			}
 		} else {
 			cfgPath = config.ConfigPath()
+			if cfg, err := config.Load(); err == nil {
+				opts.skillsWalk = cfg.SkillsWalk()
+			}
 		}
 	} else if mode == modeProject {
 		rt, err := loadProjectRuntime(cwd)
@@ -237,7 +243,7 @@ func cmdAudit(args []string) error {
 	case !hasTargets:
 		results, summary, err = auditInstalled(sourcePath, agentsSourcePath, modeString(mode), projectRoot, threshold, kind, opts, registry)
 	case isSinglePath:
-		results, summary, err = auditPath(opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, registry)
+		results, summary, err = auditPath(opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, registry, opts.skillsWalk.Follow)
 	case isSingleName:
 		results, summary, err = auditSkillByName(auditScanRoot(kind, sourcePath, agentsSourcePath), opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, kind, registry, opts.skillsWalk)
 	default:
@@ -450,15 +456,18 @@ func crossSkillDisabledIDs(projectRoot string) map[string]bool {
 	return audit.DisabledRuleIDs()
 }
 
-func scanSkillPath(skillPath, projectRoot string, registry *audit.Registry) (*audit.Result, error) {
+func scanSkillPath(skillPath, projectRoot string, registry *audit.Registry, follow ...*sourcewalk.Follow) (*audit.Result, error) {
 	if registry != nil {
 		if projectRoot != "" {
-			return audit.ScanSkillFilteredForProject(skillPath, projectRoot, registry)
+			return audit.ScanSkillFilteredForProject(skillPath, projectRoot, registry, follow...)
 		}
-		return audit.ScanSkillFiltered(skillPath, registry)
+		return audit.ScanSkillFiltered(skillPath, registry, follow...)
 	}
 	if projectRoot != "" {
-		return audit.ScanSkillForProject(skillPath, projectRoot)
+		return audit.ScanSkillForProject(skillPath, projectRoot, follow...)
+	}
+	if len(follow) > 0 {
+		return audit.ScanSkillWithFollow(skillPath, follow[0])
 	}
 	return audit.ScanSkill(skillPath)
 }
@@ -511,13 +520,13 @@ func toInputsForKind(kind resourceKindFilter, items []auditSkillRef) []audit.Ski
 	return toAuditInputs(items, kind == kindAgents)
 }
 
-func scanPathTarget(targetPath, projectRoot string, registry *audit.Registry) (*audit.Result, error) {
+func scanPathTarget(targetPath, projectRoot string, registry *audit.Registry, follow ...*sourcewalk.Follow) (*audit.Result, error) {
 	info, err := os.Stat(targetPath)
 	if err != nil {
 		return nil, err
 	}
 	if info.IsDir() {
-		return scanSkillPath(targetPath, projectRoot, registry)
+		return scanSkillPath(targetPath, projectRoot, registry, follow...)
 	}
 	if projectRoot != "" {
 		return audit.ScanFileForProject(targetPath, projectRoot)
@@ -587,7 +596,7 @@ func auditInstalled(sourcePath, agentsSourcePath, mode, projectRoot, threshold s
 		}
 	}
 	scanInputs := toInputsForKind(kind, skillPaths)
-	scanResults := audit.ParallelScan(scanInputs, projectRoot, onDone, reg)
+	scanResults := audit.ParallelScan(scanInputs, projectRoot, onDone, reg, opts.skillsWalk.Follow)
 	if progressBar != nil {
 		progressBar.Stop()
 	}
@@ -728,7 +737,7 @@ func auditFiltered(sourcePath, agentsSourcePath string, names, groups []string, 
 		}
 	}
 	scanInputs := toInputsForKind(kind, matched)
-	scanResults := audit.ParallelScan(scanInputs, projectRoot, onDone, reg)
+	scanResults := audit.ParallelScan(scanInputs, projectRoot, onDone, reg, opts.skillsWalk.Follow)
 	if progressBar != nil {
 		progressBar.Stop()
 	}
@@ -804,7 +813,7 @@ func auditSkillByName(sourcePath, name, mode, projectRoot, threshold, format, po
 	}
 
 	start := time.Now()
-	result, err := scanPathTarget(skillPath, projectRoot, reg)
+	result, err := scanPathTarget(skillPath, projectRoot, reg, skillsWalk.Follow)
 	if err != nil {
 		return nil, summary, fmt.Errorf("scan error: %w", err)
 	}
@@ -828,7 +837,7 @@ func auditSkillByName(sourcePath, name, mode, projectRoot, threshold, format, po
 	return []*audit.Result{result}, summary, nil
 }
 
-func auditPath(rawPath, mode, projectRoot, threshold, format, policyLine string, reg *audit.Registry) ([]*audit.Result, auditRunSummary, error) {
+func auditPath(rawPath, mode, projectRoot, threshold, format, policyLine string, reg *audit.Registry, follow ...*sourcewalk.Follow) ([]*audit.Result, auditRunSummary, error) {
 	absPath, err := filepath.Abs(rawPath)
 	if err != nil {
 		absPath = rawPath
@@ -842,7 +851,7 @@ func auditPath(rawPath, mode, projectRoot, threshold, format, policyLine string,
 	}
 
 	start := time.Now()
-	result, err := scanPathTarget(absPath, projectRoot, reg)
+	result, err := scanPathTarget(absPath, projectRoot, reg, follow...)
 	if err != nil {
 		return nil, summary, fmt.Errorf("scan error: %w", err)
 	}

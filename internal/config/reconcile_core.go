@@ -111,7 +111,7 @@ func reconcileSkillsWalk(sourcePath string, walk sourcewalk.Options, store *inst
 		}
 
 		if tracked {
-			if changed, hashErr := store.RefreshTrackedRootSkillHashes(fullPath, path); hashErr == nil && changed {
+			if changed, hashErr := store.RefreshTrackedRootSkillHashes(fullPath, path, walk.Follow); hashErr == nil && changed {
 				result.changed = true
 			}
 		}
