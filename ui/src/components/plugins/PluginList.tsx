@@ -14,14 +14,16 @@ import PiPackageIcon from '../PiPackageIcon';
 
 const STACK = 6;
 
+export interface PluginUpdate { version: string; commit?: string }
+
 interface Props {
   inventory: PluginInventory;
   /** The packages this list shows, in order. */
   names: string[];
   /** Pi packages, which all show Pi's mark. */
   pi?: boolean;
-  /** The version each plugin's source has, from the last update check. */
-  updates?: Record<string, Record<PluginTarget, string>>;
+  /** The version and commit each plugin's source has, from the last update check. */
+  updates?: Record<string, Record<PluginTarget, PluginUpdate>>;
   busy: boolean;
   /** `name:target` of the selection being applied right now. */
   working: string;
@@ -53,7 +55,9 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
   // The Agents the last check found an update for, until an update takes them off. A source change
   // without a new version counts too; the version only says what the update brings.
   const checked = updates?.[name] ?? {};
-  const next = Object.values(checked).find(Boolean);
+  const next = Object.values(checked).find((u) => u.version)?.version;
+  const nextCommit = Object.values(checked).find((u) => u.commit)?.commit;
+  const commits = [...new Set(bindings.map(([, b]) => b.commit).filter(Boolean))];
   const behind = selected.filter((target) => target in checked && pluginTargets[target]?.operations.includes('update'));
   const versions = [...new Set(bindings.map(([target, b]) => bindingVersion(inventory, target, b)).filter(Boolean))];
   // With no Agent yet, the version recorded when the plugin was added is all there is; a plugin
@@ -108,7 +112,7 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
             {/* Agents at different versions, as after an update that skipped one, show each. */}
             {versions.length > 1
               ? <span className="ss-tag shrink-0 font-mono" title={bindings.filter(([target, b]) => bindingVersion(inventory, target, b)).map(([target, b]) => `${pluginTargets[target]?.label ?? target} ${bindingVersion(inventory, target, b)}`).join(' · ')}>{versions.join(' / ')}</span>
-              : <VersionChange from={versions[0]} to={next} />}
+              : <VersionChange from={versions[0]} to={next} fromCommit={commits.length === 1 ? commits[0] : undefined} toCommit={nextCommit} />}
             {/* A check found another version: update it from here, through the same review as the menu. */}
             {behind.length > 0 && (
               <button type="button" className="ss-more min-h-6 shrink-0 disabled:opacity-50" disabled={busy} onClick={() => onAdd({ action: 'update', name, targets: behind }, name)}>{t('plugins.update')}</button>
@@ -181,10 +185,12 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
 }
 
 /** The installed version as a tag, and `old → new` when the source has another one. */
-export function VersionChange({ from, to }: { from?: string; to?: string }) {
+export function VersionChange({ from, to, fromCommit, toCommit }: { from?: string; to?: string; fromCommit?: string; toCommit?: string }) {
   const next = to && to !== from ? to : undefined;
-  if (!from && !next) return null;
-  return <span className={`ss-tag shrink-0 font-mono ${next ? 'inf' : ''}`}>{from ?? '?'}{next && ` → ${next}`}</span>;
+  // A source that changed without a new version: the commit is what moved.
+  const moved = !next && fromCommit && toCommit && fromCommit !== toCommit ? `${fromCommit.slice(0, 7)} → ${toCommit.slice(0, 7)}` : undefined;
+  if (!from && !next && !moved) return null;
+  return <span className={`ss-tag shrink-0 font-mono ${next || moved ? 'inf' : ''}`}>{next ? `${from ?? '?'} → ${next}` : [from, moved].filter(Boolean).join(' · ')}</span>;
 }
 
 interface ToggleProps { target: PluginTarget; label: string; title?: string; on: boolean; applying: boolean; disabled: boolean; onClick: () => void }

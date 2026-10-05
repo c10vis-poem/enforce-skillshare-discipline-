@@ -18,7 +18,7 @@ import PluginFilesDialog from '../components/plugins/PluginFilesDialog';
 import PluginShareDialog from '../components/plugins/PluginShareDialog';
 import PluginAgents from '../components/plugins/PluginAgents';
 import { keyedMessage, outcomeStatus } from '../components/plugins/outcomeText';
-import PluginList, { VersionChange } from '../components/plugins/PluginList';
+import PluginList, { VersionChange, type PluginUpdate } from '../components/plugins/PluginList';
 import { PluginRunLine, UnchangedRuns } from '../components/plugins/PluginRuns';
 import { useT } from '../i18n';
 import { useSlow } from '../hooks/useSlow';
@@ -58,9 +58,9 @@ export default function PluginsPage() {
     const failed = new Set((response.result?.results ?? []).filter((r) => r.status === 'failed').map((r) => keyedMessage(t, r)));
     return response.failure && failed.size ? [...failed].join(' ') : response.failure;
   };
-  // What the last check found to update, per plugin and Agent, with the version it would bring
-  // ('' when the source changed without a new one). An applied update takes its Agents off.
-  const [updates, setUpdates] = useState<Record<string, Record<PluginTarget, string>>>({});
+  // What the last check found to update, per plugin and Agent, with the version and commit it would bring
+  // (version '' when the source changed without a new one). An applied update takes its Agents off.
+  const [updates, setUpdates] = useState<Record<string, Record<PluginTarget, PluginUpdate>>>({});
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   // A change with no Agent is to Skillshare itself: the plugin was only added to it, or removed from it.
   const agentLabel = (target: string) => pluginTargets[target]?.label ?? (target || t('plugins.skillshareOnly'));
@@ -79,8 +79,8 @@ export default function PluginsPage() {
     try {
       const plan = await pluginsApi.preview(request);
       if (request.action === 'check') {
-        const found: Record<string, Record<PluginTarget, string>> = {};
-        for (const c of plan.changes) if (c.action === 'update-available') (found[c.name] ??= {})[c.target] = c.binding?.version ?? '';
+        const found: Record<string, Record<PluginTarget, PluginUpdate>> = {};
+        for (const c of plan.changes) if (c.action === 'update-available') (found[c.name] ??= {})[c.target] = { version: c.binding?.version ?? '', commit: c.binding?.commit };
         setUpdates(found);
       }
       setReview({ request, plan }); setAdding(null); setImporting(false);
@@ -308,7 +308,7 @@ export default function PluginsPage() {
                 <div key={`${c.name}:${c.target}`} className="ss-r">
                   <span className="ss-at">{c.target ? <AgentIcon target={c.target} size={17} /> : c.logo ? <img src={c.logo} alt="" className="size-full rounded-[inherit] object-cover" /> : <Package size={15} />}</span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="flex items-center gap-2"><span className="font-mono font-semibold">{c.name}</span><span className="text-[13px] text-ink-2">{agentLabel(c.target)}</span><VersionChange from={installedVersion(c.name, c.target)} to={c.action.startsWith('update') ? c.binding?.version : undefined} /></span>
+                    <span className="flex items-center gap-2"><span className="font-mono font-semibold">{c.name}</span><span className="text-[13px] text-ink-2">{agentLabel(c.target)}</span><VersionChange from={installedVersion(c.name, c.target)} to={c.action.startsWith('update') ? c.binding?.version : undefined} fromCommit={data?.packages[c.name]?.bindings[c.target]?.commit} toCommit={c.action.startsWith('update') ? c.binding?.commit : undefined} /></span>
                     {!!c.preservedKeys?.length && <span className="text-xs text-ink-3"><span>{t('plugins.preservedKeys')}</span>{' '}{c.preservedKeys.join(' · ')}</span>}
                     {c.action === 'record' ? <span className="text-xs text-ink-3">{t('plugins.recordHelp')}</span> : (c.message || c.components?.length) && <span className="text-xs text-ink-3">{c.message ? keyedMessage(t, c) : c.components!.join(' · ')}</span>}
                   </span>

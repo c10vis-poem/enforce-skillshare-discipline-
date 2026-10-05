@@ -528,8 +528,9 @@ func (s *Service) Preview(ctx context.Context, r Request) (*Plan, error) {
 					} else if r.Action == "check" {
 						c.Action = "update-available"
 						c.Message, c.MessageKey = "Source content changed; review an update before applying.", "plugins.note.sourceChanged"
-						// Check is read-only; the binding carries the source's version so the change can show old → new.
+						// Check is read-only; the binding carries the source's version and commit so the change can show old → new.
 						c.Binding.Version = candidate.TargetInfo[agent].Version
+						c.Binding.Commit = disc.Commit
 					} else {
 						c.Binding.Digest = disc.Digest
 						c.Binding.Commit = disc.Commit
