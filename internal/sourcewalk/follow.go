@@ -122,6 +122,26 @@ func (f *Follow) Resolve(path string) (string, bool) {
 // target and a directory FileInfo carrying the link's own name.
 func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 	name := filepath.Base(path)
+	// Readlink first: on Windows, EvalSymlinks leaves a junction unresolved
+	// (Go 1.23+ reports it as irregular, not a symlink), which would make the
+	// walk below descend into the link entry itself and find nothing. The
+	// link text is also readable while the target is away, so the where-it-
+	// points guards run before the does-it-exist check: a link into a sync
+	// target that is not created yet is an overlap, not an unavailable
+	// inventory that would hold back pruning.
+	target, err := utils.ResolveLinkTarget(path)
+	if err != nil {
+		return f.skip(name, unavailableReason(err), true)
+	}
+	target = canonicalPath(target)
+	if within(f.root, target) {
+		return f.skip(name, "target is the source or a parent of it", false)
+	}
+	for _, t := range f.targets {
+		if within(t, target) || within(target, t) {
+			return f.skip(name, "target overlaps sync target "+t, false)
+		}
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return f.skip(name, unavailableReason(err), true)
@@ -136,24 +156,6 @@ func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 		return f.skip(name, unavailableReason(err), true)
 	}
 	dir.Close()
-	// Readlink first: on Windows, EvalSymlinks leaves a junction unresolved
-	// (Go 1.23+ reports it as irregular, not a symlink), which would make the
-	// walk below descend into the link entry itself and find nothing.
-	target, err := utils.ResolveLinkTarget(path)
-	if err != nil {
-		return f.skip(name, unavailableReason(err), true)
-	}
-	if resolved, err := filepath.EvalSymlinks(target); err == nil {
-		target = resolved
-	}
-	if within(f.root, target) {
-		return f.skip(name, "target is the source or a parent of it", false)
-	}
-	for _, t := range f.targets {
-		if within(t, target) || within(target, t) {
-			return f.skip(name, "target overlaps sync target "+t, false)
-		}
-	}
 	return target, namedInfo{info, name}, true
 }
 

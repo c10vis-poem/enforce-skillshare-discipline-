@@ -262,7 +262,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	checkSharedTargetPaths(cfg, result, isProject)
 	checkCrossTargetDiscovery(cfg, result, isProject)
 	checkSyncDrift(cfg, result, discovered, targetCache)
-	checkBrokenSymlinks(cfg, result)
+	checkBrokenSymlinks(cfg, walk.Follow, result)
 	checkDuplicateSkills(cfg, result, discovered)
 }
 
@@ -1047,9 +1047,12 @@ func checkSkillTargetsField(result *doctorResult, discovered []sync.DiscoveredSk
 	}
 }
 
-// checkBrokenSymlinks finds broken symlinks in targets
-func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
-	var allBroken []string
+// checkBrokenSymlinks finds broken symlinks in targets. Links to skills behind
+// a source link whose target is away (an unmounted drive) are expected to be
+// broken and are kept by sync, so they are reported as waiting, not as errors.
+func checkBrokenSymlinks(cfg *config.Config, follow *sourcewalk.Follow, result *doctorResult) {
+	var allBroken, allWaiting []string
+	unavailable := follow.Unavailable()
 	names := targetNamesFromConfig(cfg.Targets)
 	sort.Strings(names)
 	width := ui.RowWidth(names...)
@@ -1058,7 +1061,14 @@ func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
 		if !target.SkillsConfig().IsEnabled() {
 			continue
 		}
-		broken := findBrokenSymlinks(target.SkillsConfig().Path)
+		var broken, waiting []string
+		for _, b := range findBrokenSymlinks(target.SkillsConfig().Path) {
+			if behindUnavailableLink(b, unavailable) {
+				waiting = append(waiting, b)
+			} else {
+				broken = append(broken, b)
+			}
+		}
 		if len(broken) > 0 {
 			ui.Row(ui.MarkFail, name, plural(len(broken), "broken symlink")+": "+strings.Join(broken, ", "), width)
 			result.suggest("skillshare sync", "prune the broken links")
@@ -1067,13 +1077,35 @@ func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
 				allBroken = append(allBroken, fmt.Sprintf("%s/%s", name, b))
 			}
 		}
+		if len(waiting) > 0 {
+			ui.Row(ui.MarkWarn, name, plural(len(waiting), "link")+" behind an unavailable source link, kept until it is back: "+strings.Join(waiting, ", "), width)
+			result.addWarning()
+			for _, b := range waiting {
+				allWaiting = append(allWaiting, fmt.Sprintf("%s/%s", name, b))
+			}
+		}
 	}
-	if len(allBroken) > 0 {
+	switch {
+	case len(allBroken) > 0:
 		result.addCheck("broken_symlinks", checkError,
 			fmt.Sprintf("%d broken symlink(s) found", len(allBroken)), allBroken)
-	} else {
+	case len(allWaiting) > 0:
+		result.addCheck("broken_symlinks", checkWarning,
+			fmt.Sprintf("%d link(s) behind an unavailable source link", len(allWaiting)), allWaiting)
+	default:
 		result.addCheck("broken_symlinks", checkPass, "No broken symlinks", nil)
 	}
+}
+
+// behindUnavailableLink reports whether a flattened target entry such as
+// _dev-skills__foo belongs to a first-level source link named in unavailable.
+func behindUnavailableLink(entry string, unavailable []string) bool {
+	for _, name := range unavailable {
+		if entry == name || strings.HasPrefix(entry, name+"__") {
+			return true
+		}
+	}
+	return false
 }
 
 func findBrokenSymlinks(dir string) []string {

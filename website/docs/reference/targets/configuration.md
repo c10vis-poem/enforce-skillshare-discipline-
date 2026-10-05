@@ -186,9 +186,9 @@ If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-
 
 #### Safety guards
 
-- A link whose target is missing or not a directory is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again.
 - A link pointing at the source root or one of its ancestors is skipped.
-- A link overlapping a sync target is skipped.
+- A link overlapping a sync target is skipped. This is decided from the link text, so it also applies when the target directory does not exist yet.
+- A link whose target is missing or not a directory is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
 
 #### How discovery decides
 
@@ -200,13 +200,13 @@ flowchart TD
     B -- no --> C[Ordinary directory or file]
     B -- yes --> D{follow_source_links on?}
     D -- no --> E[Ignored; doctor reports it as not followed]
-    D -- yes --> F{Target exists and is a directory?}
-    F -- no --> G[Skipped with a warning; this run deletes nothing]
-    F -- yes --> H{Target is the source root or a parent of it?}
+    D -- yes --> H{Link points at the source root or a parent of it?}
     H -- yes --> I[Skipped with a warning: cycle]
-    H -- no --> J{Target overlaps a sync target?}
+    H -- no --> J{Link points into or around a sync target?}
     J -- yes --> K[Skipped with a warning: target overlap]
-    J -- no --> L[Treated as a directory under the link name, one level only]
+    J -- no --> F{Target exists and is a directory?}
+    F -- no --> G[Skipped with a warning; this run deletes nothing]
+    F -- yes --> L[Treated as a directory under the link name, one level only]
     L --> M[Skills keep logical paths such as source/_dev-skills/foo]
 ```
 
@@ -224,6 +224,7 @@ While the drive is mounted, `_dev-skills` behaves like any other tracked-repo gr
 - `list`, `sync`, `status`, `update --all`, and the dashboard skip the link and print one warning naming it.
 - That run makes **no deletions**: target links and copies that came from the drive stay in place, orphan copies are not cleaned up, and install metadata for its skills is kept, because an unavailable link means the inventory is incomplete, not that the skills were removed.
 - In symlink mode, the target links point at the unmounted path, so the AI tools cannot read those skills until the drive is back. In copy mode, the copies keep working.
+- `skillshare doctor` shows those target links as waiting for the source link, as a warning, and does not suggest pruning them.
 - Nothing has to be re-registered: mount the drive and run `skillshare sync` again.
 
 The mount path must stay the same between sessions. On macOS that is `/Volumes/<name>`, so keep the volume name fixed. On Windows, a drive letter that changes between plugs leaves the junction pointing at the wrong place; assign a fixed letter in Disk Management or use a mounted folder path instead.

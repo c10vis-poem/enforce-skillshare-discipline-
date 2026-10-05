@@ -177,6 +177,9 @@ func TestFollowGuards(t *testing.T) {
 		{name: "target equal", link: func(_, c string) string { return c }, targets: func(_, c string) []string { return []string{c} }},
 		{name: "target inside", link: func(_, c string) string { return c }, targets: func(_, c string) []string { return []string{filepath.Join(c, "not-yet", "skills")} }},
 		{name: "target contains", link: func(_, c string) string { return filepath.Join(c, "foo") }, targets: func(_, c string) []string { return []string{c} }},
+		// A link into a sync target that is not created yet is an overlap, not a
+		// missing target: it must not hold back pruning.
+		{name: "target missing but overlapping", link: func(_, c string) string { return filepath.Join(c, "not-yet", "skills") }, targets: func(_, c string) []string { return []string{filepath.Join(c, "not-yet")} }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root, checkout := followFixture(t)
