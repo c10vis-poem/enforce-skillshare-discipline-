@@ -45,6 +45,19 @@ Compare routes in `internal/server/server.go`, `handler_*.go` files, handler tes
 
 `GET /api/check` and the `done` event of `GET /api/check/stream` return the same `linked_repos` field separately from `tracked_repos`. Linked checkouts are excluded from Git checks and work-unit totals. Dashboard update endpoints return a `skipped` result for them before running Git, including force retries and skills within those checkouts.
 
+Source-link endpoints (skills only, in the dashboard's current global/project mode):
+
+| Endpoint | Request | Response |
+|---|---|---|
+| `POST /api/source-links` | `{path, name?, enable?}` | `{path, target, kind, warning}`; `kind` is `symlink` or `junction` |
+| `DELETE /api/source-links/{name}` | First-level link name | `{success, name}`; moves only the link to trash |
+
+Both call `internal/sourcelink`, share the uninstall routes' middleware, and return guard refusals as HTTP 400 with the core reason in the string `error` field. `enable: true` persists `follow_source_links` in the current config and refreshes the follow snapshot. The skills page's **Link folder** dialog offers that setting only while it is off. `GET /api/resources` adds optional `linkName` and `linkTarget` fields to skills beneath a followed first-level source link; the target is resolved by the same discovery policy, and skipped links are not identified as followed. It also returns `sourceLinks: [{name, target, available, warning?}]` independently of skill discovery, including empty and dangling first-level links. `available` means the current follow policy accepts the link; skipped links have `available: false` and a warning explaining why. Linked groups use a link icon and muted target path in list/cards headers; the icon-only **Unlink** button changes from a link icon to an unlink icon on hover or focus. Tree rows use a link icon and keep the target and secondary **Unlink** action in the detail pane. Empty linked groups remain visible in list, cards, and tree views with the target, zero-skill count or warning, and an icon-only **Unlink** button; their confirmation dialog accepts an empty skill list. Linked groups have no Update repo action or group context menu; the Updates tab covers followed checkouts. Unlink confirms target preservation, affected skills on the next sync, and Trash-page recovery before sending a request; linked skill uninstall confirms that the selected skills move out of the linked folder into trash.
+
+`DELETE /api/resources/{name}` and `POST /api/uninstall/batch` (`{names: [flatName], kind?: "skill", force?: bool}`) resolve individual skills beneath followed first-level links with the same follow policy as discovery, before applying tracked-repo restrictions. They move only the selected skill through `sourcefs.CheckSkillMoveOut`, preserving its logical path (for example, `_dev-skills/foo`) in trash for policy-aware restore. A skill at the link target's root is refused with `is the linked folder itself; use unlink to remove the link` (single HTTP 400, batch per-item error), as in CLI uninstall; explicit unlink uses `CheckMoveOut` and moves only the link. The link and sibling skills stay in place. Real tracked-repo members remain protected, and links skipped by the policy are not treated as followed. Single uninstall returns `{success, name, movedToTrash}`; batch returns per-name `results` and a `summary` with `succeeded` and `failed` counts.
+
+`POST /api/trash/{name}/restore` restores skills using the current global/project follow policy. A logical name such as `_dev-skills/foo` restores into the link target when the policy follows that link; with `follow_source_links` off, it returns HTTP 500 with the existing `is a link; edit its target directly` refusal and preserves the trash entry. Link names do not determine permission to follow. Agent restore is unchanged.
+
 ## Report
 
 Use a concise table for each dimension:

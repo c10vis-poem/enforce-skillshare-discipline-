@@ -1,7 +1,8 @@
 import { Fragment, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
-import { Bot, ChevronDown, ChevronRight, Folder, FolderOpen, GitBranch, Power, PowerOff, Puzzle } from 'lucide-react';
-import type { Skill } from '../../api/client';
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import { Bot, ChevronDown, ChevronRight, Folder, FolderOpen, GitBranch, Link2, Power, PowerOff, Puzzle } from 'lucide-react';
+import type { Skill, SourceLink } from '../../api/client';
+import { countLabel } from '../../lib/resourceGrouping';
 import { useT } from '../../i18n';
 import { formatTrackedRepoName } from '../../lib/resourceNames';
 import { insideSelection, skillsUnder } from './tree';
@@ -17,13 +18,15 @@ interface Props {
   onSelect: (id: string, mode: SelectMode) => void;
   onToggleFolder: (path: string) => void;
   onOpen: (skill: Skill) => void;
+  renderUnlink?: (link: SourceLink) => ReactNode;
+  onContextMenu?: (e: MouseEvent, row: TreeRow) => void;
 }
 
 /**
  * Explorer-style tree: click selects, Cmd/Ctrl-click adds, Shift-click takes a range,
  * double-click (or Enter) opens a skill. Keyboard follows the WAI-ARIA tree pattern.
  */
-export default function SkillTree({ rows, selected, kind, label, onSelect, onToggleFolder, onOpen }: Props) {
+export default function SkillTree({ rows, selected, kind, label, onSelect, onToggleFolder, onOpen, renderUnlink, onContextMenu }: Props) {
   const t = useT();
   const refs = useRef(new Map<string, HTMLDivElement>());
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -75,9 +78,10 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
         const isSel = selected.has(row.id);
         const inside = !isSel && insideSelection(row, selected);
         const folder = row.type === 'folder' ? row : null;
+        const link = kind === 'skill' ? folder?.node.link : undefined;
         const skills = folder ? skillsUnder(folder.node) : [];
         const off = folder ? skills.filter((s) => s.disabled).length : row.type === 'item' && row.skill.disabled ? 1 : 0;
-        const dim = folder ? off === skills.length : off === 1;
+        const dim = folder ? skills.length > 0 && off === skills.length : off === 1;
         return (
           <div
             key={row.id}
@@ -91,6 +95,7 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
             style={{ '--d': row.depth } as CSSProperties}
             onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
             onClick={(e) => onClick(e, row.id)}
+            onContextMenu={link ? undefined : (e) => onContextMenu?.(e, row)}
             onDoubleClick={() => { if (row.type === 'item') onOpen(row.skill); }}
             onFocus={() => setFocusId(row.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
@@ -110,7 +115,7 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
               <span className="cv" />
             )}
             {folder ? (
-              folder.repo ? <GitBranch size={15} className="ic" /> : folder.collapsed ? <Folder size={15} className="ic" /> : <FolderOpen size={15} className="ic" />
+              link ? <Link2 size={15} className="ic" /> : folder.repo ? <GitBranch size={15} className="ic" /> : folder.collapsed ? <Folder size={15} className="ic" /> : <FolderOpen size={15} className="ic" />
             ) : dim ? (
               // A disabled item says so with its icon; the hover text is for folder counts only.
               <PowerOff size={14} className="ic" role="img" aria-label={t('resources.status.disabled')}>
@@ -124,14 +129,19 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
                 ? folder.names.map((n, j) => (
                   <Fragment key={j}>
                     {j > 0 && <span className="sl">/</span>}
-                    {folder.repo ? formatTrackedRepoName(n) : n}
+                    {folder.repo && !link ? formatTrackedRepoName(n) : n}
                   </Fragment>
                 ))
                 : row.type === 'item' && row.skill.name}
             </span>
-            {folder?.repo && <span className="ss-tag shrink-0">tracked</span>}
-            <span className="hv">
-              {folder && <span>{skills.length}</span>}
+            {folder?.repo && !link && <span className="ss-tag shrink-0">tracked</span>}
+            {link && skills.length === 0 && <>
+              <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={link.target}>{link.target}</span>
+              <span className="text-xs text-ink-3">{link.warning ?? countLabel(t, kind, 0)}</span>
+              <span className="ml-auto">{renderUnlink?.(link)}</span>
+            </>}
+            <span className={`hv ${link ? '!ml-auto' : ''}`}>
+              {folder && !(link && skills.length === 0) && <span>{skills.length}</span>}
               {folder && off > 0 && (
                 <span className="inline-flex items-center gap-1">
                   <Power size={12} />

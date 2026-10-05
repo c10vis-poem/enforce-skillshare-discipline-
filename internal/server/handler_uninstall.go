@@ -149,17 +149,12 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 	// Use DiscoverSourceSkillsAll (not DiscoverSourceSkills) so disabled skills
 	// — those listed in .skillignore — are also resolvable. The list handler
 	// shows disabled skills, so uninstall must be able to find them too (#190).
-	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
+	source := s.skillsSource()
+	walk := s.skillsWalk()
+	discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 		return
-	}
-
-	flatNameMap := make(map[string]*sync.DiscoveredSkill, len(discovered))
-	baseNameMap := make(map[string]*sync.DiscoveredSkill, len(discovered))
-	for i := range discovered {
-		flatNameMap[discovered[i].FlatName] = &discovered[i]
-		baseNameMap[filepath.Base(discovered[i].SourcePath)] = &discovered[i]
 	}
 
 	results := make([]batchUninstallItemResult, 0, len(body.Names))
@@ -182,8 +177,28 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		if strings.HasPrefix(name, "_") {
-			repoPath := filepath.Join(s.cfg.EffectiveSkillsSource(), name)
+		repoPath := filepath.Join(source, name)
+		_, repoFollowed := walk.Follow.Resolve(repoPath)
+		managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
+		var skill *sync.DiscoveredSkill
+		if !managedRepo {
+			skill, err = resolveUninstallSkill(discovered, name)
+			if err != nil {
+				res.Error = err.Error()
+				results = append(results, res)
+				failed++
+				if firstErr == "" {
+					firstErr = res.Error
+				}
+				continue
+			}
+		}
+		followed := false
+		if skill != nil {
+			_, followed = walk.Follow.Resolve(skill.SourcePath)
+		}
+		// An explicit managed repo takes precedence over a skill's basename.
+		if managedRepo || (strings.HasPrefix(name, "_") && !followed) {
 			if !install.IsGitRepo(repoPath) {
 				res.Success = false
 				res.Error = "not a tracked repository: " + name
@@ -213,7 +228,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 				continue
 			}
 
-			if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath, s.skillsWalk().Follow); err != nil {
+			if err := sourcefs.CheckMoveOut(source, repoPath, walk.Follow); err != nil {
 				res.Success = false
 				res.Error = err.Error()
 				results = append(results, res)
@@ -243,10 +258,6 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		skill := flatNameMap[name]
-		if skill == nil {
-			skill = baseNameMap[name]
-		}
 		if skill == nil {
 			res.Success = false
 			res.Error = "skill not found: " + name
@@ -258,7 +269,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		if skill.IsInRepo {
+		if skill.IsInRepo && !followed {
 			res.Success = false
 			res.Error = "skill is inside a tracked repo; uninstall the repo instead"
 			results = append(results, res)
@@ -269,8 +280,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		baseName := filepath.Base(skill.SourcePath)
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), skill.SourcePath, s.skillsWalk().Follow); err != nil {
+		if err := sourcefs.CheckSkillMoveOut(source, skill.SourcePath, walk.Follow); err != nil {
 			res.Success = false
 			res.Error = err.Error()
 			results = append(results, res)
@@ -280,7 +290,11 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			}
 			continue
 		}
-		if _, err := trash.MoveToTrash(skill.SourcePath, baseName, s.trashBase()); err != nil {
+		trashName := filepath.Base(skill.SourcePath)
+		if followed {
+			trashName = skill.RelPath // Preserve the linked skill's logical restore path.
+		}
+		if _, err := trash.MoveToTrash(skill.SourcePath, trashName, s.trashBase()); err != nil {
 			res.Success = false
 			res.Error = fmt.Sprintf("failed to trash skill: %v", err)
 			results = append(results, res)
@@ -377,4 +391,25 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			Failed:    failed,
 		},
 	})
+}
+
+// ponytail: scan per requested name; index discovery if large batches become slow.
+func resolveUninstallSkill(discovered []sync.DiscoveredSkill, name string) (*sync.DiscoveredSkill, error) {
+	for i := range discovered {
+		if discovered[i].FlatName == name {
+			return &discovered[i], nil
+		}
+	}
+	var match *sync.DiscoveredSkill
+	var candidates []string
+	for i := range discovered {
+		if filepath.Base(discovered[i].SourcePath) == name {
+			match = &discovered[i]
+			candidates = append(candidates, match.FlatName)
+		}
+	}
+	if len(candidates) > 1 {
+		return nil, fmt.Errorf("ambiguous skill name %q: use one of %s", name, strings.Join(candidates, ", "))
+	}
+	return match, nil
 }

@@ -34,7 +34,7 @@ skillshare のすべてのコマンドに関する完全なリファレンスで
 
 | カテゴリ | コマンド |
 |----------|----------|
-| **コア** | `init`, `install`, `uninstall`, `list`, `search`, `sync`, `status` |
+| **コア** | `init`, `install`, `uninstall`, `link`, `unlink`, `list`, `search`, `sync`, `status` |
 | **Skill 管理** | `new`, `check`, `update`, `upgrade`, `enable`, `disable` |
 | **MCP 接続** | `mcp`（`add`, `edit`, `import`, `list`, `remove`, `restore`）, `sync mcp` |
 | **Plugin 管理** | `plugin`（`list`, `discover`, `add`, `import`, `inspect`, `sync`, `check`, `update`, `enable`, `disable`, `remove`） |
@@ -52,6 +52,8 @@ skillshare のすべてのコマンドに関する完全なリファレンスで
 | [init](./init.md) | 初回セットアップ |
 | [install](./install.md) | リポジトリまたはパスから Skill を追加 |
 | [uninstall](./uninstall.md) | Skill を削除 |
+| [link](./link.md) | 自分の Skill フォルダを Source にリンク |
+| [unlink](./unlink.md) | Source からリンクを削除 |
 | [list](./list.md) | すべての Skill を一覧表示 |
 | [search](./search.md) | Skill を検索 |
 | [sync](./sync.md) | すべてのターゲットに Skill を push |

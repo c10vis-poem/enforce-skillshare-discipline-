@@ -173,12 +173,18 @@ follow_source_links: true
 
 デフォルトの `false` では、discovery は第1階層のリンクを無視し、`skillshare doctor` はそれらを「たどられていない」として報告します。`true` にすると、ディレクトリを指す第1階層のリンクは、そのリンク名を持つディレクトリとして扱われます。ツリーのより深い階層にあるリンクは discovery ではたどられません。この設定は、Source ルート自体をリンクにすることとは別物です。後者はオプトインなしで既にサポートされています。
 
-たとえば、既存のチェックアウトを Source にリンクします。
+たとえば、[`skillshare link`](../commands/link.md) で既存のチェックアウトを Source にリンクします。
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+これにより `~/.config/skillshare/skills/_dev-skills` が作成され、`--enable` を付けると `follow_source_links: true` も設定されます。このコマンドは、下記の安全ガードがスキップするリンク先を拒否します。リンクを外すには [`skillshare unlink _dev-skills`](../commands/unlink.md) を使います。
+
+:::note 手動のリンク
+自分で作成したリンク（`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`）も同じようにたどられます。その場合、安全ガードは作成後に `skillshare doctor` で報告されるだけです。
+:::
 
 `~/code/dev-skills` に `.git` エントリが含まれていれば、`_dev-skills` は Tracked リポジトリのグループになり、その子ディレクトリが Skill として検出されます。Sync は他の Skill と同様にそれらをリンクまたはコピーします。symlink モードでは、実際のチェックアウト内のファイルを編集するとすぐに Target に反映されます。copy モードでは再度 sync が必要です。
 
@@ -224,7 +230,7 @@ flowchart TD
 外部ドライブ上にチェックアウトを置き、それを Source にリンクします。
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -240,7 +246,9 @@ skillshare sync
 
 #### リンク経由の書き込み {#writes-through-the-link}
 
-リンクの背後にある Skill への書き込みは、実際のチェックアウトに反映されます。ダッシュボードでのコンテンツ編集、`skillshare install --into _dev-skills`、リンクされたディレクトリ内の通常の Skill の置き換えは、いずれも `~/code/dev-skills` を変更します。`skillshare uninstall _dev-skills/<child>` はその子を実際のチェックアウトから trash に移動します。`skillshare uninstall _dev-skills` はリンクのエントリのみを削除し、実際のチェックアウトは決して削除しません。trash にはそのリンクが一覧表示され、`restore` でリンクが再作成されます。`skillshare trash restore _dev-skills/<child>` は同じポリシーの下で子を実際のチェックアウトに戻します。チェックアウトの下にネストされたリンクが別の場所を指している場合、restore は失敗し、trash のエントリは保持されます。チェックアウトの外に出るパス（`..`、または外部を指すネストされたリンク）は引き続き拒否されます。
+リンクの背後にある Skill への書き込みは、実際のチェックアウトに反映されます。ダッシュボードでのコンテンツ編集、`skillshare install --into _dev-skills`、リンクされたディレクトリ内の通常の Skill の置き換えは、いずれも `~/code/dev-skills` を変更します。`skillshare uninstall _dev-skills/<child>` はその子を実際のチェックアウトから trash に移動します。`skillshare unlink _dev-skills` はリンクのエントリのみを削除し、実際のチェックアウトは決して削除しません。trash にはそのリンクが一覧表示され、`restore` でリンクが再作成されます。`skillshare trash restore _dev-skills/<child>` は同じポリシーの下で子を実際のチェックアウトに戻します。チェックアウトの下にネストされたリンクが別の場所を指している場合、restore は失敗し、trash のエントリは保持されます。チェックアウトの外に出るパス（`..`、または外部を指すネストされたリンク）は引き続き拒否されます。
+
+リンク先フォルダーの直下に `SKILL.md` がある場合も同じです。そのルート skill の `uninstall` は拒否されます。ダッシュボードの **Unlink** または `skillshare unlink _dev-skills` で、リンク先を変更せずにリンクだけを削除してください。
 
 ダッシュボードでの Target 割り当てが frontmatter を書き込む場合も、同じ書き込み境界が適用されます。ネストされた `SKILL.md` リンクは、リンク先を変更せずに拒否されます。一括割り当てではその Skill の拒否理由を返し、通常の Skill の処理を続けます。
 
@@ -248,13 +256,13 @@ skillshare sync
 
 Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。
 
-`update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare uninstall _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
+`update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare unlink _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
 
 Unix では、Source リポジトリをコミットするとリンクのエントリ自体、つまりそのリンク先のテキスト（通常はマシン固有の絶対パス）がステージされ、チェックアウトのファイルはステージされません。Skill ディレクトリの `.gitignore` に `/_dev-skills` を追加してください。`skillshare commit`、`push`、`init` は、リンクがステージされそうな場合に警告を出力します。
 
 #### Windows
 
-`mklink /J` で作成するディレクトリジャンクションが想定された仕組みです。
+ディレクトリジャンクションが想定された仕組みです。`skillshare link D:\code\dev-skills` はジャンクションを作成します。これには開発者モードも管理者権限も不要で、ジャンクションを作成できない場合にのみディレクトリ symlink にフォールバックします。ジャンクションを手動で作成する場合は次のとおりです。
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

@@ -14,6 +14,7 @@ import { parseSkillMarkdown } from '../lib/frontmatter';
 import { isMarkdown } from '../lib/highlight';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
 import { resourceHref } from '../lib/resourceNames';
+import { sourceLinkOf } from '../lib/resourceGrouping';
 import { targetFilterPatch } from '../lib/targetFilter';
 import { useSyncMatrix } from '../hooks/useSyncMatrix';
 import { projectUrl } from '../components/projects/projectView';
@@ -227,7 +228,7 @@ export default function ResourceDetailPage() {
     },
     {
       key: 'uninstall',
-      label: t(resource.isInRepo && !isAgent ? 'resourceDetail.actions.uninstallRepo' : 'resourceDetail.actions.uninstall'),
+      label: t(resource.isInRepo && !isAgent && !sourceLinkOf(resource) ? 'resourceDetail.actions.uninstallRepo' : 'resourceDetail.actions.uninstall'),
       icon: <Trash2 size={14} />,
       danger: true,
       onSelect: () => setUninstalling(true),

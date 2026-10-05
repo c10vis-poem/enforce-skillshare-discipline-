@@ -45,19 +45,19 @@ skillshare sync
 Skill の Source の **内部** にあるリンクは別の話です。デフォルトでは、discovery は第1階層のリンクを
 無視し、`skillshare doctor` はそれらを「たどられていない」として報告します。グローバルまたは
 プロジェクトの Config で `follow_source_links: true` を設定すると、その Source 直下のディレクトリ
-リンクを通じて Skill を検出します（1階層のみ）。より深い階層のリンクは discovery ではたどられません。
+リンクを通じて Skill を検出します（1階層のみ）。[`skillshare link <path>`](../reference/commands/link.md) は事前にチェックしたうえでこのリンクを作成します。より深い階層のリンクは discovery ではたどられません。
 安全ガード、リンク経由の書き込み、Windows のジャンクションに関するガイダンスについては
 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)
 を参照してください。
 
 `_dev-skills` のようにリンクされた Tracked リポジトリでは、`skillshare update _dev-skills` は
 実際のチェックアウトの中で git を実行し、`--force` はそのチェックアウトをリセットします。
-`skillshare uninstall _dev-skills` はリンクのみを削除し、チェックアウトは決して削除しません。
+`skillshare unlink _dev-skills` はリンクのみを削除し、チェックアウトは決して削除しません。
 
 ### Skill を外部ドライブに置けますか？
 
 はい。`follow_source_links: true` を設定したうえで、ドライブ上のチェックアウトを Source にリンクします
-（`ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills`）。ドライブがマウントされて
+（`skillshare link /Volumes/Work/dev-skills --enable`）。ドライブがマウントされて
 いないとき、コマンドは警告付きでそのリンクをスキップし、何も削除しません。それらの Skill の Target
 リンク、コピー、インストールメタデータはそのまま残ります。ドライブをマウントして `skillshare sync` を
 再実行すれば再開できます。マウントパスは固定してください（macOS では `/Volumes/<name>`、Windows では

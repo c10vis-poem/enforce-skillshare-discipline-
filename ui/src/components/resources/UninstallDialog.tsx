@@ -6,7 +6,7 @@ import type { BatchUninstallItemResult, Skill } from '../../api/client';
 import { queryKeys } from '../../lib/queryKeys';
 import { clearAuditCache } from '../../lib/auditCache';
 import { formatTrackedRepoName } from '../../lib/resourceNames';
-import { countLabel, parentPath, repoOf } from '../../lib/resourceGrouping';
+import { countLabel, parentPath, repoOf, sourceLinkOf } from '../../lib/resourceGrouping';
 import { useT } from '../../i18n';
 import Button from '../Button';
 import { Checkbox } from '../Checkbox';
@@ -28,11 +28,11 @@ export function UninstallDialog({ kind, selection, all, onClose }: {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<BatchUninstallItemResult[] | null>(null);
 
-  // A skill inside a tracked repo can only go with its repo. Agents are removed one by one.
+  // Followed folders and agents are removed one skill at a time.
   const repos = new Map<string, number>();
   const singles: Skill[] = [];
   for (const s of selection) {
-    const repo = kind === 'skill' ? repoOf(s) : undefined;
+    const repo = kind === 'skill' && !sourceLinkOf(s) ? repoOf(s) : undefined;
     if (repo) repos.set(repo, all.filter((x) => repoOf(x) === repo).length);
     else singles.push(s);
   }
@@ -138,6 +138,7 @@ export function UninstallDialog({ kind, selection, all, onClose }: {
         {repos.size > 0 && (
           <Checkbox size="sm" label={t('batchUninstall.confirm.forceLabel')} checked={force} onChange={setForce} />
         )}
+        {singles.some((s) => sourceLinkOf(s)) && <p className="text-[13px] text-ink-2">{t('resources.uninstall.linkedNote')}</p>}
         <p className="text-[13px] text-ink-2">{t('resources.uninstall.trashNote')}</p>
       </div>
       <div className="df">

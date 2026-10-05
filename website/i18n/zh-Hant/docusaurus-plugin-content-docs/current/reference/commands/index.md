@@ -34,7 +34,7 @@ skillshare 所有指令的完整參考。
 
 | 分類 | 指令 |
 |----------|----------|
-| **核心** | `init`, `install`, `uninstall`, `list`, `search`, `sync`, `status` |
+| **核心** | `init`, `install`, `uninstall`, `link`, `unlink`, `list`, `search`, `sync`, `status` |
 | **Skill 管理** | `new`, `check`, `update`, `upgrade`, `enable`, `disable` |
 | **MCP 連線** | `mcp` (`add`, `edit`, `import`, `list`, `remove`, `restore`), `sync mcp` |
 | **Plugin 管理** | `plugin` (`list`, `discover`, `add`, `import`, `inspect`, `sync`, `check`, `update`, `enable`, `disable`, `remove`) |
@@ -52,6 +52,8 @@ skillshare 所有指令的完整參考。
 | [init](./init.md) | 第一次設定 |
 | [install](./install.md) | 從 repo 或路徑新增一個 skill |
 | [uninstall](./uninstall.md) | 移除一個 skill |
+| [link](./link.md) | 把自己的 skills 資料夾連結進 source |
+| [unlink](./unlink.md) | 從 source 移除連結 |
 | [list](./list.md) | 列出所有 skills |
 | [search](./search.md) | 搜尋 skills |
 | [sync](./sync.md) | 把 skills 推送到所有 targets |

@@ -58,6 +58,7 @@ Operations that change configuration, sources, targets, or managed files must:
 - preserve path validation, scope checks, and ownership checks;
 - use domain uninstall/remove flows for managed state rather than replacing them with filesystem deletion;
 - write the skills source through `internal/sourcefs`, which refuses paths with a link component unless the operation's `*sourcewalk.Follow` policy (built by `config.SkillsWalk` when `follow_source_links` is on) resolves a first-level link; such paths are rebased onto the link target with the same escape checks. The ratchet in `internal/sourcefs/ratchet_test.go` fails on any new raw `os` write call until it gets a truthful reason in `testdata/raw_writes.tsv`;
+- create and remove first-level source links through `internal/sourcelink` (`Create` prechecks with `sourcewalk.Follow.Allow`; `Remove` is the `unlink` flow and moves only the link to trash; `uninstall <link>` is refused when the linked folder itself is a skill, and `Discard` rolls back a link whose follow-up step failed);
 - read the skills source through `internal/sourcewalk` and pass the same `sourcewalk.Options` the operation's discovery used, so CLI, dashboard, and reconcile agree on which first-level links are followed. The ratchet in `internal/sourcewalk/guard_test.go` fails on any new raw walk until it is listed in `allowlist.json`.
 
 ## Tests

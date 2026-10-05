@@ -86,7 +86,7 @@ This is where:
 :::tip Symlinked source directories
 The source directory can be a symlink — common when using dotfiles managers (GNU Stow, chezmoi, yadm). For example, `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`. Skillshare resolves the source root before scanning, so commands work transparently with that root. Chained source-root symlinks are also supported.
 
-Links directly **under** the skills source are a separate opt-in: `follow_source_links: true` in the global or project config follows first-level directory symlinks (Unix) or junctions (Windows) under their link names. The default is `false`; discovery ignores these links and `doctor` reports them as not followed. Deeper links are not followed for discovery. See [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links) for examples, the decision flow, safety guards, and writes through the link.
+Links directly **under** the skills source are a separate opt-in: `follow_source_links: true` in the global or project config follows first-level directory symlinks (Unix) or junctions (Windows) under their link names. [`skillshare link <path>`](../reference/commands/link.md) creates such a link. The default is `false`; discovery ignores these links and `doctor` reports them as not followed. Deeper links are not followed for discovery. See [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links) for examples, the decision flow, safety guards, and writes through the link.
 :::
 
 **Structure:**

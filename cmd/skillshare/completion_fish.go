@@ -27,6 +27,8 @@ end
 complete -c skillshare -n __fish_skillshare_no_subcommand -a init -d 'Initialize skillshare'
 complete -c skillshare -n __fish_skillshare_no_subcommand -a install -d 'Install skills/agents from local path or git repo'
 complete -c skillshare -n __fish_skillshare_no_subcommand -a uninstall -d 'Remove skills/agents from source directory'
+complete -c skillshare -n __fish_skillshare_no_subcommand -a link -d 'Link a folder of your own skills into the source'
+complete -c skillshare -n __fish_skillshare_no_subcommand -a unlink -d 'Remove a link from the source'
 complete -c skillshare -n __fish_skillshare_no_subcommand -a list -d 'List installed skills'
 complete -c skillshare -n __fish_skillshare_no_subcommand -a search -d 'Search or browse GitHub for skills'
 complete -c skillshare -n __fish_skillshare_no_subcommand -a sync -d 'Sync skills/agents/extras/MCP to targets'
@@ -157,6 +159,13 @@ complete -c skillshare -n '__fish_skillshare_using_command uninstall' -l dry-run
 complete -c skillshare -n '__fish_skillshare_using_command uninstall' -l json -d 'JSON output'
 complete -c skillshare -n '__fish_skillshare_using_command uninstall' -l group -s G -r -d 'Uninstall by group'
 complete -c skillshare -n '__fish_skillshare_using_command uninstall' -l help -s h -d 'Show help'
+
+# link / unlink
+complete -c skillshare -n '__fish_skillshare_using_command link' -F
+complete -c skillshare -n '__fish_skillshare_using_command link' -l name -r -d 'Link name in the source'
+complete -c skillshare -n '__fish_skillshare_using_command link' -l enable -d 'Set follow_source_links: true'
+complete -c skillshare -n '__fish_skillshare_using_command link' -l help -s h -d 'Show help'
+complete -c skillshare -n '__fish_skillshare_using_command unlink' -l help -s h -d 'Show help'
 
 # list
 complete -c skillshare -n '__fish_skillshare_using_command list' -a agents -d 'List agents'

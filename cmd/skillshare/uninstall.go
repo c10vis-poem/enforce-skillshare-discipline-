@@ -220,11 +220,11 @@ func resolveGroupSkills(group, sourceDir string, walks ...sourcewalk.Options) ([
 	}
 
 	// A followed first-level link is the user's own checkout: --group would
-	// move every skill out of it, while `uninstall <link>` removes only the
+	// move every skill out of it, while `unlink <link>` removes only the
 	// link entry. Refuse the ambiguous form.
 	if len(walks) > 0 && utils.PathsEqual(utils.ResolveSymlink(filepath.Dir(groupPath)), utils.ResolveSymlink(sourceDir)) {
 		if _, followed := walks[0].Follow.Resolve(groupPath); followed {
-			return nil, fmt.Errorf("group '%s' is a followed source link; run `skillshare uninstall %s` to remove the link, or name its skills", group, group)
+			return nil, fmt.Errorf("group '%s' is a followed source link; run `skillshare unlink %s` to remove the link, or name its skills", group, group)
 		}
 	}
 	walkRoot, logicalRoot, err := resolveGroupWalk(groupPath, sourceDir, walks)

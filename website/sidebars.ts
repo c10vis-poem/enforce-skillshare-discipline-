@@ -134,6 +134,8 @@ const sidebars: SidebarsConfig = {
                 'reference/commands/init',
                 'reference/commands/install',
                 'reference/commands/uninstall',
+                'reference/commands/link',
+                'reference/commands/unlink',
                 'reference/commands/list',
                 'reference/commands/search',
                 'reference/commands/sync',

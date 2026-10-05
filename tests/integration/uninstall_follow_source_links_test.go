@@ -3,12 +3,77 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"skillshare/internal/testutil"
+	"skillshare/internal/utils"
 )
+
+func TestUninstall_FollowedLinkRootSkillRefusedBeforeDirtyPreflight(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	checkout := filepath.Join(sb.Root, "code", "dev-skills")
+	gitInit(t, checkout, false)
+	sb.WriteFile(filepath.Join(checkout, "SKILL.md"), "---\nname: dev\n---\n# dev")
+	sb.CreateSymlink(checkout, filepath.Join(sb.SourcePath, "dev"))
+	sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets: {}\n")
+	result := sb.RunCLI("uninstall", "dev")
+	result.AssertFailure(t)
+	result.AssertAnyOutputContains(t, "dev is the linked folder itself; use unlink to remove the link")
+	if strings.Contains(result.Stdout+result.Stderr, "--force") {
+		t.Fatalf("dirty preflight ran before the linked-root guard:\n%s%s", result.Stdout, result.Stderr)
+	}
+	if !sb.FileExists(filepath.Join(checkout, "SKILL.md")) {
+		t.Fatal("target touched")
+	}
+}
+
+func TestUninstall_FollowedLinkRootSkillRefused(t *testing.T) {
+	for _, args := range [][]string{{"dev"}, {"--all"}, {"dev", "--json"}, {"dev", "--dry-run"}, {"dev", "--dry-run", "--json"}} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			sb := testutil.NewSandbox(t)
+			defer sb.Cleanup()
+			checkout := filepath.Join(sb.Root, "code", "dev-skills")
+			sb.WriteFile(filepath.Join(checkout, "SKILL.md"), "---\nname: dev\n---\n# dev")
+			sb.WriteFile(filepath.Join(checkout, "child", "SKILL.md"), "---\nname: child\n---\n# child")
+			link := filepath.Join(sb.SourcePath, "dev")
+			sb.CreateSymlink(checkout, link)
+			sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets: {}\n")
+			result := sb.RunCLI(append([]string{"uninstall", "--force"}, args...)...)
+			result.AssertFailure(t)
+			result.AssertAnyOutputContains(t, "dev is the linked folder itself; use unlink to remove the link")
+			if slices.Contains(args, "--dry-run") && slices.Contains(args, "--json") {
+				var output struct {
+					Error   string   `json:"error"`
+					Removed []string `json:"removed"`
+				}
+				if err := json.Unmarshal([]byte(result.Stdout), &output); err != nil {
+					t.Fatalf("decode dry-run refusal: %v: %s", err, result.Stdout)
+				}
+				if output.Error != "dev is the linked folder itself; use unlink to remove the link" || len(output.Removed) != 0 {
+					t.Fatalf("dry run claimed root skill removal: %+v", output)
+				}
+			}
+			if !utils.IsSymlinkOrJunction(link) {
+				t.Fatal("link was removed")
+			}
+			for _, rel := range []string{"SKILL.md", "child/SKILL.md"} {
+				if !sb.FileExists(filepath.Join(link, filepath.FromSlash(rel))) {
+					t.Fatalf("skill disappeared through link: %s", rel)
+				}
+			}
+			sb.RunCLI("unlink", "dev").AssertSuccess(t)
+			if utils.IsSymlinkOrJunction(link) || !sb.FileExists(filepath.Join(checkout, "SKILL.md")) {
+				t.Fatal("unlink did not remove only the link")
+			}
+		})
+	}
+}
 
 func TestUninstall_NestedSkillBelowFollowedSourceLink(t *testing.T) {
 	for _, follow := range []bool{true, false} {

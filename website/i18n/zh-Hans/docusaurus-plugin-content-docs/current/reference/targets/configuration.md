@@ -171,12 +171,18 @@ follow_source_links: true
 
 默认值为 `false` 时，发现阶段会忽略第一层的链接，`skillshare doctor` 会将它们报告为未跟随。设为 `true` 后，第一层指向目录的链接会被当作以链接名命名的目录来处理。树中更深层的链接在发现阶段不会被跟随。这个设置与把 Source 根目录本身做成链接是两回事，后者无需开启即已支持。
 
-例如，把一个现有的 checkout 链接到 Source 中：
+例如，用 [`skillshare link`](../commands/link.md) 把一个现有的 checkout 链接到 Source 中：
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+这会创建 `~/.config/skillshare/skills/_dev-skills`，加上 `--enable` 还会设置 `follow_source_links: true`。该命令会拒绝下方安全防护会跳过的目标；[`skillshare unlink _dev-skills`](../commands/unlink.md) 可再次移除该链接。
+
+:::note 手动链接
+自己创建的链接（`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`）也会以同样方式被跟随；此时安全防护只会在创建之后由 `skillshare doctor` 报告。
+:::
 
 如果 `~/code/dev-skills` 包含 `.git` 条目，`_dev-skills` 就会成为一个 tracked repo 分组，其子目录会被发现为 Skill。Sync 会像对待其他 Skill 一样链接或复制它们。在 symlink 模式下，在真实 checkout 中编辑文件会立即反映到 Target；copy 模式则需要再执行一次 sync。
 
@@ -222,7 +228,7 @@ flowchart TD
 把 checkout 放在外置硬盘上，并把它链接到 Source 中：
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -238,7 +244,9 @@ skillshare sync
 
 #### 经由链接的写入 {#writes-through-the-link}
 
-对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare uninstall _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
+对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare unlink _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
+
+链接文件夹的根目录包含 `SKILL.md` 时也适用；`uninstall` 会拒绝移除该根级 skill。请使用 dashboard 的 **Unlink** 或 `skillshare unlink _dev-skills`，只移除链接而不改变目标文件夹。
 
 dashboard 的 Target 分配写入 frontmatter 时，也遵守这个写入边界：嵌套的 `SKILL.md` 链接会被拒绝，不会修改链接目标。批量分配会报告该 Skill 的拒绝原因，并继续处理普通 Skill。
 
@@ -246,13 +254,13 @@ dashboard 的 Target 分配写入 frontmatter 时，也遵守这个写入边界�
 
 跨文件系统将 Skill 移入 trash 时，内部文件和目录链接会保留为链接，并保持原始目标文本；不会复制或删除链接目标。
 
-`update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare uninstall _dev-skills`，或按名称指定要移到 trash 的 Skill。
+`update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare unlink _dev-skills`，或按名称指定要移到 trash 的 Skill。
 
 在 Unix 上，提交 Source 仓库时暂存的是链接条目本身，也就是它的目标文本（通常是本机的绝对路径），而不是 checkout 中的文件。请把 `/_dev-skills` 加到 skills 目录的 `.gitignore` 中。`skillshare commit`、`push` 和 `init` 在链接将被暂存时会打印警告。
 
 #### Windows
 
-用 `mklink /J` 创建的目录 junction 是预期的做法：
+目录 junction 是预期的做法。`skillshare link D:\code\dev-skills` 会创建 junction，不需要开发者模式或管理员权限；只有在无法创建 junction 时才退而使用目录 symlink。若要手动创建 junction：
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

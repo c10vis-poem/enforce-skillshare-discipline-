@@ -137,18 +137,8 @@ func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 		return f.skip(name, unavailableReason(err), true)
 	}
 	target = canonicalPath(target)
-	if info, err := os.Lstat(target); err == nil && utils.IsLinkMode(target, info.Mode()) {
-		// canonicalPath gave up on a link chain; following it would walk the
-		// link entry itself and report an empty, seemingly complete inventory.
-		return f.skip(name, "target is a link chain that could not be resolved", true)
-	}
-	if within(f.root, target) {
-		return f.skip(name, "target is the source or a parent of it", false)
-	}
-	for _, t := range f.targets {
-		if within(t, target) || within(target, t) {
-			return f.skip(name, "target overlaps sync target "+t, false)
-		}
+	if reason, unavailable := f.refuse(target); reason != "" {
+		return f.skip(name, reason, unavailable)
 	}
 	info, err := os.Stat(path)
 	if err != nil {
@@ -165,6 +155,51 @@ func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 	}
 	dir.Close()
 	return target, namedInfo{info, name}, true
+}
+
+// refuse returns why a link to the canonical target is not followed, judged
+// by where it points alone, or "" when it may be.
+func (f *Follow) refuse(target string) (reason string, unavailable bool) {
+	if info, err := os.Lstat(target); err == nil && utils.IsLinkMode(target, info.Mode()) {
+		// canonicalPath gave up on a link chain; following it would walk the
+		// link entry itself and report an empty, seemingly complete inventory.
+		return "target is a link chain that could not be resolved", true
+	}
+	if within(f.root, target) {
+		return "target is the source or a parent of it", false
+	}
+	for _, t := range f.targets {
+		if within(t, target) || within(target, t) {
+			return "target overlaps sync target " + t, false
+		}
+	}
+	return "", false
+}
+
+// Allow checks a link to target before it is created, with the reasons a
+// walk would give for not following it. It also refuses a target that is
+// not a directory, which a walk keeps as an ordinary entry, and one inside
+// the source, which a walk follows but would only list twice.
+func (f *Follow) Allow(target string) error {
+	target = canonicalPath(target)
+	if reason, _ := f.refuse(target); reason != "" {
+		return errors.New(reason)
+	}
+	if within(target, f.root) {
+		return errors.New("target is inside the source")
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return errors.New(unavailableReason(err))
+	}
+	if !info.IsDir() {
+		return errors.New("target is not a directory")
+	}
+	dir, err := os.Open(target)
+	if err != nil {
+		return errors.New(unavailableReason(err))
+	}
+	return dir.Close()
 }
 
 func (f *Follow) skip(name, reason string, unavailable bool) (string, os.FileInfo, bool) {

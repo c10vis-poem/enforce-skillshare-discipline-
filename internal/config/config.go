@@ -380,13 +380,19 @@ func SkillsWalk(follow bool, source string, targets map[string]TargetConfig) sou
 	if !follow {
 		return sourcewalk.Options{}
 	}
+	return sourcewalk.Options{Follow: sourcewalk.NewFollow(source, SkillsTargetPaths(targets))}
+}
+
+// SkillsTargetPaths returns the skills paths of the enabled targets, which a
+// followed source link must not overlap.
+func SkillsTargetPaths(targets map[string]TargetConfig) []string {
 	var paths []string
 	for _, t := range targets {
 		if sc := t.SkillsConfig(); sc.IsEnabled() && sc.Path != "" {
 			paths = append(paths, ExpandPath(sc.Path))
 		}
 	}
-	return sourcewalk.Options{Follow: sourcewalk.NewFollow(source, paths)}
+	return paths
 }
 
 // EffectiveSkillsSource returns the resolved skills source directory.

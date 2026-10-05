@@ -171,12 +171,18 @@ follow_source_links: true
 
 With the default `false`, discovery ignores first-level links and `skillshare doctor` reports them as not followed. With `true`, a first-level link to a directory is treated as that directory under its link name. Links deeper inside the tree are not followed for discovery. This setting is separate from linking the source root itself, which is already supported without opting in.
 
-For example, link an existing checkout into the source:
+For example, link an existing checkout into the source with [`skillshare link`](../commands/link.md):
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+This creates `~/.config/skillshare/skills/_dev-skills` and, with `--enable`, sets `follow_source_links: true`. The command refuses a target the safety guards below would skip, and [`skillshare unlink _dev-skills`](../commands/unlink.md) removes the link again.
+
+:::note Manual links
+A link you create yourself (`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`) is followed the same way; the guards are then only reported by `skillshare doctor` after the fact.
+:::
 
 If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
 
@@ -222,7 +228,7 @@ flowchart TD
 Keep a checkout on an external drive and link it into the source:
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -238,7 +244,9 @@ The mount path must stay the same between sessions. On macOS that is `/Volumes/<
 
 #### Writes through the link
 
-Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
+Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare unlink _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
+
+This also applies when `SKILL.md` is at the linked folder’s root, where `uninstall` is refused. Use the dashboard **Unlink** action or `skillshare unlink _dev-skills` to remove the link without changing its target.
 
 When dashboard target assignment writes frontmatter, it also uses this boundary: a nested `SKILL.md` link is refused without changing its target. Batch assignment reports the refusal for that skill and continues with regular skills.
 
@@ -246,13 +254,13 @@ Replacing a skill behind a followed link keeps the old skill until the replaceme
 
 When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted.
 
-`--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare uninstall _dev-skills` for the link, or name the skills to trash.
+`--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare unlink _dev-skills` for the link, or name the skills to trash.
 
 On Unix, committing the source repo stages the link entry itself, that is its target text, which is usually a machine-local absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
 
 #### Windows
 
-Directory junctions created with `mklink /J` are the intended mechanism:
+Directory junctions are the intended mechanism. `skillshare link D:\code\dev-skills` creates one, which needs no Developer Mode or elevation, and falls back to a directory symlink only when the junction cannot be made. To create the junction by hand instead:
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

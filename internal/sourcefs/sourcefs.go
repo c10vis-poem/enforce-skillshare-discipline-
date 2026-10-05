@@ -34,6 +34,9 @@ import (
 // components is a link.
 var ErrLink = errors.New("path is a link")
 
+// ErrLinkedSkillRoot means a skill uninstall would remove its source link.
+var ErrLinkedSkillRoot = errors.New("linked folder itself; use unlink to remove the link")
+
 // LinkError reports the component of a path that is a link.
 type LinkError struct {
 	Path string // the link, as an absolute path under the source root
@@ -97,6 +100,17 @@ func MkdirAllIn(dir, name string, follow ...*sourcewalk.Follow) error {
 // refused. Path itself may be a link; a rename moves the link, never its
 // target.
 func CheckMoveOut(dir, path string, follow ...*sourcewalk.Follow) error {
+	return checkMoveOut(dir, path, false, follow...)
+}
+
+// CheckSkillMoveOut also refuses a followed link whose target root is a skill.
+// Moving that entry would unlink the whole folder instead of removing a skill.
+// Explicit unlink operations use CheckMoveOut instead.
+func CheckSkillMoveOut(dir, path string, follow ...*sourcewalk.Follow) error {
+	return checkMoveOut(dir, path, true, follow...)
+}
+
+func checkMoveOut(dir, path string, skill bool, follow ...*sourcewalk.Follow) error {
 	r, err := Open(dir, follow...)
 	if err != nil {
 		return err
@@ -105,6 +119,15 @@ func CheckMoveOut(dir, path string, follow ...*sourcewalk.Follow) error {
 	rel, err := r.Rel(path)
 	if err != nil {
 		return err
+	}
+	if skill && !strings.ContainsRune(rel, filepath.Separator) {
+		if _, followed := r.follow.Resolve(path); followed {
+			if _, err := os.Stat(filepath.Join(path, "SKILL.md")); err == nil {
+				return fmt.Errorf("%s is the %w", rel, ErrLinkedSkillRoot)
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+		}
 	}
 	return r.CheckParent(rel)
 }

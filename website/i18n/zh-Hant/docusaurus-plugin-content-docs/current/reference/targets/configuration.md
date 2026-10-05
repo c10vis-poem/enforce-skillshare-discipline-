@@ -171,12 +171,18 @@ follow_source_links: true
 
 預設為 `false` 時，discovery 會忽略第一層的連結，`skillshare doctor` 會把它們回報為未跟進。設為 `true` 時，第一層指向目錄的連結會以連結名稱視為該目錄。樹狀結構更深處的連結在 discovery 時不會被跟進。這個設定與把 source 根目錄本身做成連結是兩回事，後者原本就支援，不需另外啟用。
 
-舉例來說，把既有的 checkout 連結進 source：
+舉例來說，用 [`skillshare link`](../commands/link.md) 把既有的 checkout 連結進 source：
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+這會建立 `~/.config/skillshare/skills/_dev-skills`，加上 `--enable` 還會設定 `follow_source_links: true`。此指令會拒絕下方安全防護會略過的目標；[`skillshare unlink _dev-skills`](../commands/unlink.md) 可再把連結移除。
+
+:::note 手動建立的連結
+自己建立的連結（`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`）也會以同樣方式跟進；此時安全防護只會在建立之後由 `skillshare doctor` 回報。
+:::
 
 如果 `~/code/dev-skills` 內含 `.git` 項目，`_dev-skills` 就會成為一個 tracked-repo 群組，其子目錄會被探索為 Skill。Sync 會像其他 Skill 一樣連結或複製它們。在 symlink 模式下，在真實 checkout 中編輯檔案會立即反映在 Target 上；copy 模式則需要再 sync 一次。
 
@@ -222,7 +228,7 @@ flowchart TD
 把 checkout 放在外接硬碟上，再把它連結進 source：
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -238,7 +244,9 @@ skillshare sync
 
 #### 透過連結寫入 {#writes-through-the-link}
 
-對連結背後 Skill 的寫入都會落在真實的 checkout：在 dashboard 編輯內容、`skillshare install --into _dev-skills`，以及替換連結目錄內的一般 Skill，都會改動 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 會把該子目錄從真實 checkout 移到垃圾桶。`skillshare uninstall _dev-skills` 只移除連結項目本身，絕不會動到真實 checkout；垃圾桶會列出該連結，`restore` 會重新建立它。`skillshare trash restore _dev-skills/<child>` 會依同樣的原則把子目錄放回真實 checkout；若 checkout 底下有通往其他地方的巢狀連結，還原會失敗並保留垃圾桶項目。會逃出 checkout 的路徑（`..`，或通往外部的巢狀連結）仍會被拒絕。
+對連結背後 Skill 的寫入都會落在真實的 checkout：在 dashboard 編輯內容、`skillshare install --into _dev-skills`，以及替換連結目錄內的一般 Skill，都會改動 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 會把該子目錄從真實 checkout 移到垃圾桶。`skillshare unlink _dev-skills` 只移除連結項目本身，絕不會動到真實 checkout；垃圾桶會列出該連結，`restore` 會重新建立它。`skillshare trash restore _dev-skills/<child>` 會依同樣的原則把子目錄放回真實 checkout；若 checkout 底下有通往其他地方的巢狀連結，還原會失敗並保留垃圾桶項目。會逃出 checkout 的路徑（`..`，或通往外部的巢狀連結）仍會被拒絕。
+
+連結資料夾的根目錄包含 `SKILL.md` 時也適用；`uninstall` 會拒絕移除該根層 skill。請使用 dashboard 的 **Unlink** 或 `skillshare unlink _dev-skills`，只移除連結而不改動目標資料夾。
 
 dashboard 的 Target 分配寫入 frontmatter 時，也遵守這個寫入邊界：巢狀的 `SKILL.md` 連結會被拒絕，不會修改連結目標。批次分配會回報該 Skill 的拒絕原因，並繼續處理一般 Skill。
 
@@ -246,13 +254,13 @@ dashboard 的 Target 分配寫入 frontmatter 時，也遵守這個寫入邊界�
 
 跨檔案系統將 Skill 移入 trash 時，內部檔案與目錄連結會保留為連結，並保持原始目標文字；不會複製或刪除連結目標。
 
-`update` 與 `check` 的 `--group` 接受連結名稱（`skillshare update --group _dev-skills`）。位於連結底下的巢狀群組（例如 `_dev-skills/sub`）不被 `--group` 接受；請改為指定其 Skill 名稱。`skillshare uninstall --group _dev-skills` 會被拒絕，因為它會清空真實 checkout：要移除連結請用 `skillshare uninstall _dev-skills`，或指定要丟進垃圾桶的 Skill 名稱。
+`update` 與 `check` 的 `--group` 接受連結名稱（`skillshare update --group _dev-skills`）。位於連結底下的巢狀群組（例如 `_dev-skills/sub`）不被 `--group` 接受；請改為指定其 Skill 名稱。`skillshare uninstall --group _dev-skills` 會被拒絕，因為它會清空真實 checkout：要移除連結請用 `skillshare unlink _dev-skills`，或指定要丟進垃圾桶的 Skill 名稱。
 
 在 Unix 上，對 source repo 執行 commit 時，暫存的是連結項目本身，也就是它的目標文字（通常是本機專屬的絕對路徑），而不是 checkout 的檔案。請把 `/_dev-skills` 加進 skills 目錄的 `.gitignore`。`skillshare commit`、`push` 與 `init` 在連結即將被暫存時會印出警告。
 
 #### Windows
 
-以 `mklink /J` 建立的目錄 junction 是預期的機制：
+目錄 junction 是預期的機制。`skillshare link D:\code\dev-skills` 會建立 junction，不需要開發人員模式或系統管理員權限；只有無法建立 junction 時才改用目錄 symlink。若要手動建立 junction：
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

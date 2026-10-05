@@ -14,7 +14,7 @@ _skillshare() {
         cword=$COMP_CWORD
     fi
 
-    local commands="init install uninstall list search sync mcp hooks plugin status diff backup restore collect pull push commit doctor target upgrade update check new trash analyze audit hub log ui tui extras enable disable completion version help"
+    local commands="init install uninstall link unlink list search sync mcp hooks plugin status diff backup restore collect pull push commit doctor target upgrade update check new trash analyze audit hub log ui tui extras enable disable completion version help"
 
     local global_flags="--project -p --global -g"
 
@@ -34,6 +34,8 @@ _skillshare() {
     local init_flags="--source -s --remote --copy-from -c --no-copy --targets -t --all-targets --no-targets --mode -m --git --no-git --git-root --skill --no-skill --discover -d --select --subdir --visible --config --dry-run -n --help -h"
     local install_flags="--name --force -f --update -u --dry-run -n --skip-audit --audit-verbose --audit-threshold --threshold -T --branch -b --track -t --kind --agent -a --skill -s --exclude --into --all --yes -y --json --help -h"
     local uninstall_flags="--all --force -f --dry-run -n --json --group -G --help -h"
+    local link_flags="--name --enable --help -h"
+    local unlink_flags="--help -h"
     local list_flags="--verbose -v --json -j --no-tui --type -t --status --sort -s --all --help -h"
     local sync_flags="--all --dry-run -n --force -f --json --quiet -q --help -h"
     local mcp_flags="--tools-allow --tools-deny --pi-options --url --target --from --file --sync --replace --disabled --keep-files --revision --dry-run -n --json --no-tui --no-dns --live --timeout --help -h"
@@ -249,6 +251,8 @@ _skillshare() {
         init)       COMPREPLY=($(compgen -W "${init_flags} ${global_flags}" -- "${cur}")) ;;
         install)    COMPREPLY=($(compgen -W "${install_flags} ${global_flags}" -- "${cur}")) ;;
         uninstall)  COMPREPLY=($(compgen -W "${uninstall_flags} ${global_flags}" -- "${cur}")) ;;
+        link)       COMPREPLY=($(compgen -W "${link_flags} ${global_flags}" -- "${cur}")) ;;
+        unlink)     COMPREPLY=($(compgen -W "${unlink_flags} ${global_flags}" -- "${cur}")) ;;
         list)       COMPREPLY=($(compgen -W "${list_flags} ${global_flags}" -- "${cur}")) ;;
         sync)       COMPREPLY=($(compgen -W "${sync_flags} ${global_flags}" -- "${cur}")) ;;
         plugin)     COMPREPLY=($(compgen -W "add discover import list inspect sync check update enable disable remove --target --from --plugin --name --source-ref --entry --revision --dry-run -n --json --no-tui --help -h ${global_flags}" -- "${cur}")) ;;

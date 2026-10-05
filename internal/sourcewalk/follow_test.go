@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -227,6 +228,35 @@ func TestFollowSiblingTargetIsNotOverlap(t *testing.T) {
 	walk, _ := walkEntries(t, root, Options{Follow: follow}, "")
 	if len(walk) != 8 || len(follow.Skipped()) != 0 {
 		t.Fatalf("walk %v, skipped %v", walk, follow.Skipped())
+	}
+}
+
+func TestFollowAllow(t *testing.T) {
+	root, checkout := followFixture(t)
+	for _, tc := range []struct {
+		name, target, want string
+		targets            []string
+	}{
+		{name: "checkout", target: checkout},
+		{name: "root", target: root, want: "target is the source or a parent of it"},
+		{name: "ancestor", target: filepath.Dir(root), want: "target is the source or a parent of it"},
+		{name: "inside source", target: filepath.Join(root, "a"), want: "target is inside the source"},
+		{name: "overlaps target", target: checkout, targets: []string{filepath.Join(checkout, "foo")}, want: "target overlaps sync target"},
+		{name: "missing", target: filepath.Join(checkout, "gone"), want: "target is missing"},
+		{name: "file", target: filepath.Join(checkout, "foo", "SKILL.md"), want: "target is not a directory"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := NewFollow(root, tc.targets).Allow(tc.target)
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("Allow: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Allow = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 

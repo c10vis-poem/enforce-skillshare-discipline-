@@ -34,7 +34,7 @@ sidebar_position: 1
 
 | 카테고리 | 명령어 |
 |----------|----------|
-| **Core** | `init`, `install`, `uninstall`, `list`, `search`, `sync`, `status` |
+| **Core** | `init`, `install`, `uninstall`, `link`, `unlink`, `list`, `search`, `sync`, `status` |
 | **Skill Management** | `new`, `check`, `update`, `upgrade`, `enable`, `disable` |
 | **MCP Connections** | `mcp` (`add`, `edit`, `import`, `list`, `remove`, `restore`), `sync mcp` |
 | **Plugin Management** | `plugin` (`list`, `discover`, `add`, `import`, `inspect`, `sync`, `check`, `update`, `enable`, `disable`, `remove`) |
@@ -52,6 +52,8 @@ sidebar_position: 1
 | [init](./init.md) | 최초 설정 |
 | [install](./install.md) | 저장소 또는 경로에서 skill 추가 |
 | [uninstall](./uninstall.md) | skill 제거 |
+| [link](./link.md) | 내 skill 폴더를 source에 링크 |
+| [unlink](./unlink.md) | source에서 링크 제거 |
 | [list](./list.md) | 모든 skill 목록 표시 |
 | [search](./search.md) | skill 검색 |
 | [sync](./sync.md) | 모든 target으로 skill 전송 |

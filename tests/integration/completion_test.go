@@ -370,3 +370,22 @@ func TestCompletion_Memory_AllShells(t *testing.T) {
 		})
 	}
 }
+
+func TestCompletion_LinkUnlink_AllShells(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+
+	for shell, want := range map[string][]string{
+		"bash":       {"uninstall link unlink", `link_flags="--name --enable`},
+		"zsh":        {"'link:", "'unlink:", "'--enable["},
+		"fish":       {"-a link ", "-a unlink ", "using_command link' -l enable"},
+		"powershell": {"Name = 'link'", "Name = 'unlink'", "'link' = '--name', '--enable'"},
+		"nushell":    {`export extern "skillshare link"`, `export extern "skillshare unlink"`},
+	} {
+		result := sb.RunCLI("completion", shell)
+		result.AssertSuccess(t)
+		for _, s := range want {
+			result.AssertOutputContains(t, s)
+		}
+	}
+}

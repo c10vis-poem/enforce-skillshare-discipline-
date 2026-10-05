@@ -1,4 +1,5 @@
-import type { Skill } from '../../api/client';
+import type { Skill, SourceLink } from '../../api/client';
+import { sourceLinkOf } from '../../lib/resourceGrouping';
 
 /* Pure helpers behind the Skills page tree view: folder tree, visible rows, selection. */
 
@@ -14,6 +15,7 @@ export interface FolderNode {
   children: Map<string, FolderNode>;
   skills: Skill[];
   count: number;        // skills in this folder and every subfolder
+  link?: SourceLink;
 }
 
 /**
@@ -51,21 +53,29 @@ export function isRepoRoot(node: FolderNode): boolean {
   return !node.path.includes('/') && node.name.startsWith('_');
 }
 
-export function buildTree(skills: Skill[]): FolderNode {
+export function buildTree(skills: Skill[], links: SourceLink[] = []): FolderNode {
   const root: FolderNode = { name: '', path: '', children: new Map(), skills: [], count: 0 };
   for (const skill of skills) {
+    const link = sourceLinkOf(skill);
     const slash = skill.relPath.lastIndexOf('/');
     let node = root;
-    if (slash > 0) {
-      for (const seg of skill.relPath.slice(0, slash).split('/')) {
+    const parent = slash > 0 ? skill.relPath.slice(0, slash) : link?.name;
+    if (parent) {
+      for (const seg of parent.split('/')) {
         if (!node.children.has(seg)) {
           const path = node.path ? `${node.path}/${seg}` : seg;
           node.children.set(seg, { name: seg, path, children: new Map(), skills: [], count: 0 });
         }
         node = node.children.get(seg)!;
+        if (node.path === link?.name) node.link = link;
       }
     }
     node.skills.push(skill);
+  }
+  for (const link of links) {
+    const node = root.children.get(link.name);
+    if (node) node.link = link;
+    else root.children.set(link.name, { name: link.name, path: link.name, children: new Map(), skills: [], count: 0, link });
   }
   const finish = (node: FolderNode): number => {
     node.count = node.skills.length;
@@ -85,8 +95,8 @@ export function flattenTree(root: FolderNode, collapsed: ReadonlySet<string>, ex
       const repo = isRepoRoot(child);
       let deepest = child;
       const names = [child.name];
-      // A tracked repo keeps its own row so its name, tag and actions stay visible.
-      while (!repo && deepest.skills.length === 0 && deepest.children.size === 1) {
+      // Repo and link roots keep their own row so their tags and actions stay visible.
+      while (!repo && !child.link && deepest.skills.length === 0 && deepest.children.size === 1) {
         deepest = deepest.children.values().next().value!;
         names.push(deepest.name);
       }

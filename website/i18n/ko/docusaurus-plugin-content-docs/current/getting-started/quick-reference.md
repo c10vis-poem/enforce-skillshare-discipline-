@@ -13,6 +13,8 @@ skillshare 명령 치트시트입니다.
 | `init` | 최초 설정 |
 | `install <source>` | Skill 추가 |
 | `uninstall <name>...` | 하나 이상의 Skill 제거 |
+| `link <path>` | 내 skill 폴더를 source에 링크 |
+| `unlink <name>` | source에서 링크 제거 |
 | `list` | 모든 Skill 목록 표시 |
 | `search <query>` | Skill 검색 |
 | `sync` | 모든 Target에 반영 |

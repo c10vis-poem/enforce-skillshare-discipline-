@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,6 +26,8 @@ type skillItem struct {
 	FlatName    string   `json:"flatName"`
 	RelPath     string   `json:"relPath"`
 	SourcePath  string   `json:"sourcePath"`
+	LinkName    string   `json:"linkName,omitempty"`
+	LinkTarget  string   `json:"linkTarget,omitempty"`
 	IsInRepo    bool     `json:"isInRepo"`
 	Targets     []string `json:"targets,omitempty"`
 	InstalledAt string   `json:"installedAt,omitempty"`
@@ -54,17 +57,33 @@ func enrichSkillBranch(item *skillItem) {
 	}
 }
 
+func enrichSkillLink(item *skillItem, source string, walk sourcewalk.Options, linkTargets map[string]string) {
+	if walk.Follow == nil {
+		return
+	}
+	name := strings.SplitN(filepath.ToSlash(item.RelPath), "/", 2)[0]
+	target, checked := linkTargets[name]
+	if !checked {
+		target, _ = walk.Follow.Resolve(filepath.Join(source, name))
+		linkTargets[name] = target
+	}
+	if target != "" {
+		item.LinkName, item.LinkTarget = name, target
+	}
+}
+
 func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	kindFilter := r.URL.Query().Get("kind") // "", "skill", "agent"
 
 	// Snapshot config under RLock, then release before I/O.
 	s.mu.RLock()
-	source := s.cfg.EffectiveSkillsSource()
+	source := s.skillsSource()
 	agentsSource := s.agentsSource()
 	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
 	var items []skillItem
+	sourceLinks := []sourceLinkItem{}
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
@@ -73,7 +92,14 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		// After discovery, so a traversal failure inside a target shows on its link.
+		if sourceLinks, err = listSourceLinks(source, walk); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 
+		// Resolve each first-level entry once with the same policy used for discovery.
+		linkTargets := make(map[string]string)
 		for _, d := range discovered {
 			item := skillItem{
 				Name:       filepath.Base(d.SourcePath),
@@ -86,6 +112,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
+			enrichSkillLink(&item, source, walk, linkTargets)
 
 			if entry := s.skillEntry(d.RelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {
@@ -144,13 +171,14 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, linked := dashboardRepos(source, walk)
-	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
+	writeJSON(w, map[string]any{"resources": items, "sourceLinks": sourceLinks, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
 }
 
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 	// Snapshot config under RLock, then release before I/O.
 	s.mu.RLock()
-	source := s.cfg.EffectiveSkillsSource()
+	source := s.skillsSource()
+	walk := s.skillsWalk()
 	agentsSource := s.agentsSource()
 	s.mu.RUnlock()
 
@@ -163,7 +191,6 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find the skill by flat name (exact) first, then fall back to base name.
 	if kind != "agent" {
-		walk := s.skillsWalk()
 		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -201,6 +228,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
+			enrichSkillLink(&item, source, walk, make(map[string]string))
 
 			if entry := s.skillEntry(d.RelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {
@@ -518,35 +546,48 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find skill path. Disabled skills are listed in .skillignore, but the UI
 	// still shows them, so single-resource uninstall must resolve them too (#190).
-	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
+	source := s.skillsSource()
+	walk := s.skillsWalk()
+	discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	for _, d := range discovered {
+	d, err := resolveUninstallSkill(discovered, name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if d != nil {
 		baseName := filepath.Base(d.SourcePath)
-		if d.FlatName != name && baseName != name {
-			continue
-		}
 
-		// Don't allow removing skills inside tracked repos
-		if d.IsInRepo {
+		// Followed checkouts allow single-skill removal; managed repos do not.
+		_, followed := walk.Follow.Resolve(d.SourcePath)
+		if d.IsInRepo && !followed {
 			writeError(w, http.StatusBadRequest, "cannot uninstall skill from tracked repo; use 'skillshare uninstall' for the whole repo")
 			return
 		}
 
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath, s.skillsWalk().Follow); err != nil {
-			writeError(w, http.StatusConflict, err.Error())
+		if err := sourcefs.CheckSkillMoveOut(source, d.SourcePath, walk.Follow); err != nil {
+			status := http.StatusConflict
+			if errors.Is(err, sourcefs.ErrLinkedSkillRoot) {
+				status = http.StatusBadRequest
+			}
+			writeError(w, status, err.Error())
 			return
 		}
-		if _, err := trash.MoveToTrash(d.SourcePath, baseName, s.trashBase()); err != nil {
+		trashName := baseName
+		if followed {
+			trashName = d.RelPath // Restore through the same first-level source link.
+		}
+		if _, err := trash.MoveToTrash(d.SourcePath, trashName, s.trashBase()); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to trash skill: "+err.Error())
 			return
 		}
 
 		s.writeOpsLog("uninstall", "ok", start, map[string]any{
-			"name":  baseName,
+			"name":  trashName,
 			"type":  "skill",
 			"scope": "ui",
 		}, "")

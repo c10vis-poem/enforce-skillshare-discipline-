@@ -8,6 +8,8 @@ _skillshare() {
         'init:Initialize skillshare'
         'install:Install skills/agents from local path or git repo'
         'uninstall:Remove skills/agents from source directory'
+        'link:Link a folder of your own skills into the source'
+        'unlink:Remove a link from the source'
         'list:List installed skills'
         'search:Search or browse GitHub for skills'
         'sync:Sync skills/agents/extras/MCP to targets'
@@ -196,6 +198,22 @@ _skillshare() {
                         '--json[JSON output]' \
                         '--group[Uninstall by group]:group:' \
                         '-G[Uninstall by group]:group:' \
+                        $global_flags \
+                        '--help[Show help]' \
+                        '-h[Show help]'
+                    ;;
+                link)
+                    _arguments \
+                        '1:path:_files -/' \
+                        '--name[Link name in the source]:name:' \
+                        '--enable[Set follow_source_links: true]' \
+                        $global_flags \
+                        '--help[Show help]' \
+                        '-h[Show help]'
+                    ;;
+                unlink)
+                    _arguments \
+                        '1:name:' \
                         $global_flags \
                         '--help[Show help]' \
                         '-h[Show help]'

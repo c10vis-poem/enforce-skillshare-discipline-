@@ -92,6 +92,10 @@ For project setup, use `init -p`, then `install -p` and `sync -p`. Rehydrate con
 remote dependencies with `install` without a source. For full flag details and agents,
 read [install.md](references/install.md) and [sync.md](references/sync.md).
 
+To use a local skills checkout in place, run `skillshare link <path> --enable`, then
+`sync`; `skillshare unlink <name>` removes only the link. Read
+[TROUBLESHOOTING.md](references/TROUBLESHOOTING.md) for how such links are followed.
+
 ### Disable or remove
 
 ```bash

@@ -1,0 +1,235 @@
+package server
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"skillshare/internal/config"
+)
+
+func TestHandleListSkills_SourceLinksWithoutSkills(t *testing.T) {
+	for _, follow := range []bool{false, true} {
+		t.Run(map[bool]string{false: "off", true: "on"}[follow], func(t *testing.T) {
+			s, src := newTestServer(t)
+			s.cfg.FollowSourceLinks = follow
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			targets := map[string]string{"empty": t.TempDir(), "_missing": filepath.Join(t.TempDir(), "missing")}
+			for name, target := range targets {
+				if err := os.Symlink(target, filepath.Join(src, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rr := httptest.NewRecorder()
+			s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources?kind=skill", nil))
+			var res struct {
+				SourceLinks []struct {
+					Name, Target, Warning string
+					Available             bool
+				} `json:"sourceLinks"`
+			}
+			if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &res) != nil || len(res.SourceLinks) != 2 {
+				t.Fatalf("missing standalone links: %d: %s", rr.Code, rr.Body.String())
+			}
+			for _, link := range res.SourceLinks {
+				if link.Target != targets[link.Name] || link.Available != (follow && link.Name == "empty") {
+					t.Fatalf("incorrect link: %+v", link)
+				}
+				if follow && link.Name == "_missing" && !strings.Contains(link.Warning, "missing") {
+					t.Fatalf("missing unavailable reason: %+v", link)
+				}
+				if !follow && link.Warning != "follow_source_links is off" {
+					t.Fatalf("missing off-policy reason: %+v", link)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleListSkills_SourceLinkTraversalFailure(t *testing.T) {
+	s, src := newTestServer(t)
+	s.cfg.FollowSourceLinks = true
+	if err := s.saveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	for _, name := range []string{"a", "z"} {
+		if err := os.MkdirAll(filepath.Join(target, name), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(target, name, "SKILL.md"), []byte("---\nname: "+name+"\n---\n# "+name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unreadable := filepath.Join(target, "z")
+	if err := os.Chmod(unreadable, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(unreadable, 0755) })
+	if _, err := os.ReadDir(unreadable); !os.IsPermission(err) {
+		t.Skip("requires directory read permissions to be enforced")
+	}
+	if err := os.Symlink(target, filepath.Join(src, "_team")); err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources?kind=skill", nil))
+	var res struct {
+		SourceLinks []struct {
+			Name, Warning string
+			Available     bool
+		} `json:"sourceLinks"`
+	}
+	if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &res) != nil || len(res.SourceLinks) != 1 {
+		t.Fatalf("missing standalone link: %d: %s", rr.Code, rr.Body.String())
+	}
+	if link := res.SourceLinks[0]; link.Available || !strings.Contains(link.Warning, "not readable") {
+		t.Fatalf("traversal failure not reflected on the link: %+v", link)
+	}
+}
+
+func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		follow   bool
+		missing  bool
+		refused  bool
+		repo     bool
+		linkName string
+	}{
+		{name: "followed", follow: true},
+		{name: "followed_repo", follow: true, repo: true},
+		{name: "nonrepo_underscore", follow: true, linkName: "_team"},
+		{name: "following_off"},
+		{name: "unavailable", follow: true, missing: true},
+		{name: "refused_sync_target", follow: true, refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, src := newTestServer(t)
+			addSkill(t, src, "plain/alpha")
+			target := t.TempDir()
+			if tc.repo {
+				if out, err := exec.Command("git", "init", target).CombinedOutput(); err != nil {
+					t.Fatalf("git init: %v: %s", err, out)
+				}
+			}
+			if tc.missing {
+				target = filepath.Join(target, "missing")
+			} else {
+				addSkill(t, target, "nested/beta")
+				addSkill(t, target, "gamma")
+			}
+			// A relative link proves that the API reports the resolved policy target.
+			rel, err := filepath.Rel(src, target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			linkName := tc.linkName
+			if linkName == "" {
+				linkName = "team"
+			}
+			if err := os.Symlink(rel, filepath.Join(src, linkName)); err != nil {
+				t.Fatal(err)
+			}
+			s.cfg.FollowSourceLinks = tc.follow
+			if tc.refused {
+				s.cfg.Targets["custom"] = config.TargetConfig{Path: target}
+			}
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			rr := httptest.NewRecorder()
+			s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources?kind=skill", nil))
+			if rr.Code != http.StatusOK {
+				t.Fatalf("got %d: %s", rr.Code, rr.Body.String())
+			}
+			var res struct {
+				Resources []map[string]any `json:"resources"`
+			}
+			if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+				t.Fatal(err)
+			}
+			linked := 0
+			for _, skill := range res.Resources {
+				if skill["relPath"] == "plain/alpha" {
+					if _, ok := skill["linkName"]; ok {
+						t.Fatal("plain sub-folder reported as a link")
+					}
+					if _, ok := skill["linkTarget"]; ok {
+						t.Fatal("plain sub-folder has a link target")
+					}
+					if _, ok := skill["linkIsRepo"]; ok {
+						t.Fatal("plain sub-folder has link repo metadata")
+					}
+					continue
+				}
+				if skill["linkName"] != linkName || skill["linkTarget"] != target {
+					t.Fatalf("incorrect link identity: %+v", skill)
+				}
+				if _, ok := skill["linkIsRepo"]; ok {
+					t.Fatal("link has obsolete repo metadata")
+				}
+				linked++
+			}
+			want := 0
+			if tc.follow && !tc.missing && !tc.refused {
+				want = 2
+			}
+			if linked != want || len(res.Resources) != want+1 {
+				t.Fatalf("got %d linked / %d resources, want %d linked plus plain folder", linked, len(res.Resources), want)
+			}
+		})
+	}
+}
+
+func TestHandleGetSkill_SourceLinkIdentity(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		t.Run(map[bool]string{false: "global", true: "project"}[project], func(t *testing.T) {
+			s, src := newTestServer(t)
+			if project {
+				src = t.TempDir()
+				s = NewProject(s.cfg, &config.ProjectConfig{
+					Sources: config.ProjectSources{Skills: src}, FollowSourceLinks: true,
+				}, t.TempDir(), "127.0.0.1:0", "", "")
+			} else {
+				s.cfg.FollowSourceLinks = true
+			}
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			target := t.TempDir()
+			addSkill(t, target, "foo")
+			addSkill(t, src, "plain")
+			if err := os.Symlink(target, filepath.Join(src, "_dev")); err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"_dev__foo", "plain"} {
+				rr := httptest.NewRecorder()
+				s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources/"+name+"?kind=skill", nil))
+				if rr.Code != http.StatusOK {
+					t.Fatalf("get detail: %d: %s", rr.Code, rr.Body.String())
+				}
+				var res struct {
+					Resource skillItem `json:"resource"`
+				}
+				if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+					t.Fatal(err)
+				}
+				if name == "_dev__foo" {
+					if res.Resource.LinkName != "_dev" || res.Resource.LinkTarget != target {
+						t.Fatalf("detail missing link identity: %+v", res.Resource)
+					}
+				} else if res.Resource.LinkName != "" || res.Resource.LinkTarget != "" {
+					t.Fatalf("plain skill reported as linked: %+v", res.Resource)
+				}
+			}
+		})
+	}
+}

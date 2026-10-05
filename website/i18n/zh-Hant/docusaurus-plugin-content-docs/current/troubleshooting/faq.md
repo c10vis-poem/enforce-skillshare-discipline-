@@ -38,13 +38,13 @@ skillshare sync
 
 不會。Symlink 化的 Source 根目錄或 Target 目錄會被解析並保留；詳見 [Dotfiles 管理工具相容性](/docs/reference/commands/sync#dotfiles-manager-compatibility)。
 
-skills source **內部**的連結則不同。預設情況下，discovery 會忽略第一層的連結，`skillshare doctor` 會把它們回報為未跟進。在 Global 或 Project 設定中設定 `follow_source_links: true`，即可透過直接放在該 source 底下的目錄連結探索 Skill，僅限一層。更深處的連結在 discovery 時不會被跟進。安全防護、透過連結寫入，以及 Windows junction 的指引，請參閱[設定 — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
+skills source **內部**的連結則不同。預設情況下，discovery 會忽略第一層的連結，`skillshare doctor` 會把它們回報為未跟進。在 Global 或 Project 設定中設定 `follow_source_links: true`，即可透過直接放在該 source 底下的目錄連結探索 Skill，僅限一層。[`skillshare link <path>`](../reference/commands/link.md) 會先檢查再建立這樣的連結。更深處的連結在 discovery 時不會被跟進。安全防護、透過連結寫入，以及 Windows junction 的指引，請參閱[設定 — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
 
-對於像 `_dev-skills` 這樣以連結接入的 tracked repo，`skillshare update _dev-skills` 會在真實的 checkout 中執行 git，而 `--force` 會重設該 checkout。`skillshare uninstall _dev-skills` 只會移除連結，絕不會動到 checkout。
+對於像 `_dev-skills` 這樣以連結接入的 tracked repo，`skillshare update _dev-skills` 會在真實的 checkout 中執行 git，而 `--force` 會重設該 checkout。`skillshare unlink _dev-skills` 只會移除連結，絕不會動到 checkout。
 
 ### 我可以把 Skill 放在外接硬碟上嗎？
 
-可以，搭配 `follow_source_links: true`：把硬碟上的 checkout 連結進 source（`ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills`）。硬碟未掛載時，指令會略過該連結並顯示警告，且不會刪除任何東西：那些 Skill 的 target 連結、複本與安裝中繼資料都會原樣保留。掛載硬碟後再執行一次 `skillshare sync` 即可恢復。請保持掛載路徑穩定（macOS 上為 `/Volumes/<name>`，Windows 上為固定的磁碟機代號）。詳見[外接硬碟上的 Skills](../reference/targets/configuration.md#skills-on-an-external-drive)。
+可以，搭配 `follow_source_links: true`：把硬碟上的 checkout 連結進 source（`skillshare link /Volumes/Work/dev-skills --enable`）。硬碟未掛載時，指令會略過該連結並顯示警告，且不會刪除任何東西：那些 Skill 的 target 連結、複本與安裝中繼資料都會原樣保留。掛載硬碟後再執行一次 `skillshare sync` 即可恢復。請保持掛載路徑穩定（macOS 上為 `/Volumes/<name>`，Windows 上為固定的磁碟機代號）。詳見[外接硬碟上的 Skills](../reference/targets/configuration.md#skills-on-an-external-drive)。
 
 如果你透過 dotfiles 對 `config.yaml` 做版本控制，可以考慮啟用 `preserve_tilde_on_save: true`，讓路徑保持 `~/...` 的形式而非絕對路徑 — 詳見[設定](/docs/reference/targets/configuration#preserve_tilde_on_save)。
 

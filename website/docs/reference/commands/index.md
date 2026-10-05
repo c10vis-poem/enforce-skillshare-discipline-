@@ -35,7 +35,7 @@ Complete reference for all skillshare commands.
 
 | Category | Commands |
 |----------|----------|
-| **Core** | `init`, `install`, `uninstall`, `list`, `search`, `sync`, `status` |
+| **Core** | `init`, `install`, `uninstall`, `link`, `unlink`, `list`, `search`, `sync`, `status` |
 | **Skill Management** | `new`, `check`, `update`, `upgrade`, `enable`, `disable` |
 | **MCP Connections** | `mcp` (`add`, `edit`, `import`, `list`, `remove`, `restore`), `sync mcp` |
 | **Hooks** | `hooks` (`list`, `add`, `edit`, `import`, `enable`, `disable`, `remove`, `sync`, `restore`) |
@@ -54,6 +54,8 @@ Complete reference for all skillshare commands.
 | [init](./init.md) | First-time setup |
 | [install](./install.md) | Add a skill from a repo or path |
 | [uninstall](./uninstall.md) | Remove a skill |
+| [link](./link.md) | Link a folder of your own skills into the source |
+| [unlink](./unlink.md) | Remove a link from the source |
 | [list](./list.md) | List all skills |
 | [search](./search.md) | Search for skills |
 | [sync](./sync.md) | Push skills to all targets |

@@ -58,10 +58,15 @@ source recovery; target backups do not replace source version control.
   `target remove` for detaching targets and `uninstall` for removing source resources.
 - A symlink or junction placed directly under the skills source is ignored unless
   `follow_source_links: true` is set; then it is followed one level under its link name,
-  `uninstall <link>` removes only the link, `uninstall <link>/<skill>` trashes the skill
-  from the real checkout, and an unavailable link target holds back pruning.
-  This includes read failures while traversing the target or its subdirectories,
-  even after some skills have been discovered. Dashboard file lists include
+  `skillshare link <path> [--name <name>] [--enable]` creates one after the same safety
+  checks (a junction on Windows). `skillshare unlink <name>` or dashboard **Unlink**
+  moves only the link to trash. `uninstall <link>/<skill>` trashes the skill
+  from the real checkout, and an unavailable link target holds back pruning, including
+  read failures while traversing the target or its subdirectories, even after some
+  skills have been discovered. When the linked folder itself contains `SKILL.md`,
+  `uninstall <link>` is refused; use `unlink` or dashboard **Unlink** to keep the
+  checkout untouched.
+  Dashboard file lists include
   `SKILL.md` and attachments even when the followed link itself is the skill root.
   Git worktrees and submodules with a `.git` file have the same checkout guards:
   `update --all` skips them and the dashboard refuses to update them.

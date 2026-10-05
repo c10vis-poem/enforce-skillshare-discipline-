@@ -542,6 +542,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/install", s.handleInstall)
 	s.mux.HandleFunc("POST /api/install/batch", s.handleInstallBatch)
 	s.mux.HandleFunc("POST /api/uninstall/batch", s.handleBatchUninstall)
+	s.mux.HandleFunc("POST /api/source-links", s.handleCreateSourceLink)
+	s.mux.HandleFunc("DELETE /api/source-links/{name}", s.handleRemoveSourceLink)
 
 	// Update & Check
 	s.mux.HandleFunc("POST /api/update", s.handleUpdate)

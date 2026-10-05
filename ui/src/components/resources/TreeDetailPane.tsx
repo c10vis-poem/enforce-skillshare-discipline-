@@ -25,7 +25,7 @@ interface Props {
   onToggleOne: (skill: Skill) => void;
   onSetTargets: (e: MouseEvent) => void;
   onUninstall: () => void;
-  /** Update / Uninstall for a tracked repo root. */
+  /** Update / Uninstall or Unlink for a source group root. */
   repoActions?: ReactNode;
   /** Where a single selected item actually syncs to, as the list's Targets column shows it; replaces its `targets:` setting. */
   syncedTo?: ReactNode;
@@ -68,13 +68,14 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
   let title = '';
   let meta = '';
   let tracked = false;
+  const link = subject.type === 'folder' && !isAgent ? subject.node.link : undefined;
   if (subject.type === 'folder') {
     const { node } = subject;
-    const repo = isRepoRoot(node);
+    const repo = !link && isRepoRoot(node);
     path = node.path.slice(0, node.path.length - node.name.length);
-    title = repo ? formatTrackedRepoName(node.name) : node.name;
-    tracked = node.path.startsWith('_');
-    meta = [count(skills.length), repo ? skills[0]?.branch : ''].filter(Boolean).join(' · ');
+    title = link ? link.name : repo ? formatTrackedRepoName(node.name) : node.name;
+    tracked = !link && node.path.startsWith('_');
+    meta = [link?.warning ?? count(skills.length), repo ? skills[0]?.branch : ''].filter(Boolean).join(' · ');
   } else if (subject.type === 'skill') {
     const { skill } = subject;
     path = skill.relPath.slice(0, Math.max(0, skill.relPath.lastIndexOf('/')));
@@ -112,10 +113,11 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
           )}
         </div>
         {meta && <div className="text-[13px] text-ink-2">{meta}</div>}
+        {link && <p className="break-all font-mono text-xs text-ink-3">{link.target}</p>}
       </div>
 
       <div className="ss-tree-props">
-        <div>
+        {skills.length > 0 && <div>
           <span className="lb">{t('resources.col.status')}</span>
           <Switch
             on={allOn}
@@ -125,8 +127,8 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
             onClick={() => onToggleAll(skills, !allOn)}
           />
           <span className="text-[13px] font-semibold">{state}</span>
-        </div>
-        {(!isAgent || syncedTo) && (
+        </div>}
+        {skills.length > 0 && (!isAgent || syncedTo) && (
           <div>
             <span className="lb">{t('resources.col.targets')}</span>
             {syncedTo ? (

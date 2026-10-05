@@ -346,14 +346,22 @@ func checkUndeclaredSourceLinks(source string, walk sourcewalk.Options, result *
 			if walk.Follow != nil {
 				continue // a link to a file is an ordinary entry
 			}
-			message = entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
-			if target, err := os.Stat(path); err != nil || target.IsDir() {
-				message += ". Set follow_source_links: true to follow it"
-			}
+			target, err := os.Stat(path)
+			message = unfollowedLinkHint(entry.Name(), err != nil || target.IsDir())
 		}
 		ui.Row(ui.MarkNone, "Source link", message, doctorWidth)
 		result.addInfo("undeclared_source_links", message)
 	}
+}
+
+// unfollowedLinkHint is doctor's line for a first-level source link while
+// follow_source_links is off; dir adds how to follow it.
+func unfollowedLinkHint(name string, dir bool) string {
+	message := name + ": not followed by discovery; its contents are invisible to skillshare"
+	if dir {
+		message += ". Set follow_source_links: true to follow it"
+	}
+	return message
 }
 
 func checkSource(cfg *config.Config, walk sourcewalk.Options, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
