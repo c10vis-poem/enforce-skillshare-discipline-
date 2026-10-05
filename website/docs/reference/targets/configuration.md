@@ -242,7 +242,7 @@ Directory junctions created with `mklink /J` are the intended mechanism:
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
 ```
 
-The drive letter must stay stable. This behavior is **not yet verified** on real Windows hardware.
+The drive letter must stay stable. Verified on Windows 11 ARM64 with `ai_docs/tests/windows_follow_source_links_runbook.md`.
 
 ### `mode`
 
