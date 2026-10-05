@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, ChevronUp, Copy, Ellipsis, FileText, Folder, FolderInput, History, RefreshCw, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, ChevronRight, ChevronUp, Copy, Ellipsis, FileText, Folder, FolderInput, History, Trash2 } from 'lucide-react';
 import type { Components } from 'react-markdown';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
@@ -50,7 +50,6 @@ export default function MemoryBrowser({ notes, root, busy, onEdit, onMove, onDel
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const selected = notes.some((note) => note.path === picked) ? picked
     : notes.find((note) => note.path === 'INDEX.md')?.path ?? notes[0]?.path ?? '';
   const invalid = notes.find((note) => note.path === selected)?.invalid;
@@ -101,13 +100,7 @@ export default function MemoryBrowser({ notes, root, busy, onEdit, onMove, onDel
   return (
     <div className="grid grid-cols-[220px_minmax(0,1fr)] items-start gap-6">
       <div className="sticky top-6 flex max-h-[calc(100dvh-48px)] min-w-0 flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          {search}
-          <button type="button" className="ss-ib shrink-0" title={t('memory.refresh')} aria-label={t('memory.refresh')} disabled={busy}
-            onClick={() => void queryClient.invalidateQueries({ queryKey: queryKeys.memory.all })}>
-            <RefreshCw size={16} />
-          </button>
-        </div>
+        {search}
         <nav className="ss-list min-h-0 !overflow-y-auto flex flex-col gap-0.5 p-1.5" aria-label={t('memory.title')}>
           {fileTree(paths).filter((row) => !Array.from(collapsed).some((path) => row.path.startsWith(`${path}/`))).map((row) => {
             const note = notes.find((note) => note.path === row.path);
