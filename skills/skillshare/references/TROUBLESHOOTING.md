@@ -65,5 +65,7 @@ source recovery; target backups do not replace source version control.
   `SKILL.md` and attachments even when the followed link itself is the skill root.
   Git worktrees and submodules with a `.git` file have the same checkout guards:
   `update --all` skips them and the dashboard refuses to update them.
+  Doctor identifies waiting target links by their stored destination, including
+  when `target_naming: standard` uses a frontmatter name.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.
