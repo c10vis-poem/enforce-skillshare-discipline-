@@ -86,7 +86,8 @@ func getGitChanges(sourcePath string) (string, error) {
 }
 
 // stageAndCommit stages all changes and commits
-func stageAndCommit(sourcePath, message string, spinner *ui.Spinner) error {
+func stageAndCommit(sourcePath, skills, operation, message string, spinner *ui.Spinner) error {
+	printSourceLinkWarnings(sourcePath, skills, operation, spinner)
 	spinner.Update("Staging changes...")
 	cmd := exec.Command("git", "add", "-A")
 	cmd.Dir = sourcePath
@@ -283,6 +284,7 @@ func cmdPush(args []string) (err error) {
 	if opts.dryRun {
 		spinner.Stop()
 		if hasChanges {
+			printSourceLinkWarnings(source, cfg.EffectiveSkillsSource(), "push", spinner)
 			ui.Row(ui.MarkNone, "Commit", "would commit "+plural(len(files), "file")+ui.DimText(" · "+opts.message), width)
 			for _, line := range files {
 				ui.Note(porcelainChange(line))
@@ -303,7 +305,7 @@ func cmdPush(args []string) (err error) {
 	}
 
 	if hasChanges {
-		if err := stageAndCommit(source, opts.message, spinner); err != nil {
+		if err := stageAndCommit(source, cfg.EffectiveSkillsSource(), "push", opts.message, spinner); err != nil {
 			return err
 		}
 		spinner.Stop()
@@ -423,4 +425,14 @@ func printPushHelp() {
 			helpRow{"skillshare push --dry-run", "Preview what would happen"},
 		),
 	)
+}
+
+// printSourceLinkWarnings stops progress output before displaying advisory text.
+func printSourceLinkWarnings(root, skills, operation string, spinner *ui.Spinner) {
+	for _, warning := range gitops.SourceLinkWarnings(root, skills, operation) {
+		if spinner != nil {
+			spinner.Stop()
+		}
+		ui.Warning("%s", warning)
+	}
 }

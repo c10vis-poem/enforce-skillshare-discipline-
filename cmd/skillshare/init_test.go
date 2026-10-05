@@ -50,7 +50,7 @@ func TestCommitSourceFiles_CommitFailureIsReturned(t *testing.T) {
 		t.Fatalf("write SKILL.md: %v", err)
 	}
 
-	err := commitSourceFiles(repo)
+	err := commitSourceFiles(repo, repo)
 	if err == nil {
 		t.Fatal("expected commitSourceFiles to return error when git commit fails")
 	}
@@ -72,7 +72,7 @@ func TestCommitSourceFiles_NoChangesReturnsNil(t *testing.T) {
 	runGit(t, repo, "add", ".")
 	runGit(t, repo, "commit", "-m", "initial")
 
-	if err := commitSourceFiles(repo); err != nil {
+	if err := commitSourceFiles(repo, repo); err != nil {
 		t.Fatalf("expected nil error when nothing to commit, got: %v", err)
 	}
 }
@@ -122,5 +122,30 @@ func TestInstallBuiltinSkill_RefusesLinkedFolder(t *testing.T) {
 	}
 	if _, err := os.Lstat(external); !os.IsNotExist(err) {
 		t.Fatalf("link target was created: %v", err)
+	}
+}
+
+func TestCommitSourceFiles_WarnsSourceLinkAtConfigRoot(t *testing.T) {
+	repo := t.TempDir()
+	skills := filepath.Join(repo, "skills")
+	if err := os.Mkdir(skills, 0755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "init", "-q")
+	runGit(t, repo, "config", "user.email", "test@example.com")
+	runGit(t, repo, "config", "user.name", "Test User")
+	if err := os.Symlink(t.TempDir(), filepath.Join(skills, "_dev-skills")); err != nil {
+		t.Fatal(err)
+	}
+	output := captureStdout(t, func() {
+		if err := commitSourceFiles(repo, skills); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if strings.Count(output, "init will stage source link") != 1 || !strings.Contains(output, "/skills/_dev-skills") {
+		t.Fatalf("warning: %s", output)
+	}
+	if got := runGit(t, repo, "ls-tree", "--name-only", "HEAD", "skills/_dev-skills"); got != "skills/_dev-skills" {
+		t.Fatalf("link was not committed: %s", got)
 	}
 }

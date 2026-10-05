@@ -786,3 +786,40 @@ func TestHandlePull_RootScopeKeepsLocalConfig(t *testing.T) {
 		t.Fatalf("config.yaml = %q, %v; want this machine's copy kept", got, err)
 	}
 }
+
+func TestHandleGitCommit_SourceLinkWarning(t *testing.T) {
+	for _, operation := range []string{"commit", "push"} {
+		for _, dryRun := range []bool{true, false} {
+			t.Run(operation+fmt.Sprint(dryRun), func(t *testing.T) {
+				s, src := newTestServer(t)
+				initServerGitRepo(t, src)
+				if operation == "push" {
+					remote := t.TempDir()
+					testutil.RunGit(t, remote, "init", "--bare")
+					testutil.RunGit(t, src, "remote", "add", "origin", remote)
+				}
+				if err := os.Symlink(t.TempDir(), filepath.Join(src, "_dev-skills")); err != nil {
+					t.Fatal(err)
+				}
+				endpoint := "/api/git/commit"
+				if operation == "push" {
+					endpoint = "/api/push"
+				}
+				req := httptest.NewRequest(http.MethodPost, endpoint, strings.NewReader(fmt.Sprintf(`{"dryRun":%t}`, dryRun)))
+				rr := httptest.NewRecorder()
+				s.handler.ServeHTTP(rr, req)
+				if rr.Code != http.StatusOK {
+					t.Fatalf("status %d: %s", rr.Code, rr.Body.String())
+				}
+				var response pushResponse
+				if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+					t.Fatal(err)
+				}
+				if strings.Count(response.Message, operation+" will stage source link") != 1 || !strings.Contains(response.Message, "/_dev-skills") {
+					t.Fatalf("missing or duplicate warning: %s", response.Message)
+				}
+			})
+		}
+	}
+
+}

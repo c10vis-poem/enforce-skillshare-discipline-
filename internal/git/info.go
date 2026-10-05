@@ -596,7 +596,10 @@ func HasRemote(dir string) bool {
 }
 
 // StageAll stages all changes (git add -A)
-func StageAll(dir string) error {
+func StageAll(dir, skills, operation string, warn func(string)) error {
+	for _, warning := range SourceLinkWarnings(dir, skills, operation) {
+		warn(warning)
+	}
 	cmd := exec.Command("git", "add", "-A")
 	cmd.Dir = dir
 	return cmd.Run()

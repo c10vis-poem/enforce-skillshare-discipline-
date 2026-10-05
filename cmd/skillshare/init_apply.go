@@ -131,7 +131,7 @@ func applyInitPlan(p *initPlan) (*initResult, error) {
 	}
 
 	if p.git {
-		if err := commitSourceFiles(res.gitRoot); err != nil {
+		if err := commitSourceFiles(res.gitRoot, cfg.EffectiveSkillsSource()); err != nil {
 			res.warnings = append(res.warnings, fmt.Sprintf("Failed to create initial commit: %v", err))
 		}
 	}
