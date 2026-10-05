@@ -15,20 +15,10 @@ func backupMCPSource(path string) (string, error) {
 }
 
 func mcpContext(args []string) (*mcp.Service, []string, error) {
-	// Do not interpret flags belonging to a spawned server after --.
-	var command []string
-	for i, arg := range args {
-		if arg == "--" {
-			command = args[i:]
-			args = args[:i]
-			break
-		}
-	}
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--url", "--target", "--from", "--file", "--revision", "--tools-allow", "--tools-deny", "--pi-options", "--timeout")
 	if err != nil {
 		return nil, nil, err
 	}
-	rest = append(rest, command...)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, err

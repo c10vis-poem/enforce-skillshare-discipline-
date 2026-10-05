@@ -158,7 +158,7 @@ func splitURLBranch(key string) (url, branch string) {
 func cmdCheck(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--group", "-G")
 	if err != nil {
 		return err
 	}

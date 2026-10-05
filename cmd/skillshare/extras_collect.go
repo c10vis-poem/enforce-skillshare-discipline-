@@ -16,7 +16,7 @@ import (
 func cmdExtrasCollect(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--from")
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ import (
 
 func cmdSearch(args []string) error {
 	// Parse mode flags (--project/-p, --global/-g) first
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--limit", "-n")
 	if err != nil {
 		return err
 	}

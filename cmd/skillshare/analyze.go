@@ -144,7 +144,7 @@ func parseAnalyzeArgs(args []string) (*analyzeOptions, bool, error) {
 }
 
 func cmdAnalyze(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--filter")
 	if err != nil {
 		return err
 	}

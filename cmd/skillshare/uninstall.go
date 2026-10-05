@@ -424,7 +424,7 @@ func (e *gitStatusError) Unwrap() error { return e.err }
 func cmdUninstall(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--group", "-G")
 	if err != nil {
 		return err
 	}

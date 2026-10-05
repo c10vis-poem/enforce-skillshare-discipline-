@@ -582,7 +582,7 @@ func countRepoSkills(repoName string, discovered []sync.DiscoveredSkill) int {
 }
 
 func cmdList(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--type", "-t", "--sort", "-s", "--status")
 	if err != nil {
 		return err
 	}
