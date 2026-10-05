@@ -188,7 +188,7 @@ skillshare sync
 
 - source 루트 또는 그 상위 디렉터리를 가리키는 링크는 건너뜁니다.
 - sync target과 겹치는 링크는 건너뜁니다. 이는 링크 텍스트로 판단하므로, target 디렉터리가 아직 존재하지 않는 경우에도 적용됩니다.
-- 대상이 없거나 읽을 수 없는 링크는 경고와 함께 건너뜁니다. 그 실행에서는 **pruning, orphan 복사본 삭제, 메타데이터 삭제를 전혀 수행하지 않습니다**. 마운트되지 않은 외장 드라이브는 안전합니다. 다시 마운트하고 sync를 다시 실행하세요. `skillshare doctor`는 그 source 링크 뒤에 있는 dangling target 링크를 prune할 깨진 링크가 아니라, 해당 source 링크를 기다리는 중으로 표시합니다.
+- 대상이 없거나 읽을 수 없는 링크는 경고와 함께 건너뜁니다. 대상이나 그 하위 디렉터리를 순회하는 중 읽기에 실패해도, 일부 skill이 이미 발견되었더라도 해당 링크를 사용할 수 없는 것으로 처리합니다. 그 실행에서는 **pruning, orphan 복사본 삭제, 메타데이터 삭제를 전혀 수행하지 않습니다**. 마운트되지 않은 외장 드라이브는 안전합니다. 다시 마운트하고 sync를 다시 실행하세요. `skillshare doctor`는 그 source 링크 뒤에 있는 dangling target 링크를 prune할 깨진 링크가 아니라, 해당 source 링크를 기다리는 중으로 표시합니다.
 - 파일을 가리키는 링크(예: 공유 `.skillignore`)는 디렉터리 링크가 아닙니다. 일반 항목으로 남으며 pruning에 영향을 주지 않습니다.
 
 #### discovery의 판단 방식 {#how-discovery-decides}

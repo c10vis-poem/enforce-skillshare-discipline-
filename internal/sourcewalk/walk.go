@@ -61,6 +61,7 @@ func Walk(root string, opts Options, fn filepath.WalkFunc) error {
 		}
 		var stop error
 		err = filepath.Walk(target, func(p string, i os.FileInfo, e error) error {
+			f.recordWalkError(path, target, p, e)
 			if p == target {
 				if e == nil {
 					return nil // already reported under the link's name
@@ -104,6 +105,7 @@ func WalkDir(root string, opts Options, fn fs.WalkDirFunc) error {
 		}
 		var stop error
 		err = filepath.WalkDir(target, func(p string, e fs.DirEntry, walkErr error) error {
+			f.recordWalkError(path, target, p, walkErr)
 			if p == target {
 				if walkErr == nil {
 					return nil // already reported under the link's name
