@@ -729,7 +729,7 @@
   },
   {
     "file": "internal/sourcefs/sourcefs.go",
-    "function": "(*Root).CopyIn",
+    "function": "(*Root).copyTreeIn",
     "callee": "filepath.Walk",
     "root": "src",
     "reason": "skill-dir",
