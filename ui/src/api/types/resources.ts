@@ -35,6 +35,7 @@ export interface Skill {
   /** First-level source link followed by the current policy, and its resolved target. */
   linkName?: string;
   linkTarget?: string;
+  linkIsRepo?: boolean;
   isInRepo: boolean;
   targets?: string[];
   installedAt?: string;
@@ -51,6 +52,7 @@ export interface Skill {
 export interface SourceLink {
   name: string;
   target: string;
+  isRepo: boolean;
 }
 
 export interface SkillPattern {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -13,12 +14,16 @@ import (
 
 func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		follow  bool
-		missing bool
-		refused bool
+		name     string
+		follow   bool
+		missing  bool
+		refused  bool
+		repo     bool
+		linkName string
 	}{
 		{name: "followed", follow: true},
+		{name: "followed_repo", follow: true, repo: true},
+		{name: "nonrepo_underscore", follow: true, linkName: "_team"},
 		{name: "following_off"},
 		{name: "unavailable", follow: true, missing: true},
 		{name: "refused_sync_target", follow: true, refused: true},
@@ -27,6 +32,11 @@ func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 			s, src := newTestServer(t)
 			addSkill(t, src, "plain/alpha")
 			target := t.TempDir()
+			if tc.repo {
+				if out, err := exec.Command("git", "init", target).CombinedOutput(); err != nil {
+					t.Fatalf("git init: %v: %s", err, out)
+				}
+			}
 			if tc.missing {
 				target = filepath.Join(target, "missing")
 			} else {
@@ -38,7 +48,11 @@ func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(rel, filepath.Join(src, "team")); err != nil {
+			linkName := tc.linkName
+			if linkName == "" {
+				linkName = "team"
+			}
+			if err := os.Symlink(rel, filepath.Join(src, linkName)); err != nil {
 				t.Fatal(err)
 			}
 			s.cfg.FollowSourceLinks = tc.follow
@@ -68,10 +82,17 @@ func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 					if _, ok := skill["linkTarget"]; ok {
 						t.Fatal("plain sub-folder has a link target")
 					}
+					if _, ok := skill["linkIsRepo"]; ok {
+						t.Fatal("plain sub-folder has link repo metadata")
+					}
 					continue
 				}
-				if skill["linkName"] != "team" || skill["linkTarget"] != target {
+				if skill["linkName"] != linkName || skill["linkTarget"] != target {
 					t.Fatalf("incorrect link identity: %+v", skill)
+				}
+				isRepo, _ := skill["linkIsRepo"].(bool)
+				if isRepo != tc.repo {
+					t.Fatalf("link repo flag %v, want %v", skill["linkIsRepo"], tc.repo)
 				}
 				linked++
 			}

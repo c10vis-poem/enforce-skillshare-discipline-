@@ -25,7 +25,7 @@ interface Props {
   onToggleOne: (skill: Skill) => void;
   onSetTargets: (e: MouseEvent) => void;
   onUninstall: () => void;
-  /** Update / Uninstall for a tracked repo root. */
+  /** Update / Uninstall or Unlink for a source group root. */
   repoActions?: ReactNode;
   /** Where a single selected item actually syncs to, as the list's Targets column shows it; replaces its `targets:` setting. */
   syncedTo?: ReactNode;
@@ -68,12 +68,13 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
   let title = '';
   let meta = '';
   let tracked = false;
+  const link = subject.type === 'folder' && !isAgent ? subject.node.link : undefined;
   if (subject.type === 'folder') {
     const { node } = subject;
-    const repo = isRepoRoot(node);
+    const repo = link ? link.isRepo : isRepoRoot(node);
     path = node.path.slice(0, node.path.length - node.name.length);
-    title = repo ? formatTrackedRepoName(node.name) : node.name;
-    tracked = node.path.startsWith('_');
+    title = link ? link.name : repo ? formatTrackedRepoName(node.name) : node.name;
+    tracked = !link && node.path.startsWith('_');
     meta = [count(skills.length), repo ? skills[0]?.branch : ''].filter(Boolean).join(' · ');
   } else if (subject.type === 'skill') {
     const { skill } = subject;
@@ -97,7 +98,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
         <div className="flex min-w-0 items-center gap-2.5">
           <h2 className={`min-w-0 truncate text-lg font-bold tracking-tight ${subject.type === 'multi' ? '' : 'font-mono'}`}>{title}</h2>
           {tracked && <span className="ss-tag shrink-0">tracked</span>}
-          {subject.type === 'folder' && subject.node.link && !isAgent && <span className="ss-tag shrink-0">{t('sourceLinks.linked')}</span>}
+          {link && <span className="ss-tag shrink-0">{t('sourceLinks.linked')}</span>}
           <span className="flex-1" />
           {subject.type === 'skill' && (
             <Link to={resourceHref(subject.skill)} className="ss-btn sm shrink-0">
@@ -113,7 +114,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
           )}
         </div>
         {meta && <div className="text-[13px] text-ink-2">{meta}</div>}
-        {subject.type === 'folder' && subject.node.link && !isAgent && <p className="break-all font-mono text-xs text-ink-3">{subject.node.link.target}</p>}
+        {link && <p className="break-all font-mono text-xs text-ink-3">{link.target}</p>}
       </div>
 
       <div className="ss-tree-props">

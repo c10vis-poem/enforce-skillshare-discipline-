@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import type { SourceLink } from '../../api/client';
+import type { Skill, SourceLink } from '../../api/client';
 import { useT } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import ConfirmDialog from '../ConfirmDialog';
 import { useToast } from '../Toast';
 
-export default function UnlinkFolderDialog({ link, onClose }: { link: SourceLink; onClose: () => void }) {
+export default function UnlinkFolderDialog({ link, skills, onClose }: { link: SourceLink; skills: Skill[]; onClose: () => void }) {
   const t = useT();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -41,8 +41,21 @@ export default function UnlinkFolderDialog({ link, onClose }: { link: SourceLink
       variant="danger" loading={saving} onConfirm={() => void unlink()} onCancel={onClose}
       message={
         <div className="flex flex-col gap-3">
-          <p className="break-all font-mono text-xs text-ink-3">{link.target}</p>
           <p>{t('sourceLinks.unlinkMessage')}</p>
+          <div className="ss-list !shadow-none">
+            <div className="ss-r items-start gap-3">
+              <span className="w-16 shrink-0 text-xs text-ink-3">{t('sourceLinks.target')}</span>
+              <span className="min-w-0 break-all font-mono text-xs">{link.target}</span>
+            </div>
+            <div className="ss-r items-start gap-3">
+              <span className="w-16 shrink-0 text-xs text-ink-3">{t('layout.nav.skills')}</span>
+              <div className="min-w-0">
+                <p className="break-words font-mono text-xs">{skills.map((s) => s.name).join(', ')}</p>
+                <p className="mt-1 text-xs text-ink-3">{t('sourceLinks.unlinkSkills')}</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-ink-3">{t('sourceLinks.unlinkTrash')}</p>
           {failure && <div className="ss-note bad" role="alert">{failure}</div>}
         </div>
       }
