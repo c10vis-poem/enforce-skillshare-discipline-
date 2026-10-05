@@ -458,6 +458,8 @@ func collectChecksumEntries(root, relPrefix string, entries *[]checksumEntry, ac
 	active[resolvedRoot] = true
 	defer delete(active, resolvedRoot)
 
+	// The root link has already been resolved and entered in the cycle set.
+	root = resolvedRoot
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

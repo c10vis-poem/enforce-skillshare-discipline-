@@ -229,7 +229,7 @@ func cmdCheck(args []string) error {
 	}
 
 	// Filtered check: resolve targets then check only those
-	cmdErr := runCheckFiltered(cfg.EffectiveSkillsSource(), "", opts)
+	cmdErr := runCheckFiltered(cfg.EffectiveSkillsSource(), "", opts, cfg.SkillsWalk())
 	logCheckOp(cfgPath, 0, 0, 0, 0, scope, start, cmdErr)
 	return cmdErr
 }
@@ -634,7 +634,7 @@ func resolveSkillStatuses(
 // runCheckFiltered checks only the specified targets (resolved from names/groups).
 // Note: unlike runCheck, this intentionally skips warnUnknownSkillTargets because
 // filtered checks only verify update status for explicitly named skills/groups.
-func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
+func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks ...sourcewalk.Options) error {
 	start := time.Now()
 
 	// --- Resolve targets ---
@@ -651,7 +651,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
 	for _, name := range opts.names {
 		// Check group directory first (same logic as update)
 		if isGroupDir(name, sourceDir, checkStore) {
-			groupMatches, groupErr := resolveGroupUpdatable(name, sourceDir)
+			groupMatches, groupErr := resolveGroupUpdatable(name, sourceDir, walks...)
 			if groupErr != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 				continue
@@ -682,7 +682,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
 	}
 
 	for _, group := range opts.groups {
-		groupMatches, err := resolveGroupUpdatable(group, sourceDir)
+		groupMatches, err := resolveGroupUpdatable(group, sourceDir, walks...)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 			continue

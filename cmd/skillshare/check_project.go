@@ -34,5 +34,5 @@ func cmdCheckProject(root string, opts *checkOptions) error {
 	}
 
 	// Filtered check
-	return runCheckFiltered(sourcePath, root, opts)
+	return runCheckFiltered(sourcePath, root, opts, projectSkillsWalk(root, projectCfg))
 }

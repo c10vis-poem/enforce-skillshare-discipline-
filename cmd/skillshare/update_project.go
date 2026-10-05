@@ -68,7 +68,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 		// so "feature-radar" expands to all skills rather than
 		// matching a single nested "feature-radar/feature-radar").
 		if isGroupDir(name, sourcePath, metaStore) {
-			groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath)
+			groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath, sourcewalk.Options{Follow: follow})
 			if groupErr != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 				continue
@@ -124,7 +124,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	}
 
 	for _, group := range opts.groups {
-		groupMatches, err := resolveGroupUpdatable(group, sourcePath)
+		groupMatches, err := resolveGroupUpdatable(group, sourcePath, sourcewalk.Options{Follow: follow})
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 			continue

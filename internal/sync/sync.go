@@ -257,7 +257,7 @@ func CreateSymlink(targetPath, sourcePath, projectRoot string) error {
 	}
 
 	// Create link (uses junction on Windows, symlink on Unix)
-	if err := createLink(targetPath, sourcePath, relative); err != nil {
+	if err := createLink(targetPath, sourcePath, relative, sourcePath); err != nil {
 		return fmt.Errorf("failed to create link: %w", err)
 	}
 
@@ -291,7 +291,7 @@ func SyncTarget(name string, target config.TargetConfig, sourcePath string, dryR
 			fmt.Fprintf(DiagOutput, "[dry-run] Would reformat symlink: %s\n", sc.Path)
 			return nil
 		}
-		return reformatLink(sc.Path, sourcePath, relative)
+		return reformatLink(sc.Path, sourcePath, relative, sourcePath)
 
 	case StatusNotExist:
 		if dryRun {
@@ -397,6 +397,8 @@ func copyDirectoryWithState(src, dst string, active map[string]bool, opts *copyD
 		ignore = opts.Ignore
 	}
 
+	// Walk the operation root itself as a directory, not as a second link hop.
+	src = resolvedSrc
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -623,7 +625,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					}
 					// Correct target but wrong format (abs↔rel) — recreate
 					if !dryRun {
-						if err := reformatLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+						if err := reformatLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 							return nil, fmt.Errorf("failed to reformat link for %s: %w", activeName, err)
 						}
 					}
@@ -638,7 +640,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					}
 				} else {
 					os.Remove(targetSkillPath)
-					if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+					if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 						return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 					}
 				}
@@ -655,7 +657,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 						if err := os.RemoveAll(targetSkillPath); err != nil {
 							return nil, fmt.Errorf("failed to remove local copy %s: %w", activeName, err)
 						}
-						if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+						if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 							return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 						}
 					}
@@ -672,7 +674,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					fmt.Fprintf(DiagOutput, "[dry-run] Would create link: %s -> %s\n", targetSkillPath, skill.SourcePath)
 				}
 			} else {
-				if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+				if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 					return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 				}
 			}

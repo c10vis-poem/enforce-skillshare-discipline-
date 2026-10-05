@@ -19,7 +19,7 @@ import (
 // If relative is true, first tries os.Symlink with a relative path
 // (requires Developer Mode). Falls back to junction with absolute paths.
 // A file source only gets a symlink: a junction to a file cannot be read.
-func createLink(linkPath, sourcePath string, relative bool) error {
+func createLink(linkPath, sourcePath string, relative bool, sourceRoot ...string) error {
 	absSource, err := filepath.Abs(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve source path: %w", err)
@@ -47,13 +47,18 @@ func createLink(linkPath, sourcePath string, relative bool) error {
 		// Resolve real paths: OS resolves relative symlinks from the
 		// real parent directory, not the lexical one.
 		linkDir := evalOrClean(filepath.Dir(absTarget))
-		src := evalOrClean(absSource)
+		src := linkSourcePath(absSource, sourceRoot)
 		rel, relErr := filepath.Rel(linkDir, src)
 		if relErr == nil {
 			if symlinkErr := os.Symlink(rel, linkPath); symlinkErr == nil {
 				return nil
 			}
 		}
+	}
+
+	// Keep the same logical skills tail when Developer Mode is unavailable.
+	if len(sourceRoot) > 0 {
+		absSource = linkSourcePath(absSource, sourceRoot)
 	}
 
 	if isFile {

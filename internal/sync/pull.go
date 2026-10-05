@@ -7,12 +7,16 @@ import (
 	"path/filepath"
 	"time"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
 // ErrAlreadyExists is returned when a skill or agent already exists in source
 // and --force was not specified.
 var ErrAlreadyExists = errors.New("already exists in source")
+
+// ErrFollowedLink prevents collect from replacing a user's source link.
+var ErrFollowedLink = errors.New("followed source link preserved; collect cannot replace it")
 
 // LocalSkillInfo describes a local skill in a target directory
 type LocalSkillInfo struct {
@@ -27,13 +31,15 @@ type LocalSkillInfo struct {
 type PullOptions struct {
 	DryRun bool
 	Force  bool
+	Walk   sourcewalk.Options
 }
 
 // PullResult describes the result of a pull operation
 type PullResult struct {
-	Pulled  []string
-	Skipped []string
-	Failed  map[string]error
+	Pulled   []string
+	Skipped  []string
+	Warnings map[string]string
+	Failed   map[string]error
 }
 
 // FindLocalSkills finds all local (non-symlinked) skills in a target directory.
@@ -124,8 +130,13 @@ func FindLocalSkills(targetPath, sourcePath, syncMode string) ([]LocalSkillInfo,
 }
 
 // PullSkill copies a single skill from target to source
-func PullSkill(skill LocalSkillInfo, sourcePath string, force bool) error {
+func PullSkill(skill LocalSkillInfo, sourcePath string, force bool, walks ...sourcewalk.Options) error {
 	destPath := filepath.Join(sourcePath, skill.Name)
+	if force && len(walks) > 0 {
+		if _, ok := walks[0].Follow.Resolve(destPath); ok && utils.IsSymlinkOrJunction(destPath) {
+			return ErrFollowedLink
+		}
+	}
 
 	// Check if skill already exists in source
 	if _, err := os.Stat(destPath); err == nil {
@@ -146,18 +157,30 @@ func PullSkill(skill LocalSkillInfo, sourcePath string, force bool) error {
 // PullSkills pulls multiple skills to source
 func PullSkills(skills []LocalSkillInfo, sourcePath string, opts PullOptions) (*PullResult, error) {
 	result := &PullResult{
-		Failed: make(map[string]error),
+		Failed:   make(map[string]error),
+		Warnings: make(map[string]string),
 	}
 
 	for _, skill := range skills {
+		if opts.Force {
+			dest := filepath.Join(sourcePath, skill.Name)
+			if _, ok := opts.Walk.Follow.Resolve(dest); ok && utils.IsSymlinkOrJunction(dest) {
+				result.Skipped = append(result.Skipped, skill.Name)
+				result.Warnings[skill.Name] = ErrFollowedLink.Error()
+				continue
+			}
+		}
 		if opts.DryRun {
 			result.Pulled = append(result.Pulled, skill.Name)
 			continue
 		}
 
-		err := PullSkill(skill, sourcePath, opts.Force)
+		err := PullSkill(skill, sourcePath, opts.Force, opts.Walk)
 		if err != nil {
-			if errors.Is(err, ErrAlreadyExists) {
+			if errors.Is(err, ErrFollowedLink) {
+				result.Skipped = append(result.Skipped, skill.Name)
+				result.Warnings[skill.Name] = err.Error()
+			} else if errors.Is(err, ErrAlreadyExists) {
 				result.Skipped = append(result.Skipped, skill.Name)
 			} else {
 				result.Failed[skill.Name] = err

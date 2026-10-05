@@ -206,7 +206,7 @@ func resolveUninstallByGlob(pattern, sourceDir string, walk sourcewalk.Options) 
 
 // resolveGroupSkills finds all skills under a group directory (prefix match).
 // Returns uninstallTargets for each skill found.
-func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
+func resolveGroupSkills(group, sourceDir string, walks ...sourcewalk.Options) ([]*uninstallTarget, error) {
 	group = strings.TrimRight(strings.TrimSpace(group), `/\`)
 	group = normalizeUninstallName(group)
 	if group == "" || group == "." {
@@ -219,14 +219,11 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 		return nil, fmt.Errorf("group '%s' not found in source", group)
 	}
 
-	walkRoot := utils.ResolveSymlink(groupPath)
-	resolvedSourceDir := utils.ResolveSymlink(sourceDir)
-
-	// Guard: walkRoot must be inside resolvedSourceDir to prevent
-	// symlinked groups from reaching outside the source tree.
-	if srcRel, relErr := filepath.Rel(resolvedSourceDir, walkRoot); relErr != nil || strings.HasPrefix(srcRel, "..") {
+	walkRoot, logicalRoot, err := resolveGroupWalk(groupPath, sourceDir, walks)
+	if err != nil {
 		return nil, fmt.Errorf("group '%s' resolves outside source directory", group)
 	}
+	resolvedSourceDir := utils.ResolveSymlink(sourceDir)
 
 	var targets []*uninstallTarget
 	if walkErr := filepath.Walk(walkRoot, func(path string, fi os.FileInfo, err error) error {
@@ -240,6 +237,12 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 			return filepath.SkipDir
 		}
 
+		tail, err := filepath.Rel(walkRoot, path)
+		if err != nil {
+			return err
+		}
+		logicalPath := filepath.Join(logicalRoot, tail)
+
 		// Check if this directory is a skill (has SKILL.md) or tracked repo
 		hasSkillMD := false
 		if _, statErr := os.Stat(filepath.Join(path, "SKILL.md")); statErr == nil {
@@ -248,11 +251,11 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 		isRepo := install.IsGitRepo(path)
 
 		if hasSkillMD || isRepo {
-			rel, relErr := filepath.Rel(resolvedSourceDir, path)
+			rel, relErr := filepath.Rel(resolvedSourceDir, logicalPath)
 			if relErr == nil && !strings.HasPrefix(rel, "..") {
 				targets = append(targets, &uninstallTarget{
 					name:          normalizeUninstallName(rel),
-					path:          path,
+					path:          logicalPath,
 					isTrackedRepo: isRepo,
 				})
 			}

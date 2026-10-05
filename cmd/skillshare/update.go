@@ -295,7 +295,7 @@ func cmdUpdate(args []string) error {
 			}
 
 			if isGroupDir(name, sourcePath, nameStore) {
-				groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath)
+				groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath, cfg.SkillsWalk())
 				if groupErr != nil {
 					resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 					continue
@@ -326,7 +326,7 @@ func cmdUpdate(args []string) error {
 		}
 
 		for _, group := range opts.groups {
-			groupMatches, err := resolveGroupUpdatable(group, sourcePath)
+			groupMatches, err := resolveGroupUpdatable(group, sourcePath, cfg.SkillsWalk())
 			if err != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 				continue
