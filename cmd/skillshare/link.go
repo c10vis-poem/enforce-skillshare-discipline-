@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,10 +28,16 @@ type linkScope struct {
 }
 
 func loadLinkScope(args []string) (*linkScope, []string, error) {
+	// Keep mode flags after -- as positional names or paths.
+	var positional []string
+	if i := slices.Index(args, "--"); i >= 0 {
+		positional, args = args[i:], args[:i]
+	}
 	mode, rest, err := parseModeArgs(args)
 	if err != nil {
 		return nil, nil, err
 	}
+	rest = append(rest, positional...)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot determine working directory: %w", err)
@@ -87,20 +94,23 @@ func cmdLink(args []string) error {
 
 	var path, name string
 	enable := false
+	options := true
 	for i := 0; i < len(rest); i++ {
 		switch arg := rest[i]; {
-		case arg == "--name":
+		case options && arg == "--":
+			options = false
+		case options && arg == "--name":
 			i++
 			if i >= len(rest) {
 				return fmt.Errorf("--name requires a value")
 			}
 			name = rest[i]
-		case arg == "--enable":
+		case options && arg == "--enable":
 			enable = true
-		case arg == "--help" || arg == "-h":
+		case options && (arg == "--help" || arg == "-h"):
 			printLinkHelp()
 			return nil
-		case strings.HasPrefix(arg, "-"):
+		case options && strings.HasPrefix(arg, "-"):
 			return fmt.Errorf("unknown option: %s", arg)
 		case path != "":
 			return fmt.Errorf("unexpected argument: %s", arg)
@@ -147,12 +157,15 @@ func cmdUnlink(args []string) error {
 	}
 
 	var name string
+	options := true
 	for _, arg := range rest {
 		switch {
-		case arg == "--help" || arg == "-h":
+		case options && arg == "--":
+			options = false
+		case options && (arg == "--help" || arg == "-h"):
 			printUnlinkHelp()
 			return nil
-		case strings.HasPrefix(arg, "-"):
+		case options && strings.HasPrefix(arg, "-"):
 			return fmt.Errorf("unknown option: %s", arg)
 		case name != "":
 			return fmt.Errorf("unexpected argument: %s", arg)
@@ -195,11 +208,13 @@ func printLinkHelp() {
 			{"--enable", "Also set follow_source_links: true"},
 			{"-p, --project", "Use project-level config in current directory"},
 			{"-g, --global", "Use global config (~/.config/skillshare)"},
+			{"--", "End options; allow a path starting with -"},
 		}},
 		helpExamples(
 			helpRow{"skillshare link ~/dev/my-skills", "Link as _my-skills"},
 			helpRow{"skillshare link ~/dev/my-skills --enable", "Link and turn on following"},
 			helpRow{"skillshare link ../team --name _team -p", "Link into the project source"},
+			helpRow{"skillshare link -- -checkout", "Link a path starting with -"},
 		),
 	)
 }
@@ -209,10 +224,12 @@ func printUnlinkHelp() {
 		helpGroup{title: "Options", rows: []helpRow{
 			{"-p, --project", "Use project-level config in current directory"},
 			{"-g, --global", "Use global config (~/.config/skillshare)"},
+			{"--", "End options; allow a name starting with -"},
 		}},
 		helpExamples(
 			helpRow{"skillshare unlink _my-skills", "Remove the link"},
 			helpRow{"skillshare unlink _team -p", "Remove a project source link"},
+			helpRow{"skillshare unlink -- -local", "Remove a link whose name starts with -"},
 		),
 	)
 }

@@ -112,6 +112,39 @@ func TestUnlink_RemovesOnlyTheLink(t *testing.T) {
 	}
 }
 
+func TestUnlink_OptionTerminator(t *testing.T) {
+	for _, name := range []string{"-local", "-g", "-p"} {
+		t.Run(name, func(t *testing.T) {
+			sb, checkout := linkSandbox(t)
+			defer sb.Cleanup()
+			sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+			sb.RunCLIInDir(sb.Root, "link", checkout).AssertSuccess(t)
+			if err := os.Rename(filepath.Join(sb.SourcePath, "_dev-skills"), filepath.Join(sb.SourcePath, name)); err != nil {
+				t.Fatal(err)
+			}
+			sb.RunCLIInDir(sb.Root, "unlink", "--global", "--", name).AssertSuccess(t)
+			if _, err := os.Lstat(filepath.Join(sb.SourcePath, name)); !os.IsNotExist(err) {
+				t.Fatalf("link still present: %v", err)
+			}
+			if !sb.FileExists(filepath.Join(checkout, "foo", "SKILL.md")) {
+				t.Fatal("unlink touched the target")
+			}
+		})
+	}
+}
+
+func TestLink_OptionTerminatorPath(t *testing.T) {
+	sb, _ := linkSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+	checkout := filepath.Join(sb.Root, "-checkout")
+	sb.WriteFile(filepath.Join(checkout, "foo", "SKILL.md"), "---\nname: foo\n---\n# foo")
+	sb.RunCLIInDir(sb.Root, "link", "--global", "--", "-checkout").AssertSuccess(t)
+	if got, err := filepath.EvalSymlinks(filepath.Join(sb.SourcePath, "_-checkout")); err != nil || got != checkout {
+		t.Fatalf("link target = %q, %v; want %s", got, err, checkout)
+	}
+}
+
 func TestUnlink_RefusesPlainDirectory(t *testing.T) {
 	sb, _ := linkSandbox(t)
 	defer sb.Cleanup()

@@ -9,6 +9,7 @@ Remove a link created by [`skillshare link`](./link.md), or any first-level link
 ```bash
 skillshare unlink _dev-skills              # Remove the link
 skillshare unlink _team -p                 # Remove a project source link
+skillshare unlink -- -local                # End options for a name starting with -
 ```
 
 ## When to Use

@@ -9,6 +9,7 @@ sidebar_position: 3
 ```bash
 skillshare unlink _dev-skills              # 移除链接
 skillshare unlink _team -p                 # 移除项目 Source 中的链接
+skillshare unlink -- -local                # 结束选项解析，允许名称以 - 开头
 ```
 
 ## 何时使用

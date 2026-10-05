@@ -9,6 +9,7 @@ sidebar_position: 3
 ```bash
 skillshare unlink _dev-skills              # リンクを削除
 skillshare unlink _team -p                 # project の source のリンクを削除
+skillshare unlink -- -local                # - で始まる名前の前でオプション解析を終了
 ```
 
 ## 使うタイミング

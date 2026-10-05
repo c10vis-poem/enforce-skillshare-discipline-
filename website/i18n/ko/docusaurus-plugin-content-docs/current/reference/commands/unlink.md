@@ -9,6 +9,7 @@ sidebar_position: 3
 ```bash
 skillshare unlink _dev-skills              # 링크 제거
 skillshare unlink _team -p                 # project source의 링크 제거
+skillshare unlink -- -local                # -로 시작하는 이름 앞에서 옵션 해석 종료
 ```
 
 ## 언제 사용하나요
