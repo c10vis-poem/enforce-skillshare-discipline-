@@ -240,6 +240,8 @@ The mount path must stay the same between sessions. On macOS that is `/Volumes/<
 
 Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
 
+When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted.
+
 `--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare uninstall _dev-skills` for the link, or name the skills to trash.
 
 On Unix, committing the source repo stages the link entry itself, that is its target text, which is usually a machine-local absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.

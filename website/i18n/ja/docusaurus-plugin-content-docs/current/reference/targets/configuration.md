@@ -242,7 +242,9 @@ skillshare sync
 
 リンクの背後にある Skill への書き込みは、実際のチェックアウトに反映されます。ダッシュボードでのコンテンツ編集、`skillshare install --into _dev-skills`、リンクされたディレクトリ内の通常の Skill の置き換えは、いずれも `~/code/dev-skills` を変更します。`skillshare uninstall _dev-skills/<child>` はその子を実際のチェックアウトから trash に移動します。`skillshare uninstall _dev-skills` はリンクのエントリのみを削除し、実際のチェックアウトは決して削除しません。trash にはそのリンクが一覧表示され、`restore` でリンクが再作成されます。`skillshare trash restore _dev-skills/<child>` は同じポリシーの下で子を実際のチェックアウトに戻します。チェックアウトの下にネストされたリンクが別の場所を指している場合、restore は失敗し、trash のエントリは保持されます。チェックアウトの外に出るパス（`..`、または外部を指すネストされたリンク）は引き続き拒否されます。
 
-`update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare uninstall _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
+`update` と `check` の Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。
+
+`--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare uninstall _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
 
 Unix では、Source リポジトリをコミットするとリンクのエントリ自体、つまりそのリンク先のテキスト（通常はマシン固有の絶対パス）がステージされ、チェックアウトのファイルはステージされません。Skill ディレクトリの `.gitignore` に `/_dev-skills` を追加してください。`skillshare commit`、`push`、`init` は、リンクがステージされそうな場合に警告を出力します。
 

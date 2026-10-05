@@ -600,8 +600,19 @@ func copyDir(src, dst string) error {
 			continue
 		}
 
-		// Skip symlinks
+		// Preserve link text without copying the target. Junctions may need
+		// ResolveLinkTarget, as in moveLink, then a symlink fallback.
 		if utils.IsLinkMode(srcPath, info.Mode()) {
+			target, err := os.Readlink(srcPath)
+			if err != nil {
+				target, err = utils.ResolveLinkTarget(srcPath)
+			}
+			if err != nil {
+				return err
+			}
+			if err := os.Symlink(target, dstPath); err != nil {
+				return err
+			}
 			continue
 		}
 
