@@ -214,6 +214,15 @@ func (f *Follow) skip(name, reason string, unavailable bool) (string, os.FileInf
 	return "", nil, false
 }
 
+// recordWalkError runs before the caller can discard a traversal error.
+func (f *Follow) recordWalkError(link, target, path string, err error) {
+	// A vanished child is an ordinary race, not an unavailable inventory.
+	// Losing the target itself, or failing to read any subtree, is incomplete.
+	if err != nil && (path == target || !os.IsNotExist(err)) {
+		f.skip(filepath.Base(link), unavailableReason(err), true)
+	}
+}
+
 func unavailableReason(err error) string {
 	switch {
 	case os.IsNotExist(err):

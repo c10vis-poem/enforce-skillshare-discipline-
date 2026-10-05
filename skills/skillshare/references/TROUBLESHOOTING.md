@@ -61,8 +61,10 @@ source recovery; target backups do not replace source version control.
   `skillshare link <path> [--name <name>] [--enable]` creates one after the same safety
   checks (a junction on Windows). `skillshare unlink <name>` or dashboard **Unlink**
   moves only the link to trash. `uninstall <link>/<skill>` trashes the skill
-  from the real checkout, and an unavailable link target holds back pruning. When the
-  linked folder itself contains `SKILL.md`, `uninstall <link>` is refused; use `unlink`
-  or dashboard **Unlink** to keep the checkout untouched.
+  from the real checkout, and an unavailable link target holds back pruning, including
+  read failures while traversing the target or its subdirectories, even after some
+  skills have been discovered. When the linked folder itself contains `SKILL.md`,
+  `uninstall <link>` is refused; use `unlink` or dashboard **Unlink** to keep the
+  checkout untouched.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.

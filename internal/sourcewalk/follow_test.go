@@ -259,3 +259,77 @@ func TestFollowAllow(t *testing.T) {
 		})
 	}
 }
+
+func TestFollowWalkErrors(t *testing.T) {
+	for _, walker := range []string{"Walk", "WalkDir"} {
+		for _, failure := range []string{"unreadable-subdirectory", "missing-target", "vanished-child"} {
+			t.Run(walker+"/"+failure, func(t *testing.T) {
+				source, target := t.TempDir(), t.TempDir()
+				write(t, filepath.Join(source, "healthy", "SKILL.md"))
+				write(t, filepath.Join(target, "a", "SKILL.md"))
+				write(t, filepath.Join(target, "z", "SKILL.md"))
+				link := filepath.Join(source, "linked")
+				symlink(t, target, link)
+				if failure == "unreadable-subdirectory" {
+					dir := filepath.Join(target, "z")
+					if err := os.Chmod(dir, 0000); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { os.Chmod(dir, 0755) })
+					if _, err := os.ReadDir(dir); !os.IsPermission(err) {
+						t.Skip("requires directory read permissions to be enforced")
+					}
+				}
+				follow := NewFollow(source, nil)
+				healthy, followedHealthy, errorsSeen := false, false, 0
+				visit := func(path string, err error) error {
+					if err != nil {
+						errorsSeen++
+						return nil
+					}
+					if path == filepath.Join(source, "healthy", "SKILL.md") {
+						healthy = true
+					}
+					if path == filepath.Join(link, "a", "SKILL.md") {
+						followedHealthy = true
+					}
+					if failure == "missing-target" && path == link {
+						if err := os.Rename(target, target+".away"); err != nil {
+							t.Fatal(err)
+						}
+						t.Cleanup(func() { os.Rename(target+".away", target) })
+					}
+					if failure == "vanished-child" && path == filepath.Join(link, "a") {
+						if err := os.Rename(filepath.Join(target, "z"), filepath.Join(target, "gone")); err != nil {
+							t.Fatal(err)
+						}
+					}
+					return nil
+				}
+				var err error
+				if walker == "Walk" {
+					err = Walk(source, Options{Follow: follow}, func(path string, _ os.FileInfo, err error) error { return visit(path, err) })
+				} else {
+					err = WalkDir(source, Options{Follow: follow}, func(path string, _ fs.DirEntry, err error) error { return visit(path, err) })
+				}
+				if err != nil || !healthy || errorsSeen == 0 || (failure != "missing-target" && !followedHealthy) {
+					t.Fatalf("err=%v healthy=%v followedHealthy=%v errors=%d", err, healthy, followedHealthy, errorsSeen)
+				}
+				skipped := follow.Skipped()
+				if failure == "vanished-child" {
+					if follow.Incomplete() || len(skipped) != 0 {
+						t.Fatalf("vanished child made inventory incomplete: %+v", skipped)
+					}
+				} else {
+					wantReason := "target is not readable"
+					if failure == "missing-target" {
+						wantReason = "target is missing"
+					}
+					if !follow.Incomplete() || len(skipped) != 1 || skipped[0].Name != "linked" || !skipped[0].Unavailable || skipped[0].Reason != wantReason {
+						t.Fatalf("walk failure not recorded: incomplete=%v skipped=%+v", follow.Incomplete(), skipped)
+					}
+				}
+			})
+		}
+	}
+}

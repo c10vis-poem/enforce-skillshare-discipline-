@@ -194,7 +194,7 @@ If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-
 
 - A link pointing at the source root or one of its ancestors is skipped.
 - A link overlapping a sync target is skipped. This is decided from the link text, so it also applies when the target directory does not exist yet.
-- A link whose target is missing or unreadable is skipped with a warning. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
+- A link whose target is missing or unreadable is skipped with a warning. A read failure while traversing the target or any of its subdirectories also marks the link as unavailable, even if discovery has already returned some skills. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune.
 - A link to a file (a shared `.skillignore`, say) is not a directory link. It stays an ordinary entry and never affects pruning.
 
 #### How discovery decides
