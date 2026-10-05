@@ -449,6 +449,7 @@ span.bad, b.bad, svg.bad { color: var(--bad); }
 :root[data-theme="playful"] .ss-btn:hover:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--line); filter: none; }
 .ss-btn:disabled { opacity: .42; }
 .ss-btn .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; }
+.ss-btn .spin + svg { display: none; }
 .ss-tabs .ss-cnt { padding: 2px 6px; margin: 0; border: 0; border-radius: 99px; background: var(--sunken); font: 600 11px/1.2 var(--f); color: var(--ink-2); }
 :root[data-theme="playful"] .ss-tabs .ss-cnt { margin: 0; border: 1.5px solid var(--ink-3); background: transparent; }
 :root[data-theme="playful"] .ss-bulk .ss-btn, :root[data-theme="playful"] .ss-bulk .ss-ib { color: var(--sel-ink); }
