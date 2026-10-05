@@ -511,9 +511,11 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
 
   const unlinkButton = (link: SourceLink) => (
     <Tooltip content={t('sourceLinks.unlink')}>
-      <button type="button" className="ss-ib hover:!text-bad focus-visible:!text-bad" aria-label={t('sourceLinks.unlink')}
+      {/* Reads as the link it is; only hover or focus turns it into the unlink action. */}
+      <button type="button" className="ss-ib group hover:!text-bad focus-visible:!text-bad" aria-label={t('sourceLinks.unlink')}
         onClick={() => setUnlinking(link)}>
-        <Unlink2 size={16} />
+        <Link2 size={16} className="group-hover:hidden group-focus-visible:hidden" />
+        <Unlink2 size={16} className="hidden group-hover:block group-focus-visible:block" />
       </button>
     </Tooltip>
   );
