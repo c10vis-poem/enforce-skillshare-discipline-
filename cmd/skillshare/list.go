@@ -617,12 +617,14 @@ func cmdList(args []string) error {
 		return err
 	}
 
+	walk := cfg.SkillsWalk()
+
 	// TTY + not JSON + TUI enabled → launch TUI with async loading (no blank screen)
 	if !opts.JSON && shouldLaunchTUI(opts.NoTUI, cfg) {
 		loadFn := func() listLoadResult {
 			// Always load both skills and agents — tab UI filters the view.
 			var allEntries []skillEntry
-			discovered, discErr := sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+			discovered, discErr := sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), walk)
 			if discErr != nil {
 				return listLoadResult{err: fmt.Errorf("cannot discover skills: %w", discErr)}
 			}
@@ -639,6 +641,7 @@ func cmdList(args []string) error {
 			return listLoadResult{skills: toSkillItems(allEntries), totalCount: total}
 		}
 		action, skillName, skillKind, err := runListTUI(loadFn, "global", cfg.EffectiveSkillsSource(), cfg.EffectiveAgentsSource(), cfg.Targets, kind, opts.Status)
+		printSkippedSourceLinkWarnings(walk, false)
 		if err != nil {
 			return err
 		}
@@ -688,14 +691,14 @@ func cmdList(args []string) error {
 
 	if kind.IncludesSkills() {
 		var discErr error
-		discoveredSkills, discErr = sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+		discoveredSkills, discErr = sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), walk)
 		if discErr != nil {
 			if sp != nil {
 				sp.Fail("Discovery failed")
 			}
 			return fmt.Errorf("cannot discover skills: %w", discErr)
 		}
-		trackedRepos = extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+		trackedRepos = extractTrackedRepos(cfg.EffectiveSkillsSource(), walk)
 		if sp != nil {
 			sp.Update(fmt.Sprintf("Reading metadata for %d skills...", len(discoveredSkills)))
 		}
@@ -710,6 +713,7 @@ func cmdList(args []string) error {
 	if sp != nil {
 		sp.Stop()
 	}
+	printSkippedSourceLinkWarnings(walk, opts.JSON)
 	totalCount := len(allEntries)
 	// Apply filter and sort
 	allEntries = filterSkillEntries(allEntries, opts.Pattern, opts.TypeFilter, opts.Status)

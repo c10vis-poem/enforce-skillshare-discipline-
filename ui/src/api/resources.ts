@@ -4,7 +4,7 @@ import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, Co
 export const resourcesApi = {
   getOverview: () => apiFetch<Overview>('/overview'),
   listSkills: (kind?: 'skill' | 'agent') =>
-    apiFetch<{ resources: Skill[] }>(`/resources${kindQuery(kind)}`),
+    apiFetch<{ resources: Skill[]; sourceLinkWarnings?: string[] }>(`/resources${kindQuery(kind)}`),
   getResource: (name: string, kind?: 'skill' | 'agent') =>
     apiFetch<{ resource: Skill; skillMdContent: string; files: string[] }>(
       `/resources/${encodeURIComponent(name)}${kindQuery(kind)}`

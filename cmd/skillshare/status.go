@@ -116,14 +116,16 @@ func cmdStatus(args []string) error {
 		return err
 	}
 
+	walk := cfg.SkillsWalk()
 	if !jsonOutput {
 		sp := ui.StartSpinner("Discovering skills...")
-		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
 		if discoverErr != nil {
 			discovered = nil
 		}
-		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), walk)
 		sp.Stop()
+		printSkippedSourceLinkWarnings(walk, false)
 
 		printSourceStatus(cfg.EffectiveSkillsSource(), cfg.EffectiveAgentsSource(), utils.FoldHomePath, len(discovered), countSourceAgents(cfg.EffectiveAgentsSource()), stats)
 		printTrackedReposStatus(cfg.EffectiveSkillsSource(), discovered, trackedRepos)
@@ -147,9 +149,10 @@ func cmdStatus(args []string) error {
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
-	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
+	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), walk)
 
+	printSkippedSourceLinkWarnings(walk, true)
 	output.Source = statusJSONSource{
 		Path:        cfg.EffectiveSkillsSource(),
 		Exists:      dirExists(cfg.EffectiveSkillsSource()),

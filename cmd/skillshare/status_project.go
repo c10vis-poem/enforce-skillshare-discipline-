@@ -23,13 +23,15 @@ func cmdStatusProject(root string) error {
 		return err
 	}
 
+	walk := runtime.skillsWalk()
 	sp := ui.StartSpinner("Discovering skills...")
-	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, runtime.skillsWalk())
+	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, walk)
 	if discoverErr != nil {
 		discovered = nil
 	}
-	trackedRepos := extractTrackedRepos(runtime.sourcePath, runtime.skillsWalk())
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, walk)
 	sp.Stop()
+	printSkippedSourceLinkWarnings(walk, false)
 
 	agentCount := -1
 	if agents, err := (resource.AgentKind{}).Discover(runtime.agentsSourcePath); err == nil && dirExists(runtime.agentsSourcePath) {
@@ -63,13 +65,15 @@ func cmdStatusProjectJSON(root string) error {
 		return writeJSONError(err)
 	}
 
+	walk := runtime.skillsWalk()
 	output := statusJSONOutput{
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, runtime.skillsWalk())
-	trackedRepos := extractTrackedRepos(runtime.sourcePath, runtime.skillsWalk())
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, walk)
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, walk)
 
+	printSkippedSourceLinkWarnings(walk, true)
 	output.Source = statusJSONSource{
 		Path:        runtime.sourcePath,
 		Exists:      dirExists(runtime.sourcePath),

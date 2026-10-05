@@ -10,6 +10,8 @@ skillshare の現在の状態（source、tracked repositories、targets、バー
 skillshare status
 ```
 
+`follow_source_links: true` の場合、利用できない最上位のソースリンクはリンク名付きの警告を表示し、正常なスキルは引き続き一覧に含まれます。`--json` では警告を stderr に出力し、stdout は有効な JSON のままです。
+
 ## 使うタイミング
 
 - 変更を加えた後、すべての targets が sync 済みか確認する

@@ -10,6 +10,8 @@ Show the current state of skillshare: source, tracked repositories, targets, and
 skillshare status
 ```
 
+With `follow_source_links: true`, unavailable first-level source links produce a warning naming the link while healthy skills remain listed. With `--json`, these warnings go to stderr and stdout remains valid JSON.
+
 ## When to Use
 
 - Check if all targets are in sync after making changes

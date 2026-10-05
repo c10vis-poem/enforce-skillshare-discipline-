@@ -10,6 +10,8 @@ skillshare의 현재 상태(source, tracked repository, target, 버전)를 표�
 skillshare status
 ```
 
+`follow_source_links: true`이면 사용할 수 없는 최상위 소스 링크의 이름을 경고로 표시하고 정상 스킬은 목록에 유지합니다. `--json`에서는 경고를 stderr로 보내고 stdout은 유효한 JSON으로 유지합니다.
+
 ## 사용 시점
 
 - 변경 사항을 적용한 후 모든 target이 sync 상태인지 확인

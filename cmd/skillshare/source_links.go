@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"skillshare/internal/config"
 	"skillshare/internal/install"
 	"skillshare/internal/sourcewalk"
+	ssync "skillshare/internal/sync"
+	"skillshare/internal/ui"
 )
 
 // projectSkillsWalk returns a fresh traversal policy for one operation on a
@@ -31,4 +34,14 @@ func followedRepoSkipped(walk sourcewalk.Options, walkRoot, path string) (warnin
 		return "", true
 	}
 	return fmt.Sprintf("%s: followed source link, not updated by --all; run `skillshare update %s` to pull that checkout", rel, rel), true
+}
+
+func printSkippedSourceLinkWarnings(walk sourcewalk.Options, jsonOutput bool) {
+	for _, warning := range ssync.SourceLinkWarnings(walk, false) {
+		if jsonOutput {
+			fmt.Fprintf(os.Stderr, "! %s\n", warning)
+		} else {
+			ui.Warning("%s", warning)
+		}
+	}
 }

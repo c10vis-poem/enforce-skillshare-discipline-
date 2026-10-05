@@ -58,6 +58,7 @@ func cmdListProject(root string, opts listOptions, kind resourceKindFilter) erro
 			return listLoadResult{skills: toSkillItems(allEntries), totalCount: total}
 		}
 		action, skillName, skillKind, err := runListTUI(loadFn, "project", skillsSource, agentsSource, targets, kind, opts.Status)
+		printSkippedSourceLinkWarnings(skillsWalk, false)
 		if err != nil {
 			return err
 		}
@@ -119,6 +120,7 @@ func cmdListProject(root string, opts listOptions, kind resourceKindFilter) erro
 	if sp != nil {
 		sp.Stop()
 	}
+	printSkippedSourceLinkWarnings(skillsWalk, opts.JSON)
 	totalCount := len(allEntries)
 	// Apply filter and sort
 	allEntries = filterSkillEntries(allEntries, opts.Pattern, opts.TypeFilter, opts.Status)

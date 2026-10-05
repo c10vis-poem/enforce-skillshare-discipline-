@@ -110,3 +110,5 @@ skillshare upgrade --dry-run    # Preview
 is requested. `init --skill` also opts in explicitly.
 
 **After upgrading skill:** `skillshare sync`
+
+`list` and `status` warn when an enabled `follow_source_links` policy skips an unavailable first-level source link; healthy skills remain in the inventory. With `--json`, warnings go to stderr so stdout stays valid JSON.

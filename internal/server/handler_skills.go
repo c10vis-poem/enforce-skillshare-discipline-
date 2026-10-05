@@ -61,13 +61,14 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	source := s.cfg.EffectiveSkillsSource()
 	agentsSource := s.agentsSource()
+	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
 	var items []skillItem
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
+		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -142,7 +143,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]any{"resources": items})
+	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false)})
 }
 
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {

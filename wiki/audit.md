@@ -41,6 +41,8 @@ Mutating commands should write the operations log; read-only commands should not
 
 Compare routes in `internal/server/server.go`, `handler_*.go` files, handler tests, and `ui/src/api/client.ts`. CLI-only or API-only behavior may be intentional; inspect the product surface before reporting an issue.
 
+`GET /api/resources` returns `resources` and `sourceLinkWarnings` (one string per first-level source link skipped during discovery). Healthy resources remain in the inventory when a link is unavailable.
+
 ## Report
 
 Use a concise table for each dimension:

@@ -10,6 +10,8 @@ sidebar_position: 7
 skillshare status
 ```
 
+啟用 `follow_source_links: true` 時，無法使用的第一層來源連結會顯示包含連結名稱的警告，正常技能仍會列出。使用 `--json` 時，警告寫入 stderr，stdout 保持有效的 JSON。
+
 ## 使用時機
 
 - 變更之後檢查所有 targets 是否已同步
