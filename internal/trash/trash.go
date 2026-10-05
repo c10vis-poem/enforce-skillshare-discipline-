@@ -13,6 +13,8 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/projectdir"
+	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -379,11 +381,11 @@ func FindByName(trashBase, name string) *TrashEntry {
 
 // Restore moves a trashed skill or link entry back to the destination directory.
 // Returns an error if the destination already exists, including a broken link.
-func Restore(entry *TrashEntry, destDir string) error {
-	return restore(entry, destDir, os.Rename)
+func Restore(entry *TrashEntry, destDir string, follow ...*sourcewalk.Follow) error {
+	return restore(entry, destDir, os.Rename, follow...)
 }
 
-func restore(entry *TrashEntry, destDir string, rename func(string, string) error) error {
+func restore(entry *TrashEntry, destDir string, rename func(string, string) error, follow ...*sourcewalk.Follow) error {
 	if err := validateTrashName(entry.Name); err != nil {
 		return fmt.Errorf("invalid trash entry name: %w", err)
 	}
@@ -394,12 +396,21 @@ func restore(entry *TrashEntry, destDir string, rename func(string, string) erro
 		return fmt.Errorf("restore path unsafe: %w", err)
 	}
 
-	// Ensure parent directory exists for nested names (e.g., "org/_team-skills")
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	src, err := sourcefs.Create(destDir, follow...)
+	if err != nil {
+		return fmt.Errorf("failed to open destination directory: %w", err)
+	}
+	defer src.Close()
+	name := filepath.FromSlash(entry.Name)
+	if err := src.CheckParent(name); err != nil {
+		return fmt.Errorf("restore path unsafe: %w", err)
+	}
+	// Check before creating parents so a refused restore keeps its trash copy.
+	if err := src.MkdirAll(filepath.Dir(name), 0755); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	if _, err := os.Lstat(destPath); err == nil {
+	if _, err := src.Lstat(name); err == nil {
 		return fmt.Errorf("'%s' already exists in %s (use --force on uninstall to replace)", entry.Name, destDir)
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("cannot access destination: %w", err)
@@ -413,12 +424,14 @@ func restore(entry *TrashEntry, destDir string, rename func(string, string) erro
 	}
 
 	// Try atomic rename first
-	if err := rename(entry.Path, destPath); err == nil {
+	if err := src.MoveIn(entry.Path, name); err == nil {
 		return nil
+	} else if !sourcefs.IsCrossDevice(err) {
+		return fmt.Errorf("failed to restore: %w", err)
 	}
 
 	// Fallback: copy then delete
-	if err := copyDir(entry.Path, destPath); err != nil {
+	if err := src.CopyIn(entry.Path, name); err != nil {
 		return fmt.Errorf("failed to restore: %w", err)
 	}
 
@@ -433,15 +446,27 @@ func restore(entry *TrashEntry, destDir string, rename func(string, string) erro
 // Recreate relative links before removing the source so relocation preserves
 // their meaning without leaving a broken link when creation fails.
 func moveLink(src, dst string, rename func(string, string) error) error {
-	target, err := utils.ResolveLinkTarget(src)
-	if err != nil {
-		return err
-	}
 	text, readErr := os.Readlink(src)
-	if readErr == nil && filepath.IsAbs(text) {
-		target = text // Preserve absolute link text exactly, including on fallback.
-		if err := rename(src, dst); err == nil {
-			return nil
+	var target string
+	if readErr == nil {
+		target = text
+		if filepath.IsAbs(text) {
+			if err := rename(src, dst); err == nil {
+				return nil
+			}
+		} else {
+			parent, err := filepath.Abs(filepath.Dir(src))
+			if err != nil {
+				return err
+			}
+			// Cleaning the link text would change traversal through alias/../target.
+			target = parent + string(filepath.Separator) + text
+		}
+	} else {
+		var err error
+		target, err = utils.ResolveLinkTarget(src)
+		if err != nil {
+			return err
 		}
 	}
 	if err := os.Symlink(target, dst); err != nil {

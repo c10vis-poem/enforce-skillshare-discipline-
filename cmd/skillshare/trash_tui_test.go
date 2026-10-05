@@ -59,6 +59,24 @@ func TestTrashEnter_OpensTheTrashedFiles(t *testing.T) {
 	}
 }
 
+func TestTrashEnter_KeepsLinkDetails(t *testing.T) {
+	checkout := t.TempDir()
+	link := filepath.Join(t.TempDir(), "_dev-skills")
+	if err := os.Symlink(checkout, link); err != nil {
+		t.Skip(err)
+	}
+	model := newTrashTUIModel([]trash.TrashEntry{{Name: "_dev-skills", Path: link, LinkTarget: checkout}}, "", "", "", "", "", "global")
+	next, _ := model.Update(tea.WindowSizeMsg{Width: 160, Height: 30})
+	next, _ = next.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := next.(trashTUIModel)
+	if got.browser != nil {
+		t.Fatal("enter must not browse a trashed link's live target")
+	}
+	if view := xansi.Strip(got.View()); !strings.Contains(view, "Link") || strings.Contains(view, "open files") {
+		t.Fatalf("expected link details without open-files hint:\n%s", view)
+	}
+}
+
 func TestTrashDetail_ShowsEscapeSequencesInThePreviewAsSymbols(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# Old\n\x1b]0;pwned\x07\n"), 0644); err != nil {
