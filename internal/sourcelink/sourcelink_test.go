@@ -3,10 +3,12 @@ package sourcelink
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"skillshare/internal/trash"
+	"skillshare/internal/utils"
 )
 
 func fixture(t *testing.T) (source, checkout string) {
@@ -27,11 +29,14 @@ func TestCreateLinksDefaultName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Path != filepath.Join(source, "_dev-skills") || res.Kind != "symlink" || res.Warning == "" {
+	if res.Path != filepath.Join(source, "_dev-skills") || (res.Kind != "symlink" && (runtime.GOOS != "windows" || res.Kind != "junction")) || res.Warning == "" {
 		t.Fatalf("got %+v", res)
 	}
-	if text, err := os.Readlink(res.Path); err != nil || text != checkout {
-		t.Fatalf("link text %q, %v; want absolute %s", text, err, checkout)
+	if !utils.IsSymlinkOrJunction(res.Path) {
+		t.Fatal("created entry is not a link")
+	}
+	if target, err := utils.ResolveLinkTarget(res.Path); err != nil || target != checkout {
+		t.Fatalf("link target %q, %v; want %s", target, err, checkout)
 	}
 }
 

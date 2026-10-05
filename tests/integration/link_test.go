@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"skillshare/internal/testutil"
+	"skillshare/internal/utils"
 )
 
 // linkSandbox holds a checkout with one skill outside the source.
@@ -27,7 +28,7 @@ func TestLink_EnableThenListShowsLinkedSkills(t *testing.T) {
 	result := sb.RunCLI("link", checkout, "--enable")
 	result.AssertSuccess(t)
 	result.AssertOutputContains(t, "Linked _dev-skills")
-	if !sb.IsSymlink(filepath.Join(sb.SourcePath, "_dev-skills")) {
+	if !utils.IsSymlinkOrJunction(filepath.Join(sb.SourcePath, "_dev-skills")) {
 		t.Fatal("link not created")
 	}
 	if got := sb.ReadFile(sb.ConfigPath); !contains(got, "follow_source_links: true") {
@@ -170,7 +171,7 @@ func TestLink_ProjectUsesProjectSourceAndTargets(t *testing.T) {
 	result.AssertAnyOutputContains(t, "target overlaps sync target")
 
 	sb.RunCLIInDir(projectRoot, "link", checkout, "--enable", "-p").AssertSuccess(t)
-	if !sb.IsSymlink(filepath.Join(source, "_dev-skills")) {
+	if !utils.IsSymlinkOrJunction(filepath.Join(source, "_dev-skills")) {
 		t.Fatal("link not created in the project source")
 	}
 	if got := sb.ReadFile(filepath.Join(projectRoot, ".skillshare", "config.yaml")); !contains(got, "follow_source_links: true") {

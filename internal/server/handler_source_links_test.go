@@ -7,12 +7,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"skillshare/internal/config"
 	"skillshare/internal/sync"
 	"skillshare/internal/trash"
+	"skillshare/internal/utils"
 )
 
 func postSourceLink(t *testing.T, s *Server, body sourceLinkRequest) *httptest.ResponseRecorder {
@@ -37,10 +39,13 @@ func TestHandleCreateSourceLink_Success(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
 		t.Fatal(err)
 	}
-	if res.Path != filepath.Join(src, "_"+filepath.Base(target)) || res.Target != target || res.Kind != "symlink" || res.Warning != "target is not a git checkout" {
+	if res.Path != filepath.Join(src, "_"+filepath.Base(target)) || res.Target != target || (res.Kind != "symlink" && (runtime.GOOS != "windows" || res.Kind != "junction")) || res.Warning != "target is not a git checkout" {
 		t.Fatalf("unexpected result: %+v", res)
 	}
-	if got, err := os.Readlink(res.Path); err != nil || got != target {
+	if !utils.IsSymlinkOrJunction(res.Path) {
+		t.Fatal("created entry is not a link")
+	}
+	if got, err := utils.ResolveLinkTarget(res.Path); err != nil || got != target {
 		t.Fatalf("link = %q, %v", got, err)
 	}
 	if s.cfg.FollowSourceLinks || s.skillsWalk().Follow != nil {
