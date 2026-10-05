@@ -10,7 +10,6 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/oplog"
-	"skillshare/internal/sourcefs"
 	"skillshare/internal/sourcelink"
 	"skillshare/internal/trash"
 	"skillshare/internal/ui"
@@ -129,7 +128,7 @@ func cmdLink(args []string) error {
 		// Enabling is part of the request: a failed config write must not
 		// leave a link discovery ignores behind a logged success.
 		if err = scope.enable(); err != nil {
-			unlinkFresh(scope.source, res.Path)
+			_ = sourcelink.Discard(scope.source, filepath.Base(res.Path))
 			err = fmt.Errorf("failed to enable follow_source_links: %w", err)
 		}
 	}
@@ -238,15 +237,4 @@ func printUnlinkHelp() {
 			helpRow{"skillshare unlink -- -local", "Remove a link whose name starts with -"},
 		),
 	)
-}
-
-// unlinkFresh removes a link this command just created, through the source
-// handle so only the link entry goes and its target is never touched.
-func unlinkFresh(source, link string) {
-	root, err := sourcefs.Open(source)
-	if err != nil {
-		return
-	}
-	defer root.Close()
-	_ = root.Unlink(filepath.Base(link))
 }

@@ -72,6 +72,31 @@ func TestHandleCreateSourceLink_GuardRefusal(t *testing.T) {
 	}
 }
 
+func TestHandleCreateSourceLink_EnableFailureRollsBackLink(t *testing.T) {
+	s, src := newTestServer(t)
+	cfgPath := config.ConfigPath()
+	if err := os.Chmod(cfgPath, 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(cfgPath, 0644) })
+	if f, err := os.OpenFile(cfgPath, os.O_WRONLY, 0); err == nil {
+		f.Close()
+		t.Skip("requires file write permissions to be enforced")
+	}
+	target := t.TempDir()
+	addSkill(t, target, "linked-skill")
+	rr := postSourceLink(t, s, sourceLinkRequest{Path: target, Name: "_team", Enable: true})
+	if rr.Code != http.StatusInternalServerError || !strings.Contains(rr.Body.String(), "failed to enable follow_source_links") {
+		t.Fatalf("got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Lstat(filepath.Join(src, "_team")); !os.IsNotExist(err) {
+		t.Fatalf("link left behind after enable failure: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "linked-skill", "SKILL.md")); err != nil {
+		t.Fatalf("rollback touched the target: %v", err)
+	}
+}
+
 func TestHandleCreateSourceLink_Enable(t *testing.T) {
 	for _, project := range []bool{false, true} {
 		t.Run(map[bool]string{false: "global", true: "project"}[project], func(t *testing.T) {

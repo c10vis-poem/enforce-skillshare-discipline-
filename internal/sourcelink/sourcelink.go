@@ -108,3 +108,15 @@ func checkName(name string) error {
 	}
 	return nil
 }
+
+// Discard removes a link this operation just created, for rolling back when
+// a later step fails. It goes through the source handle so only the link
+// entry goes and its target is never touched.
+func Discard(source, name string) error {
+	root, err := sourcefs.Open(source)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return root.Unlink(name)
+}

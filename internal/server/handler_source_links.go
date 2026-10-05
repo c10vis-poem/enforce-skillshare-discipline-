@@ -102,8 +102,10 @@ func (s *Server) handleCreateSourceLink(w http.ResponseWriter, r *http.Request) 
 			} else {
 				s.cfg.FollowSourceLinks = false
 			}
+			// Enabling is part of the request: do not leave a link behind a failure.
+			_ = sourcelink.Discard(s.skillsSource(), filepath.Base(res.Path))
 			s.writeOpsLog("link", "error", start, args, err.Error())
-			writeError(w, http.StatusInternalServerError, "link created, but failed to enable follow_source_links: "+err.Error())
+			writeError(w, http.StatusInternalServerError, "failed to enable follow_source_links: "+err.Error())
 			return
 		}
 	}
