@@ -240,6 +240,8 @@ skillshare sync
 
 링크 뒤에 있는 skill에 대한 쓰기는 실제 checkout에 반영됩니다. 대시보드에서 내용을 편집하거나, `skillshare install --into _dev-skills`를 실행하거나, 링크된 디렉터리 안의 일반 skill을 교체하는 것은 모두 `~/code/dev-skills`를 변경합니다. `skillshare uninstall _dev-skills/<child>`는 그 하위 항목을 실제 checkout에서 휴지통으로 이동합니다. `skillshare uninstall _dev-skills`는 링크 항목만 제거하며 실제 checkout은 결코 제거하지 않습니다. 휴지통에는 링크가 나열되고 `restore`는 링크를 다시 만듭니다. `skillshare trash restore _dev-skills/<child>`는 같은 정책에 따라 하위 항목을 실제 checkout에 되돌려 놓으며, checkout 아래에 다른 곳으로 이어지는 중첩 링크가 있으면 복원은 실패하고 휴지통 항목은 유지됩니다. checkout을 벗어나는 경로(`..`, 또는 바깥으로 이어지는 중첩 링크)는 여전히 거부됩니다.
 
+대시보드의 Target 할당이 frontmatter를 쓸 때도 같은 쓰기 경계가 적용됩니다. 중첩된 `SKILL.md` 링크는 대상을 변경하지 않고 거부합니다. 일괄 할당은 해당 Skill의 거부 사유를 보고하고 일반 Skill 처리를 계속합니다.
+
 따라가는 링크 내부의 Skill을 교체할 때는 교체가 성공할 때까지 기존 Skill을 보존하고, 복사가 실패하면 복원합니다. 가져오는 콘텐츠의 링크는 실제 파일이나 디렉터리로 복사하며, 대상이 없는 링크는 건너뜁니다.
 
 Skill을 다른 파일시스템의 trash로 옮길 때 내부 파일 및 디렉터리 링크는 원래 대상 문자열을 가진 링크로 보존됩니다. 링크 대상은 복사하거나 삭제하지 않습니다.

@@ -85,3 +85,61 @@ func TestHandleGetSkill_FollowedLinkRootFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSetTargetsRefusesNestedSkillLink(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		for _, batch := range []bool{false, true} {
+			t.Run(fmt.Sprintf("project=%t/batch=%t", project, batch), func(t *testing.T) {
+				s, source := newUpdateFollowServer(t, project, true)
+				checkout := t.TempDir()
+				addSkill(t, checkout, "healthy")
+				if err := os.Mkdir(filepath.Join(checkout, "linked-file"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				outside := filepath.Join(t.TempDir(), "outside.md")
+				original := "---\nname: linked-file\n---\nOutside content\n"
+				if err := os.WriteFile(outside, []byte(original), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(checkout, "linked-file", "SKILL.md")); err != nil {
+					t.Skip(err)
+				}
+				if err := os.Symlink(checkout, filepath.Join(source, "linked-source")); err != nil {
+					t.Skip(err)
+				}
+				rr := httptest.NewRecorder()
+				if batch {
+					s.handleBatchSetTargets(rr, httptest.NewRequest(http.MethodPost, "/api/skills/batch/targets", strings.NewReader(`{"folder":"*","target":"claude"}`)))
+					var resp batchSetTargetsResponse
+					if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+						t.Fatal(err)
+					}
+					if rr.Code != http.StatusOK || resp.Updated != 1 || len(resp.Errors) != 1 || !strings.Contains(resp.Errors[0], "is a link") {
+						t.Fatalf("batch refusal missing: %d %s", rr.Code, rr.Body.String())
+					}
+				} else {
+					req := httptest.NewRequest(http.MethodPatch, "/api/resources/linked-source__linked-file/targets", strings.NewReader(`{"target":"claude"}`))
+					req.SetPathValue("name", "linked-source__linked-file")
+					s.handleSetSkillTargets(rr, req)
+					if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "is a link") {
+						t.Fatalf("single refusal missing: %d %s", rr.Code, rr.Body.String())
+					}
+					rr = httptest.NewRecorder()
+					req = httptest.NewRequest(http.MethodPatch, "/api/resources/linked-source__healthy/targets", strings.NewReader(`{"target":"claude"}`))
+					req.SetPathValue("name", "linked-source__healthy")
+					s.handleSetSkillTargets(rr, req)
+					if rr.Code != http.StatusOK {
+						t.Fatalf("healthy skill failed: %d %s", rr.Code, rr.Body.String())
+					}
+				}
+				if got, err := os.ReadFile(outside); err != nil || string(got) != original {
+					t.Fatalf("outside file changed: %q, %v", got, err)
+				}
+				got, err := os.ReadFile(filepath.Join(checkout, "healthy", "SKILL.md"))
+				if err != nil || !strings.Contains(string(got), "- claude") {
+					t.Fatalf("healthy targets missing: %q, %v", got, err)
+				}
+			})
+		}
+	}
+}
