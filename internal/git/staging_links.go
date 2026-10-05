@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -17,7 +18,8 @@ func SourceLinkWarnings(root, skills, operation string) []string {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return nil
 	}
-	entries, err := os.ReadDir(skills)
+	// Staging inspects link entries regardless of the discovery follow policy.
+	entries, err := sourcewalk.ReadDir(skills, sourcewalk.Options{})
 	if os.IsNotExist(err) {
 		return nil
 	}
