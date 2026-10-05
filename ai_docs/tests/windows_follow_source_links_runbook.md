@@ -125,3 +125,7 @@ Pass criteria:
 - 2026-10-05, ARM64 guest, full desktop-user token, head `8092b234b`, Developer Mode on:
   the symlink round passed (12 `rc=0`); relative symlinks keep the logical tail, the
   unavailable-link doctor warning shows, global mode still uses junctions.
+- 2026-10-05, ARM64 guest, full desktop-user token, head `bcf567f80` (after the review
+  fixes): junction round 20 `rc=0` including the junction-chain case (`_chain` followed
+  through `alias`, `_tgt2` skipped as a target overlap through a junction); Developer
+  Mode round 12 `rc=0`.
