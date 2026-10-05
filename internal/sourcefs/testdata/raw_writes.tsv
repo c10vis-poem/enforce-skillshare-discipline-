@@ -509,6 +509,8 @@ internal/uidist/uidist.go	extractTarGz	os.OpenFile	target	config
 internal/utils/frontmatter_write.go	SetFrontmatterList	os.WriteFile	filePath	source-unmigrated
 internal/utils/frontmatter_write.go	ToggleFrontmatterFlag	os.WriteFile	filePath	source-unmigrated
 internal/utils/frontmatter_write.go	ToggleFrontmatterFlag	os.WriteFile	filePath	source-unmigrated
+internal/utils/link_windows.go	CreateJunction	os.Mkdir	linkPath	source-unmigrated
+internal/utils/link_windows.go	CreateJunction	os.Remove	linkPath	source-unmigrated
 internal/version/check.go	ClearCache	os.Remove	getCachePath()	config
 internal/version/check.go	cleanupLegacyCache	os.Remove	legacyPath	config
 internal/version/check.go	cleanupLegacyCache	os.Remove	parentDir	config
