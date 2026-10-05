@@ -56,6 +56,21 @@ func enrichSkillBranch(item *skillItem) {
 	}
 }
 
+func enrichSkillLink(item *skillItem, source string, walk sourcewalk.Options, linkTargets map[string]string) {
+	if walk.Follow == nil {
+		return
+	}
+	name := strings.SplitN(filepath.ToSlash(item.RelPath), "/", 2)[0]
+	target, checked := linkTargets[name]
+	if !checked {
+		target, _ = walk.Follow.Resolve(filepath.Join(source, name))
+		linkTargets[name] = target
+	}
+	if target != "" {
+		item.LinkName, item.LinkTarget = name, target
+	}
+}
+
 func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	kindFilter := r.URL.Query().Get("kind") // "", "skill", "agent"
 
@@ -90,17 +105,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
-			if walk.Follow != nil {
-				name := strings.SplitN(filepath.ToSlash(d.RelPath), "/", 2)[0]
-				target, checked := linkTargets[name]
-				if !checked {
-					target, _ = walk.Follow.Resolve(filepath.Join(source, name))
-					linkTargets[name] = target
-				}
-				if target != "" {
-					item.LinkName, item.LinkTarget = name, target
-				}
-			}
+			enrichSkillLink(&item, source, walk, linkTargets)
 
 			if entry := s.skillEntry(d.RelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {
@@ -165,7 +170,8 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 	// Snapshot config under RLock, then release before I/O.
 	s.mu.RLock()
-	source := s.cfg.EffectiveSkillsSource()
+	source := s.skillsSource()
+	walk := s.skillsWalk()
 	agentsSource := s.agentsSource()
 	s.mu.RUnlock()
 
@@ -178,7 +184,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find the skill by flat name (exact) first, then fall back to base name.
 	if kind != "agent" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
+		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -215,6 +221,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
+			enrichSkillLink(&item, source, walk, make(map[string]string))
 
 			if entry := s.skillEntry(d.RelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {

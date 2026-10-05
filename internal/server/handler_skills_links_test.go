@@ -105,3 +105,48 @@ func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetSkill_SourceLinkIdentity(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		t.Run(map[bool]string{false: "global", true: "project"}[project], func(t *testing.T) {
+			s, src := newTestServer(t)
+			if project {
+				src = t.TempDir()
+				s = NewProject(s.cfg, &config.ProjectConfig{
+					Sources: config.ProjectSources{Skills: src}, FollowSourceLinks: true,
+				}, t.TempDir(), "127.0.0.1:0", "", "")
+			} else {
+				s.cfg.FollowSourceLinks = true
+			}
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			target := t.TempDir()
+			addSkill(t, target, "foo")
+			addSkill(t, src, "plain")
+			if err := os.Symlink(target, filepath.Join(src, "_dev")); err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"_dev__foo", "plain"} {
+				rr := httptest.NewRecorder()
+				s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources/"+name+"?kind=skill", nil))
+				if rr.Code != http.StatusOK {
+					t.Fatalf("get detail: %d: %s", rr.Code, rr.Body.String())
+				}
+				var res struct {
+					Resource skillItem `json:"resource"`
+				}
+				if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+					t.Fatal(err)
+				}
+				if name == "_dev__foo" {
+					if res.Resource.LinkName != "_dev" || res.Resource.LinkTarget != target {
+						t.Fatalf("detail missing link identity: %+v", res.Resource)
+					}
+				} else if res.Resource.LinkName != "" || res.Resource.LinkTarget != "" {
+					t.Fatalf("plain skill reported as linked: %+v", res.Resource)
+				}
+			}
+		})
+	}
+}
