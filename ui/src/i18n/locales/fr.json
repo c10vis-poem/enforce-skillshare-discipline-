@@ -1503,6 +1503,7 @@
   "targets.syncing.broken": "Lien cassé",
   "targets.syncing.migrate": "La synchronisation déplace les fichiers de ce dossier vers la source",
   "targets.syncing.nothing": "Rien à synchroniser",
+  "targets.doors.shared": "Relié au {name} partagé",
   "targets.foundOnMachine": "Trouvés sur cette machine",
   "targets.foundHint": "skillshare connaît {count} outils. Ceux-ci sont installés ici mais ne sont pas encore des cibles.",
   "targets.add.button": "Ajouter",

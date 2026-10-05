@@ -1503,6 +1503,7 @@
   "targets.syncing.broken": "Defekte Verknüpfung",
   "targets.syncing.migrate": "Beim Sync werden die Dateien dieses Ordners in die Quelle verschoben",
   "targets.syncing.nothing": "Nichts zu synchronisieren",
+  "targets.doors.shared": "Mit gemeinsamer {name} verbunden",
   "targets.foundOnMachine": "Auf diesem Rechner gefunden",
   "targets.foundHint": "skillshare kennt {count} Tools. Diese sind hier installiert, aber noch keine Ziele.",
   "targets.add.button": "Hinzufügen",

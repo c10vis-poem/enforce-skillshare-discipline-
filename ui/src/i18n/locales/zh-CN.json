@@ -1503,6 +1503,7 @@
   "targets.syncing.broken": "链接已损坏",
   "targets.syncing.migrate": "同步时会把这里的文件移进来源",
   "targets.syncing.nothing": "没有可同步的内容",
+  "targets.doors.shared": "已连接共享的 {name}",
   "targets.foundOnMachine": "在这台机器上找到",
   "targets.foundHint": "skillshare 支持 {count} 个工具。这些已安装在本机，但还没有添加为目标。",
   "targets.add.button": "添加",

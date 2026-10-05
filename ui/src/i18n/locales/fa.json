@@ -1503,6 +1503,7 @@
   "targets.syncing.broken": "پیوند خراب",
   "targets.syncing.migrate": "هنگام همگام‌سازی، فایل‌های این پوشه به منبع منتقل می‌شوند",
   "targets.syncing.nothing": "چیزی برای همگام‌سازی نیست",
+  "targets.doors.shared": "به {name} مشترک وصل است",
   "targets.foundOnMachine": "روی این دستگاه پیدا شد",
   "targets.foundHint": "skillshare {count} ابزار را می‌شناسد. این‌ها اینجا نصب هستند ولی هنوز هدف نشده‌اند.",
   "targets.add.button": "افزودن",

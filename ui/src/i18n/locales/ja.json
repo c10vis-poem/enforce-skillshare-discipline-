@@ -1503,6 +1503,7 @@
   "targets.syncing.broken": "リンク切れ",
   "targets.syncing.migrate": "同期時にこのフォルダーのファイルをソースへ移動します",
   "targets.syncing.nothing": "同期するものがありません",
+  "targets.doors.shared": "共有 {name} に接続済み",
   "targets.foundOnMachine": "このマシンで検出",
   "targets.foundHint": "skillshare は {count} 個のツールに対応しています。これらはインストール済みですが、まだターゲットに追加されていません。",
   "targets.add.button": "追加",
