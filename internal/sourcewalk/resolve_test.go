@@ -57,3 +57,22 @@ func TestFollowResolve(t *testing.T) {
 		t.Error("nil policy must resolve nothing")
 	}
 }
+
+// A relative global source path is discovered and resolved like an absolute
+// one: the policy compares canonical absolute forms, not the walk's spelling.
+func TestFollowRelativeSource(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation needs privileges on windows")
+	}
+	root, checkout := followFixture(t)
+	t.Chdir(filepath.Dir(root))
+	f := NewFollow("skills", nil)
+	walk, _ := walkEntries(t, "skills", Options{Follow: f}, "")
+	if len(walk) != 8 || len(f.Skipped()) != 0 {
+		t.Fatalf("walk %v, skipped %v", walk, f.Skipped())
+	}
+	got, ok := f.Resolve(filepath.Join("skills", "_dev", "foo"))
+	if !ok || got != filepath.Join(checkout, "foo") {
+		t.Fatalf("Resolve = %q, %v", got, ok)
+	}
+}

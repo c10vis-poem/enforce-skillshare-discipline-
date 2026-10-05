@@ -46,7 +46,7 @@ func Walk(root string, opts Options, fn filepath.WalkFunc) error {
 		return filepath.Walk(resolved, fn)
 	}
 	return filepath.Walk(resolved, func(path string, info os.FileInfo, err error) error {
-		if err != nil || !f.firstLevel(path) || !utils.IsLinkMode(path, info.Mode()) {
+		if err != nil || !utils.IsLinkMode(path, info.Mode()) || !f.firstLevel(path) {
 			return fn(path, info, err)
 		}
 		target, dirInfo, ok := f.check(path)
@@ -88,7 +88,7 @@ func WalkDir(root string, opts Options, fn fs.WalkDirFunc) error {
 		return filepath.WalkDir(resolved, fn)
 	}
 	return filepath.WalkDir(resolved, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || !f.firstLevel(path) || !utils.IsLinkMode(path, d.Type()) {
+		if err != nil || !utils.IsLinkMode(path, d.Type()) || !f.firstLevel(path) {
 			return fn(path, d, err)
 		}
 		target, dirInfo, ok := f.check(path)
@@ -133,7 +133,7 @@ func ReadDir(root string, opts Options) ([]os.DirEntry, error) {
 	if f != nil {
 		for i, entry := range entries {
 			path := filepath.Join(resolved, entry.Name())
-			if !f.firstLevel(path) || !utils.IsLinkMode(path, entry.Type()) {
+			if !utils.IsLinkMode(path, entry.Type()) || !f.firstLevel(path) {
 				continue
 			}
 			if _, dirInfo, ok := f.check(path); ok {

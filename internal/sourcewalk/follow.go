@@ -1,6 +1,7 @@
 package sourcewalk
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,7 +40,7 @@ func (s Skipped) String() string {
 // active skills sync targets. Links resolving into, onto, or around a target
 // are not followed.
 func NewFollow(source string, targets []string) *Follow {
-	f := &Follow{root: utils.ResolveSymlink(source)}
+	f := &Follow{root: canonicalPath(source)}
 	for _, t := range targets {
 		f.targets = append(f.targets, canonicalPath(t))
 	}
@@ -78,8 +79,10 @@ func (f *Follow) Unavailable() []string {
 	return names
 }
 
+// firstLevel reports whether path is a direct child of the source root,
+// however the walk spells the root (relative, or through its own links).
 func (f *Follow) firstLevel(path string) bool {
-	return utils.PathsEqual(filepath.Dir(path), f.root)
+	return utils.PathsEqual(canonicalPath(filepath.Dir(path)), f.root)
 }
 
 // Resolve maps a logical path whose first-level component under the source
@@ -101,7 +104,7 @@ func (f *Follow) Resolve(path string) (string, bool) {
 		if parent == link {
 			return "", false
 		}
-		if utils.PathsEqual(utils.ResolveSymlink(parent), f.root) {
+		if utils.PathsEqual(canonicalPath(parent), f.root) {
 			break
 		}
 		tail = append([]string{filepath.Base(link)}, tail...)
@@ -134,6 +137,11 @@ func (f *Follow) check(path string) (string, os.FileInfo, bool) {
 		return f.skip(name, unavailableReason(err), true)
 	}
 	target = canonicalPath(target)
+	if info, err := os.Lstat(target); err == nil && utils.IsLinkMode(target, info.Mode()) {
+		// canonicalPath gave up on a link chain; following it would walk the
+		// link entry itself and report an empty, seemingly complete inventory.
+		return f.skip(name, "target is a link chain that could not be resolved", true)
+	}
 	if within(f.root, target) {
 		return f.skip(name, "target is the source or a parent of it", false)
 	}
@@ -186,9 +194,12 @@ func within(path, dir string) bool {
 	return utils.PathsEqual(path, dir) || utils.PathHasPrefix(path, strings.TrimSuffix(dir, string(filepath.Separator))+string(filepath.Separator))
 }
 
-// canonicalPath resolves links in path. A missing tail is kept as written
-// below its nearest existing parent, so a target not created yet still
-// compares by where it will be.
+// Canonical returns the physical spelling of path: absolute, with every
+// symlink and Windows junction component resolved. A missing tail is kept as
+// written below its nearest existing parent, so a target not created yet
+// still compares by where it will be.
+func Canonical(path string) string { return canonicalPath(path) }
+
 func canonicalPath(path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -196,7 +207,7 @@ func canonicalPath(path string) string {
 	}
 	var missing []string
 	for dir := abs; ; dir = filepath.Dir(dir) {
-		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		if resolved, err := physical(dir); err == nil {
 			return filepath.Join(append([]string{resolved}, missing...)...)
 		}
 		if filepath.Dir(dir) == dir {
@@ -204,6 +215,48 @@ func canonicalPath(path string) string {
 		}
 		missing = append([]string{filepath.Base(dir)}, missing...)
 	}
+}
+
+// physical resolves every link component of an existing absolute path.
+// filepath.EvalSymlinks handles symlinks but, since Go 1.23, leaves a Windows
+// junction component in place, so each remaining junction is replaced by its
+// target and the result resolved again, bounded like a symlink chain.
+func physical(path string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+	for hops := 0; hops < 64; hops++ {
+		link, ok := firstLink(resolved)
+		if !ok {
+			return resolved, nil
+		}
+		target, err := utils.ResolveLinkTarget(link)
+		if err != nil {
+			return "", err
+		}
+		if resolved, err = filepath.EvalSymlinks(target + resolved[len(link):]); err != nil {
+			return "", err
+		}
+	}
+	return "", errors.New("too many links: " + path)
+}
+
+// firstLink returns the shortest prefix of path that is itself a link.
+func firstLink(path string) (string, bool) {
+	vol := filepath.VolumeName(path)
+	rest := strings.Split(strings.TrimPrefix(path[len(vol):], string(filepath.Separator)), string(filepath.Separator))
+	prefix := vol
+	for _, part := range rest {
+		if part == "" {
+			continue
+		}
+		prefix += string(filepath.Separator) + part
+		if info, err := os.Lstat(prefix); err == nil && utils.IsLinkMode(prefix, info.Mode()) {
+			return prefix, true
+		}
+	}
+	return "", false
 }
 
 // namedInfo reports a link target's FileInfo under the link's name.

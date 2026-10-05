@@ -247,6 +247,17 @@ func MigrateToSource(targetPath, sourcePath string) error {
 	return nil
 }
 
+// resolveLinkRoot resolves an operation root like filepath.EvalSymlinks, but a
+// root that is itself a link is first replaced by its physical target: since
+// Go 1.23 EvalSymlinks leaves a Windows junction in place, and walking the
+// junction entry would trip the cycle guard instead of copying its contents.
+func resolveLinkRoot(root string) (string, error) {
+	if info, err := os.Lstat(root); err == nil && utils.IsLinkMode(root, info.Mode()) {
+		root = sourcewalk.Canonical(root)
+	}
+	return filepath.EvalSymlinks(root)
+}
+
 // CreateSymlink creates a symlink (or junction on Windows) from target to source.
 // When projectRoot is non-empty and both paths reside under it, a relative symlink is created.
 func CreateSymlink(targetPath, sourcePath, projectRoot string) error {
@@ -381,7 +392,7 @@ func copyDirectoryWithIgnore(src, dst string, ignorePatterns []string) error {
 // copyDirectoryWithState copies recursively and dereferences directory symlinks.
 // active tracks real paths in the current recursion stack to prevent cycles.
 func copyDirectoryWithState(src, dst string, active map[string]bool, opts *copyDirectoryOpts) error {
-	resolvedSrc, err := filepath.EvalSymlinks(src)
+	resolvedSrc, err := resolveLinkRoot(src)
 	if err != nil {
 		return fmt.Errorf("failed to resolve source directory %s: %w", src, err)
 	}
