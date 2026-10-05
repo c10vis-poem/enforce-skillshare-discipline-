@@ -528,7 +528,9 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find skill path. Disabled skills are listed in .skillignore, but the UI
 	// still shows them, so single-resource uninstall must resolve them too (#190).
-	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
+	source := s.skillsSource()
+	walk := s.skillsWalk()
+	discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -540,23 +542,28 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Don't allow removing skills inside tracked repos
-		if d.IsInRepo {
+		// Followed checkouts allow single-skill removal; managed repos do not.
+		_, followed := walk.Follow.Resolve(d.SourcePath)
+		if d.IsInRepo && !followed {
 			writeError(w, http.StatusBadRequest, "cannot uninstall skill from tracked repo; use 'skillshare uninstall' for the whole repo")
 			return
 		}
 
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath, s.skillsWalk().Follow); err != nil {
+		if err := sourcefs.CheckMoveOut(source, d.SourcePath, walk.Follow); err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
-		if _, err := trash.MoveToTrash(d.SourcePath, baseName, s.trashBase()); err != nil {
+		trashName := baseName
+		if followed {
+			trashName = d.RelPath // Restore through the same first-level source link.
+		}
+		if _, err := trash.MoveToTrash(d.SourcePath, trashName, s.trashBase()); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to trash skill: "+err.Error())
 			return
 		}
 
 		s.writeOpsLog("uninstall", "ok", start, map[string]any{
-			"name":  baseName,
+			"name":  trashName,
 			"type":  "skill",
 			"scope": "ui",
 		}, "")
