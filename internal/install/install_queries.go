@@ -40,13 +40,13 @@ type TrackedRepoMeta struct {
 
 // getMissingTrackedReposImpl returns tracked repositories declared in .metadata.json
 // whose clone directories are absent or no longer contain a git checkout.
-func getMissingTrackedReposImpl(sourceDir string) ([]TrackedRepoMeta, error) {
+func getMissingTrackedReposImpl(sourceDir string, walks ...sourcewalk.Options) ([]TrackedRepoMeta, error) {
 	store, err := LoadMetadata(sourceDir)
 	if err != nil {
 		return nil, err
 	}
 
-	existingRepos, err := GetTrackedRepos(sourceDir)
+	existingRepos, err := GetTrackedRepos(sourceDir, walks...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func rehydrateMissingTrackedReposImpl(sourceDir string, parseOpts ParseOptions, 
 	if err != nil {
 		return nil, err
 	}
-	existingRepos, err := GetTrackedRepos(sourceDir)
+	existingRepos, err := GetTrackedRepos(sourceDir, sourcewalk.Options{Follow: opts.SourceFollow})
 	if err != nil {
 		return nil, err
 	}

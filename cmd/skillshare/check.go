@@ -261,7 +261,7 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 	if err != nil {
 		repos = nil
 	}
-	missingRepos, err := install.GetMissingTrackedRepos(sourceDir)
+	missingRepos, err := install.GetMissingTrackedRepos(sourceDir, walk)
 	if err != nil {
 		missingRepos = nil
 	}

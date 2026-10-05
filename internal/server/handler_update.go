@@ -37,7 +37,7 @@ type missingTrackedRepoInfo struct {
 
 // missingTrackedRepos returns tracked repos declared in metadata but absent on disk.
 func (s *Server) missingTrackedRepos() []missingTrackedRepoInfo {
-	repos, err := install.GetMissingTrackedRepos(s.cfg.EffectiveSkillsSource())
+	repos, err := install.GetMissingTrackedRepos(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
 	if err != nil || len(repos) == 0 {
 		return nil
 	}
@@ -527,6 +527,7 @@ func (s *Server) handleRehydrateTrackedRepos(w http.ResponseWriter, r *http.Requ
 	opts := install.InstallOptions{
 		AuditThreshold: s.updateAuditThreshold(),
 		SourceDir:      sourceDir,
+		SourceFollow:   s.skillsWalk().Follow,
 	}
 	if s.IsProjectMode() {
 		opts.AuditProjectRoot = s.projectRoot

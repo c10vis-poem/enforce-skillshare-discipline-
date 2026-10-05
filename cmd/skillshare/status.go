@@ -159,7 +159,7 @@ func cmdStatus(args []string) error {
 		Skillignore: buildSkillignoreJSON(stats),
 	}
 	output.SkillCount = len(discovered)
-	output.TrackedRepos = buildTrackedRepoJSON(cfg.EffectiveSkillsSource(), trackedRepos, discovered)
+	output.TrackedRepos = buildTrackedRepoJSON(cfg.EffectiveSkillsSource(), trackedRepos, discovered, walk)
 
 	for name, target := range cfg.Targets {
 		sc := target.SkillsConfig()
@@ -255,10 +255,10 @@ func extractTrackedRepos(sourcePath string, walk sourcewalk.Options) []string {
 }
 
 // buildTrackedRepoJSON builds statusJSONRepo entries with parallel git.IsDirty checks.
-func buildTrackedRepoJSON(sourcePath string, trackedRepos []string, discovered []sync.DiscoveredSkill) []statusJSONRepo {
+func buildTrackedRepoJSON(sourcePath string, trackedRepos []string, discovered []sync.DiscoveredSkill, walks ...sourcewalk.Options) []statusJSONRepo {
 	results := make([]statusJSONRepo, len(trackedRepos))
 
-	missingRepos, _ := install.GetMissingTrackedRepos(sourcePath)
+	missingRepos, _ := install.GetMissingTrackedRepos(sourcePath, walks...)
 
 	// Count skills per repo (single pass). A tracked repo may surface skills
 	// at the repo root (RelPath equals the repo name, no slash) or nested

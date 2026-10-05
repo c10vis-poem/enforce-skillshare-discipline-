@@ -153,6 +153,9 @@ skillshare update _repo --force -p  # Discard local changes
 | `--json` | JSON output |
 | `--diff` | Show file-level change summary after update |
 
+With `follow_source_links: true`, `update --all` skips followed Git checkouts,
+even with `--force`; update them by name instead.
+
 **Safety:** Tracked repos with uncommitted changes are skipped, and repos whose git status cannot be read fail. Use `--force` to override both.
 
 **Security:** Updates roll back when findings reach the configured block threshold.

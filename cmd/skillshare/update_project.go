@@ -233,7 +233,7 @@ func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*update
 	for _, t := range targets {
 		existing[t.name] = true
 	}
-	missingRepos, _ := install.GetMissingTrackedRepos(uc.sourcePath)
+	missingRepos, _ := install.GetMissingTrackedRepos(uc.sourcePath, walk)
 	for _, repo := range missingRepos {
 		if !existing[repo.Name] {
 			existing[repo.Name] = true

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"skillshare/internal/sourcewalk"
 )
 
 // makeRemote creates a bare git remote with a SKILL.md on the default branch,
@@ -142,5 +144,27 @@ func TestInstallTrackedRepo_BranchFromSource(t *testing.T) {
 	got := strings.TrimSpace(string(out))
 	if got != featureBranch {
 		t.Errorf("cloned branch = %q, want %q", got, featureBranch)
+	}
+}
+
+func TestMissingTrackedReposFollowPolicy(t *testing.T) {
+	source, checkout := t.TempDir(), t.TempDir()
+	mustRunGit(t, checkout, "init")
+	if err := os.Symlink(checkout, filepath.Join(source, "_dev-skills")); err != nil {
+		t.Fatal(err)
+	}
+	store := LoadMetadataOrNew(source)
+	store.Set("_dev-skills", &MetadataEntry{Source: "https://example.com/repo.git", Tracked: true})
+	if err := store.Save(source); err != nil {
+		t.Fatal(err)
+	}
+	walk := sourcewalk.Options{Follow: sourcewalk.NewFollow(source, nil)}
+	missing, err := GetMissingTrackedRepos(source, walk)
+	if err != nil || len(missing) != 0 {
+		t.Fatalf("present followed checkout reported missing: %+v %v", missing, err)
+	}
+	results, err := RehydrateMissingTrackedRepos(source, ParseOptions{}, InstallOptions{SourceFollow: walk.Follow})
+	if err != nil || len(results) != 0 {
+		t.Fatalf("present followed checkout rehydrated: %+v %v", results, err)
 	}
 }

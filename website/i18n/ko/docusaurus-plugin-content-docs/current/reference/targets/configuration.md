@@ -181,7 +181,7 @@ skillshare sync
 `~/code/dev-skills`에 `.git` 항목이 있으면 `_dev-skills`는 tracked repo 그룹이 되고, 그 하위 항목들이 skill로 발견됩니다. sync는 다른 skill과 마찬가지로 이를 링크하거나 복사합니다. symlink 모드에서는 실제 checkout에서 편집한 파일이 target에 즉시 반영되며, copy 모드에서는 sync를 한 번 더 실행해야 합니다.
 
 :::warning update는 실제 checkout을 변경합니다
-`skillshare update _dev-skills`는 별도의 관리형 clone이 아니라 `~/code/dev-skills` 안에서 git을 실행합니다. `skillshare update _dev-skills --force`는 그 실제 checkout을 reset하고 로컬 변경 사항을 버립니다. 같은 이유로 `skillshare update --all`은 따라간 링크를 경고와 함께 건너뛰므로, 이름을 지정해 update하세요. `skillshare install <url> --track --update`는 커밋하지 않은 변경이 있는 연결된 체크아웃의 pull을 거부합니다. 차단 수준의 audit 결과로 `git reset --hard`가 실행될 수 있으므로 먼저 커밋하거나 stash하세요. 대시보드는 강제 재시도를 포함해 연결된 Git 체크아웃을 업데이트하지 않습니다. 사용자가 직접 관리합니다.
+`skillshare update _dev-skills`는 별도의 관리형 clone이 아니라 `~/code/dev-skills` 안에서 git을 실행합니다. `skillshare update _dev-skills --force`는 그 실제 checkout을 reset하고 로컬 변경 사항을 버립니다. 같은 이유로 `skillshare update --all`은 `--force`를 지정해도 따라간 링크를 경고와 함께 건너뛰므로, 이름을 지정해 update하세요. `skillshare install <url> --track --update`는 커밋하지 않은 변경이 있는 연결된 체크아웃의 pull을 거부합니다. 차단 수준의 audit 결과로 `git reset --hard`가 실행될 수 있으므로 먼저 커밋하거나 stash하세요. 대시보드는 강제 재시도를 포함해 연결된 Git 체크아웃을 업데이트하지 않습니다. 사용자가 직접 관리합니다.
 :::
 
 #### 안전 장치 {#safety-guards}

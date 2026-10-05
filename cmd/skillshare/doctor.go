@@ -252,7 +252,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	if !isProject {
 		checkGitStatus(cfg.EffectiveSkillsSource(), result)
 	}
-	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject)
+	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject, walk)
 
 	checkSkillsValidity(cfg.EffectiveSkillsSource(), walk, result, discovered)
 	checkSkillIntegrity(result, discovered, walk.Follow)
@@ -826,8 +826,8 @@ func checkGitStatus(source string, result *doctorResult) {
 }
 
 // checkSkillsValidity checks if all skills have valid SKILL.md files
-func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool) {
-	missingRepos, err := install.GetMissingTrackedRepos(source)
+func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool, walks ...sourcewalk.Options) {
+	missingRepos, err := install.GetMissingTrackedRepos(source, walks...)
 	if err != nil || len(missingRepos) == 0 {
 		return
 	}

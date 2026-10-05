@@ -196,3 +196,37 @@ func assertUpdateFollowLink(t *testing.T, link string) {
 		t.Fatalf("source link was replaced: %v", err)
 	}
 }
+
+func TestHandleRehydrate_FollowedCheckoutWithMetadata(t *testing.T) {
+	for _, project := range []bool{false, true} {
+		t.Run(fmt.Sprintf("project=%t", project), func(t *testing.T) {
+			s, source := newUpdateFollowServer(t, project, true)
+			checkout := t.TempDir()
+			initGitRepo(t, checkout)
+			link := filepath.Join(source, "_dev-skills")
+			if err := os.Symlink(checkout, link); err != nil {
+				t.Fatal(err)
+			}
+			store := install.LoadMetadataOrNew(source)
+			store.Set("_dev-skills", &install.MetadataEntry{Source: "file://" + checkout, Tracked: true})
+			if err := store.Save(source); err != nil {
+				t.Fatal(err)
+			}
+			if repos := s.missingTrackedRepos(); len(repos) != 0 {
+				t.Fatalf("followed checkout reported missing: %+v", repos)
+			}
+			rr := httptest.NewRecorder()
+			s.handleRehydrateTrackedRepos(rr, httptest.NewRequest(http.MethodPost, "/api/update/rehydrate", nil))
+			var resp struct {
+				Results []install.RehydrateResult `json:"results"`
+			}
+			if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+				t.Fatal(err)
+			}
+			if rr.Code != http.StatusOK || len(resp.Results) != 0 {
+				t.Fatalf("followed checkout rehydrated: %d %s", rr.Code, rr.Body.String())
+			}
+			assertUpdateFollowLink(t, link)
+		})
+	}
+}

@@ -181,7 +181,7 @@ skillshare sync
 如果 `~/code/dev-skills` 內含 `.git` 項目，`_dev-skills` 就會成為一個 tracked-repo 群組，其子目錄會被探索為 Skill。Sync 會像其他 Skill 一樣連結或複製它們。在 symlink 模式下，在真實 checkout 中編輯檔案會立即反映在 Target 上；copy 模式則需要再 sync 一次。
 
 :::warning Update 會改動真實的 checkout
-`skillshare update _dev-skills` 會在 `~/code/dev-skills` 內執行 git，而不是在另一個受管理的 clone 中。`skillshare update _dev-skills --force` 會重設該真實 checkout 並丟棄其本機變更。基於同樣的理由，`skillshare update --all` 會略過已跟進的連結並顯示警告；請以名稱逐一更新。`skillshare install <url> --track --update` 會拒絕拉取有未提交變更的連結 checkout，因為阻擋性的 audit 發現可能透過 `git reset --hard` 回滾它；請先 commit 或 stash。dashboard 永遠不會更新連結指向的 Git checkout，包含強制重試；這些 checkout 由你管理。
+`skillshare update _dev-skills` 會在 `~/code/dev-skills` 內執行 git，而不是在另一個受管理的 clone 中。`skillshare update _dev-skills --force` 會重設該真實 checkout 並丟棄其本機變更。基於同樣的理由，`skillshare update --all`（即使加上 `--force`） 會略過已跟進的連結並顯示警告；請以名稱逐一更新。`skillshare install <url> --track --update` 會拒絕拉取有未提交變更的連結 checkout，因為阻擋性的 audit 發現可能透過 `git reset --hard` 回滾它；請先 commit 或 stash。dashboard 永遠不會更新連結指向的 Git checkout，包含強制重試；這些 checkout 由你管理。
 :::
 
 #### 安全防護 {#safety-guards}
