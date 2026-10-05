@@ -488,6 +488,7 @@ internal/trash/trash.go	RestoreAgent	os.Rename	srcPath, destPath	agents
 internal/trash/trash.go	RestoreAgent	os.WriteFile	destPath	agents
 internal/trash/trash.go	cleanEmptyParents	os.Remove	dir	trash
 internal/trash/trash.go	copyDir	os.MkdirAll	dst	source-unmigrated
+internal/trash/trash.go	copyDir	os.Symlink	target, dstPath	source-unmigrated
 internal/trash/trash.go	copyFile	os.OpenFile	dst	source-unmigrated
 internal/trash/trash.go	moveLink	os.Remove	dst	source-unmigrated
 internal/trash/trash.go	moveLink	os.Remove	src	source-checked
