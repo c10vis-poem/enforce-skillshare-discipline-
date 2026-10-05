@@ -146,6 +146,9 @@ skillshare hub default my-hub                            # Set default hub
 skillshare hub remove my-hub                             # Remove a hub
 skillshare hub index --source ~/.config/skillshare/skills/ --full --audit  # Build hub index
 ```
+The active `follow_source_links` setting also applies to `hub index` (including
+`--source`), built-in dashboard search, and Hub draft candidates.
+
 ## References
 
 Read the matching file for command flags, examples, and limitations. Avoid loading all

@@ -103,6 +103,8 @@ skillshare hub default --reset      # Clear default → community hub
 
 설치된 skill로부터 `skillshare-hub.json` index 파일을 빌드합니다. 생성된 index는 비공개 오프라인 skill 검색을 위해 [`search --hub`](./search.md#private-index-search)에서 사용할 수 있습니다.
 
+활성 설정에서 [`follow_source_links: true`](../targets/configuration.md#follow_source_links)를 지정하면 `--source`를 사용할 때도 첫 번째 수준 source 링크 뒤의 skill이 인덱스에 포함됩니다. 대시보드의 기본 검색과 Hub 초안 후보도 같은 발견 정책을 사용합니다.
+
 ### Usage
 
 ```bash

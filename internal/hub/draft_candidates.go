@@ -6,14 +6,15 @@ import (
 	"sort"
 
 	"skillshare/internal/install"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 	"skillshare/internal/utils"
 )
 
 // DraftCandidates offers installed skills without treating local relative paths
 // as GitHub shorthand. Unknown origins stay local until the author supplies one.
-func DraftCandidates(sourcePath string) ([]DraftEntry, error) {
-	discovered, err := ssync.DiscoverSourceSkills(sourcePath)
+func DraftCandidates(sourcePath string, walk ...sourcewalk.Options) ([]DraftEntry, error) {
+	discovered, err := ssync.DiscoverSourceSkills(sourcePath, walk...)
 	if err != nil {
 		return nil, err
 	}
