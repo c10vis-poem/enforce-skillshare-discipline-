@@ -21,7 +21,7 @@ export type FeatureGroup = {
 const C = '/docs/reference/commands/';
 const D = '/docs/';
 
-export const COMMAND_COUNT = 35;
+export const COMMAND_COUNT = 37;
 export const TARGET_COUNT = 67;
 
 export const FEATURE_GROUPS: FeatureGroup[] = [
@@ -34,6 +34,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     items: [
       {cmd: 'init', what: 'Detect installed tools and create the source folder', kw: 'start begin setup detect config', href: C + 'init'},
       {cmd: 'install', what: 'Add skills from GitHub, any git URL or a local path', kw: 'add get download repo clone', href: C + 'install'},
+      {cmd: 'link', what: 'Link an existing skills folder into the source', kw: 'checkout local directory follow symlink junction', href: C + 'link'},
       {cmd: 'sync', what: 'Symlink the source into every target', kw: 'link symlink apply', href: C + 'sync'},
       {cmd: 'doctor', what: 'Check config, targets and symlink health', kw: 'diagnose broken health fix', href: C + 'doctor'},
       {cmd: 'completion', what: 'Shell completions for zsh, bash and fish', kw: 'shell tab autocomplete', href: C + 'completion'},
@@ -58,6 +59,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       {cmd: 'check', what: 'Which tracked repos have updates upstream', kw: 'outdated remote', href: C + 'check'},
       {cmd: 'update', what: 'Update tracked repos and installed skills', kw: 'refresh pull latest', href: C + 'update'},
       {cmd: 'uninstall', what: 'Remove a skill from source and all targets', kw: 'delete remove', href: C + 'uninstall'},
+      {cmd: 'unlink', what: 'Remove a source link while keeping its folder untouched', kw: 'checkout detach symlink junction', href: C + 'unlink'},
     ],
     guides: [
       {label: 'Daily workflow', href: D + 'how-to/daily-tasks/daily-workflow'},
