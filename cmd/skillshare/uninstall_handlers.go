@@ -319,6 +319,16 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 		}
 		return noTargetsErr
 	}
+	// A linked folder that is itself a skill is refused before any preflight,
+	// so a dirty checkout is never told to retry with --force.
+	for _, t := range targets {
+		if err := sourcefs.CheckSkillMoveOut(mode.sourceDir, t.path, mode.walk.Follow); err != nil {
+			if opts.jsonOutput {
+				return writeJSONError(err)
+			}
+			return err
+		}
+	}
 
 	// --- Phase 3: DISPLAY ---
 	single := len(targets) == 1
@@ -417,14 +427,6 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 
 	// --- Phase 5: DRY-RUN or CONFIRM ---
 	if opts.dryRun {
-		for _, t := range targets {
-			if err := sourcefs.CheckSkillMoveOut(mode.sourceDir, t.path, mode.walk.Follow); err != nil {
-				if opts.jsonOutput {
-					return writeJSONError(err)
-				}
-				return err
-			}
-		}
 		if opts.jsonOutput {
 			dryRunNames := make([]string, len(targets))
 			for i, t := range targets {

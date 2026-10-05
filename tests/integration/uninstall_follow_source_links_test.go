@@ -14,6 +14,25 @@ import (
 	"skillshare/internal/utils"
 )
 
+func TestUninstall_FollowedLinkRootSkillRefusedBeforeDirtyPreflight(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	checkout := filepath.Join(sb.Root, "code", "dev-skills")
+	gitInit(t, checkout, false)
+	sb.WriteFile(filepath.Join(checkout, "SKILL.md"), "---\nname: dev\n---\n# dev")
+	sb.CreateSymlink(checkout, filepath.Join(sb.SourcePath, "dev"))
+	sb.WriteConfig("source: " + sb.SourcePath + "\nfollow_source_links: true\ntargets: {}\n")
+	result := sb.RunCLI("uninstall", "dev")
+	result.AssertFailure(t)
+	result.AssertAnyOutputContains(t, "dev is the linked folder itself; use unlink to remove the link")
+	if strings.Contains(result.Stdout+result.Stderr, "--force") {
+		t.Fatalf("dirty preflight ran before the linked-root guard:\n%s%s", result.Stdout, result.Stderr)
+	}
+	if !sb.FileExists(filepath.Join(checkout, "SKILL.md")) {
+		t.Fatal("target touched")
+	}
+}
+
 func TestUninstall_FollowedLinkRootSkillRefused(t *testing.T) {
 	for _, args := range [][]string{{"dev"}, {"--all"}, {"dev", "--json"}, {"dev", "--dry-run"}, {"dev", "--dry-run", "--json"}} {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
