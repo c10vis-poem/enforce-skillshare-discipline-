@@ -109,6 +109,10 @@ func (s auditRunSummary) toMarkdownOptions() audit.MarkdownOptions {
 type auditJSONOutput struct {
 	Results []*audit.Result `json:"results"`
 	Summary auditRunSummary `json:"summary"`
+	// Warnings names source links the scan did not follow. Incomplete is set
+	// when one could not be read, so its skills went unscanned.
+	Warnings   []string `json:"warnings,omitempty"`
+	Incomplete bool     `json:"incomplete,omitempty"`
 }
 
 func cmdAudit(args []string) error {
@@ -281,8 +285,10 @@ func cmdAudit(args []string) error {
 		return nil
 	case formatJSON:
 		out, _ := json.MarshalIndent(auditJSONOutput{
-			Results: results,
-			Summary: summary,
+			Results:    results,
+			Summary:    summary,
+			Warnings:   sync.SourceLinkWarnings(opts.skillsWalk, false),
+			Incomplete: opts.skillsWalk.Follow.Incomplete(),
 		}, "", "  ")
 		fmt.Println(string(out))
 		if blocked {
@@ -499,6 +505,14 @@ func collectInstalledAgentPaths(agentsSourcePath string) ([]auditSkillRef, error
 	return agentPaths, nil
 }
 
+// printAuditSourceLinkWarnings reports source links discovery did not follow,
+// so a scan that missed an unavailable link does not read as complete.
+func printAuditSourceLinkWarnings(walk sourcewalk.Options) {
+	for _, w := range sync.SourceLinkWarnings(walk, false) {
+		ui.Warning("%s", w)
+	}
+}
+
 func discoverForKind(kind resourceKindFilter, sourcePath string, skillsWalk sourcewalk.Options) ([]auditSkillRef, error) {
 	if kind == kindAgents {
 		return collectInstalledAgentPaths(sourcePath)
@@ -556,15 +570,15 @@ func auditInstalled(sourcePath, agentsSourcePath, mode, projectRoot, threshold s
 		}
 		return nil, base, err
 	}
+	if spinner != nil {
+		spinner.Stop()
+		printAuditSourceLinkWarnings(opts.skillsWalk)
+	}
 	if len(skillPaths) == 0 {
 		if spinner != nil {
-			spinner.Stop()
 			ui.Done(ui.MarkNone, fmt.Sprintf("No %s found", kind.Noun(2)), 0)
 		}
 		return []*audit.Result{}, base, nil
-	}
-	if spinner != nil {
-		spinner.Stop()
 	}
 
 	// Phase 0.5: large audit confirmation prompt.
@@ -666,6 +680,9 @@ func auditFiltered(sourcePath, agentsSourcePath string, names, groups []string, 
 	allSkills, err := discoverForKind(kind, scanRoot, opts.skillsWalk)
 	if err != nil {
 		return nil, base, err
+	}
+	if !jsonOutput {
+		printAuditSourceLinkWarnings(opts.skillsWalk)
 	}
 
 	// Build match sets for O(1) lookup.
