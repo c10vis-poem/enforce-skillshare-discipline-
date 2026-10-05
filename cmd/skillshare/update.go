@@ -230,6 +230,12 @@ func cmdUpdate(args []string) error {
 
 			// Tracked repo
 			if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+				if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
+					if warning != "" {
+						resolveWarnings = append(resolveWarnings, warning)
+					}
+					return filepath.SkipDir
+				}
 				if install.IsGitRepo(path) {
 					rel, _ := filepath.Rel(walkRoot, path)
 					if !seen[rel] {

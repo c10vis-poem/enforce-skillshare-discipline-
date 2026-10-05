@@ -194,6 +194,12 @@ func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*update
 
 		// Tracked repo (_-prefixed)
 		if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+			if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
+				if warning != "" {
+					ui.Warning("%s", warning)
+				}
+				return filepath.SkipDir
+			}
 			if install.IsGitRepo(path) {
 				rel, _ := filepath.Rel(walkRoot, path)
 				targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
