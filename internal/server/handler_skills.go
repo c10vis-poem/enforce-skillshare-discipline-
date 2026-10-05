@@ -13,6 +13,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
 	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/trash"
 	"skillshare/internal/utils"
@@ -553,7 +554,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 // resolveTrackedRepo resolves a repo name (flat or nested) to its directory name
 // and absolute path under s.cfg.EffectiveSkillsSource(). Returns ("", "", nil) if not found.
 // Returns a non-nil error for ambiguous matches or internal failures.
-func (s *Server) resolveTrackedRepo(input string) (string, string, error) {
+func (s *Server) resolveTrackedRepo(input string, walks ...sourcewalk.Options) (string, string, error) {
 	sourceRoot := filepath.Clean(s.cfg.EffectiveSkillsSource())
 	candidates := []string{input}
 	if !strings.HasPrefix(filepath.Base(input), "_") {
@@ -575,7 +576,13 @@ func (s *Server) resolveTrackedRepo(input string) (string, string, error) {
 	}
 
 	// Fallback: match nested tracked repos by basename.
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
+	var walk sourcewalk.Options
+	if len(walks) > 0 {
+		walk = walks[0]
+	} else {
+		walk = s.skillsWalk()
+	}
+	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), walk)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to list tracked repositories: %w", err)
 	}

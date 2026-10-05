@@ -133,9 +133,9 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		case item.invalid:
 			result = updateResultItem{Name: item.name, Action: "error", Message: "invalid skill name: " + item.name}
 		case item.isRepo:
-			result = s.updateTrackedRepo(item.name, item.path, force, skipAudit)
+			result = s.updateTrackedRepo(item.name, item.path, force, skipAudit, walk.Follow)
 		default:
-			result = s.updateRegularSkill(item.name, item.path, force, skipAudit)
+			result = s.updateRegularSkill(item.name, item.path, force, skipAudit, walk.Follow)
 		}
 		s.mu.Unlock()
 
