@@ -97,6 +97,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
         <div className="flex min-w-0 items-center gap-2.5">
           <h2 className={`min-w-0 truncate text-lg font-bold tracking-tight ${subject.type === 'multi' ? '' : 'font-mono'}`}>{title}</h2>
           {tracked && <span className="ss-tag shrink-0">tracked</span>}
+          {subject.type === 'folder' && subject.node.link && !isAgent && <span className="ss-tag shrink-0">{t('sourceLinks.linked')}</span>}
           <span className="flex-1" />
           {subject.type === 'skill' && (
             <Link to={resourceHref(subject.skill)} className="ss-btn sm shrink-0">
@@ -112,6 +113,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
           )}
         </div>
         {meta && <div className="text-[13px] text-ink-2">{meta}</div>}
+        {subject.type === 'folder' && subject.node.link && !isAgent && <p className="break-all font-mono text-xs text-ink-3">{subject.node.link.target}</p>}
       </div>
 
       <div className="ss-tree-props">

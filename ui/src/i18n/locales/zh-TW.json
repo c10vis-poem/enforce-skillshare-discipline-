@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "已連結",
+  "sourceLinks.unlink": "取消連結",
+  "sourceLinks.unlinkTitle": "取消連結 {name}？",
+  "sourceLinks.unlinkMessage": "資料夾本身不會變更。連結將移至垃圾桶，之後可以還原。",
+  "sourceLinks.unlinked": "已取消連結 {name}",
   "sourceLinks.title": "連結資料夾",
   "sourceLinks.description": "將這台電腦上的資料夾連結至技能來源。",
   "sourceLinks.path": "資料夾路徑",

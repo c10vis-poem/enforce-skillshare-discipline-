@@ -25,6 +25,8 @@ type skillItem struct {
 	FlatName    string   `json:"flatName"`
 	RelPath     string   `json:"relPath"`
 	SourcePath  string   `json:"sourcePath"`
+	LinkName    string   `json:"linkName,omitempty"`
+	LinkTarget  string   `json:"linkTarget,omitempty"`
 	IsInRepo    bool     `json:"isInRepo"`
 	Targets     []string `json:"targets,omitempty"`
 	InstalledAt string   `json:"installedAt,omitempty"`
@@ -59,7 +61,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 
 	// Snapshot config under RLock, then release before I/O.
 	s.mu.RLock()
-	source := s.cfg.EffectiveSkillsSource()
+	source := s.skillsSource()
 	agentsSource := s.agentsSource()
 	walk := s.skillsWalk()
 	s.mu.RUnlock()
@@ -74,6 +76,8 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Resolve each first-level entry once with the same policy used for discovery.
+		linkTargets := make(map[string]string)
 		for _, d := range discovered {
 			item := skillItem{
 				Name:       filepath.Base(d.SourcePath),
@@ -85,6 +89,17 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				Targets:    d.Targets,
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
+			}
+			if walk.Follow != nil {
+				name := strings.SplitN(filepath.ToSlash(d.RelPath), "/", 2)[0]
+				target, checked := linkTargets[name]
+				if !checked {
+					target, _ = walk.Follow.Resolve(filepath.Join(source, name))
+					linkTargets[name] = target
+				}
+				if target != "" {
+					item.LinkName, item.LinkTarget = name, target
+				}
 			}
 
 			if entry := s.skillEntry(d.RelPath); entry != nil {

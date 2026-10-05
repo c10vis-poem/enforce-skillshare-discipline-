@@ -52,7 +52,7 @@ Source-link endpoints (skills only, in the dashboard's current global/project mo
 | `POST /api/source-links` | `{path, name?, enable?}` | `{path, target, kind, warning}`; `kind` is `symlink` or `junction` |
 | `DELETE /api/source-links/{name}` | First-level link name | `{success, name}`; moves only the link to trash |
 
-Both call `internal/sourcelink`, share the uninstall routes' middleware, and return guard refusals as HTTP 400 with the core reason in the string `error` field. `enable: true` persists `follow_source_links` in the current config and refreshes the follow snapshot. The skills page's **Link folder** dialog offers that setting only while it is off; the list does not identify link groups, so unlink is available through the CLI and API.
+Both call `internal/sourcelink`, share the uninstall routes' middleware, and return guard refusals as HTTP 400 with the core reason in the string `error` field. `enable: true` persists `follow_source_links` in the current config and refreshes the follow snapshot. The skills page's **Link folder** dialog offers that setting only while it is off. `GET /api/resources` adds optional `linkName` and `linkTarget` fields to skills beneath a followed first-level source link; the target is resolved by the same discovery policy, and skipped links are not identified as followed. Linked groups in list, cards and tree views show the target and an **Unlink** confirmation that explains trash recovery and preservation of the target folder.
 
 ## Report
 

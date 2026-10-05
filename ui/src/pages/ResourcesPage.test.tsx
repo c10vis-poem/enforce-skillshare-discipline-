@@ -254,6 +254,106 @@ describe('Link folder', () => {
 
 /* -- Folders ------------------------------------- */
 
+describe('Unlink folder', () => {
+  const LINKED = [
+    at('team/plugins/skills/alpha', { isInRepo: false, linkName: 'team', linkTarget: '/work/team' }),
+    at('plain/plugins/skills/beta', { isInRepo: false }),
+  ];
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: LINKED });
+    vi.mocked(api.removeSourceLink).mockResolvedValue({ success: true, name: 'team' });
+    vi.mocked(api.diff).mockResolvedValue({ diffs: [] } as unknown as Awaited<ReturnType<typeof api.diff>>);
+    vi.mocked(api.listTargets).mockResolvedValue({ targets: [], sourceSkillCount: 0 });
+    vi.mocked(api.listTrash).mockResolvedValue({ items: [] } as unknown as Awaited<ReturnType<typeof api.listTrash>>);
+    vi.mocked(api.getSyncMatrix).mockResolvedValue({ entries: [] } as unknown as Awaited<ReturnType<typeof api.getSyncMatrix>>);
+  });
+
+  it('shows the linked badge, target and Unlink only on the linked source group', async () => {
+    mount();
+    await screen.findByText('linked');
+    const groups = [...document.querySelectorAll('.ss-gh')];
+    const linked = groups.find((g) => g.querySelector('b')?.textContent === 'team')!;
+    expect(within(linked as HTMLElement).getByText('linked')).toBeInTheDocument();
+    expect(within(linked as HTMLElement).getByText('/work/team')).toBeInTheDocument();
+    expect(within(linked as HTMLElement).getByRole('button', { name: 'Unlink' })).toBeInTheDocument();
+    const plain = groups.find((g) => g.querySelector('b')?.textContent === 'Local')!;
+    expect(within(plain as HTMLElement).queryByText('linked')).toBeNull();
+    expect(within(plain as HTMLElement).queryByRole('button', { name: 'Unlink' })).toBeNull();
+  });
+
+  it('keeps the linked tree root separate from a compacted folder chain', async () => {
+    localStorage.setItem('skillshare:skills-view', 'tree');
+    mount();
+    const linked = await row('team');
+    expect(within(linked).getByText('linked')).toBeInTheDocument();
+    expect(within(linked).getByText('/work/team')).toBeInTheDocument();
+    expect(within(linked).getByRole('button', { name: 'Unlink' })).toBeInTheDocument();
+    expect(within(await row('plugins/skills')).queryByRole('button', { name: 'Unlink' })).toBeNull();
+    expect(within(await row('plain/plugins/skills')).queryByText('linked')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Unlink' })).toHaveLength(1);
+  });
+
+  it('groups linked skills by their link root in folder mode and preserves plain folder groups', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole('button', { name: 'Group and sort' }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Folder' }));
+    const groups = [...document.querySelectorAll('.ss-gh')];
+    const linked = groups.find((g) => g.querySelector('b')?.textContent === 'team')!;
+    expect(within(linked as HTMLElement).getByRole('button', { name: 'Unlink' })).toBeInTheDocument();
+    const plain = groups.find((g) => g.querySelector('b')?.textContent === 'plain/plugins/skills')!;
+    expect(within(plain as HTMLElement).queryByText('linked')).toBeNull();
+    expect(within(plain as HTMLElement).queryByRole('button', { name: 'Unlink' })).toBeNull();
+  });
+
+  it('offers the same unlink confirmation from the cards group', async () => {
+    localStorage.setItem('skillshare:skills-view', 'cards');
+    mount();
+    expect(await screen.findByText('linked')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unlink' }));
+    expect(screen.getByRole('dialog', { name: 'Unlink team?' })).toBeInTheDocument();
+    expect(api.removeSourceLink).not.toHaveBeenCalled();
+  });
+
+  it('confirms the link name, resolved target, preservation and trash recovery before deleting', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Unlink' }));
+    const dialog = screen.getByRole('dialog', { name: 'Unlink team?' });
+    expect(within(dialog).getByText('/work/team')).toBeInTheDocument();
+    expect(within(dialog).getByText('The folder itself is not touched. The link goes to trash and can be restored.')).toBeInTheDocument();
+    expect(api.removeSourceLink).not.toHaveBeenCalled();
+    const calls = vi.mocked(api.listSkills).mock.calls.length;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unlink' }));
+    await waitFor(() => expect(api.removeSourceLink).toHaveBeenCalledWith('team'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(vi.mocked(api.listSkills).mock.calls.length).toBeGreaterThan(calls);
+    expect(screen.getByText('Unlinked team')).toBeInTheDocument();
+  });
+
+  it('renders the unlink HTTP 400 message verbatim and keeps the dialog open', async () => {
+    const { ApiError } = await import('../api/client');
+    vi.mocked(api.removeSourceLink).mockRejectedValue(new ApiError(400, 'team is not a link'));
+    localStorage.setItem('skillshare:skills-view', 'tree');
+    mount();
+    fireEvent.click(within(await row('team')).getByRole('button', { name: 'Unlink' }));
+    const dialog = screen.getByRole('dialog', { name: 'Unlink team?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unlink' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('team is not a link');
+    expect(dialog).toBeInTheDocument();
+  });
+
+  it('does not show link controls for agents', async () => {
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: LINKED.map((s) => ({ ...s, kind: 'agent' })) });
+    mount('agent');
+    await screen.findByRole('heading', { name: 'Agents' });
+    expect(screen.queryByText('linked')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Unlink' })).toBeNull();
+  });
+});
+
 describe('Skills list folders', () => {
   const FOLDERED = [at('frontend/react/hooks'), at('frontend/react/router'), at('frontend/vue'), at('solo'), at('_repo/skills/gamma')];
 

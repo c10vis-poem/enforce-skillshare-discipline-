@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "verknüpft",
+  "sourceLinks.unlink": "Verknüpfung entfernen",
+  "sourceLinks.unlinkTitle": "Verknüpfung {name} entfernen?",
+  "sourceLinks.unlinkMessage": "Der Ordner selbst bleibt unverändert. Die Verknüpfung wird in den Papierkorb verschoben und kann wiederhergestellt werden.",
+  "sourceLinks.unlinked": "Verknüpfung {name} entfernt",
   "sourceLinks.title": "Ordner verknüpfen",
   "sourceLinks.description": "Einen Ordner auf diesem Computer mit der Skill-Quelle verknüpfen.",
   "sourceLinks.path": "Ordnerpfad",

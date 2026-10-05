@@ -32,6 +32,9 @@ export interface Skill {
   flatName: string;
   relPath: string;
   sourcePath: string;
+  /** First-level source link followed by the current policy, and its resolved target. */
+  linkName?: string;
+  linkTarget?: string;
   isInRepo: boolean;
   targets?: string[];
   installedAt?: string;
@@ -43,6 +46,11 @@ export interface Skill {
   /** disable-model-invocation: invocable by name, never loaded by the model on its own. */
   manualOnly?: boolean;
   branch?: string;
+}
+
+export interface SourceLink {
+  name: string;
+  target: string;
 }
 
 export interface SkillPattern {

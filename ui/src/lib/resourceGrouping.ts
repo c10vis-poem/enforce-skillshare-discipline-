@@ -1,4 +1,4 @@
-import type { Skill, SyncMatrixEntry } from '../api/client';
+import type { Skill, SourceLink, SyncMatrixEntry } from '../api/client';
 import type { useT } from '../i18n';
 import { resolveSource, type SourceType } from '../components/SourceBadge';
 import { parseRemoteURL } from './parseRemoteURL';
@@ -77,17 +77,23 @@ export function repoOf(s: Skill): string | undefined {
   return s.isInRepo ? s.relPath.split('/')[0] : undefined;
 }
 
+export function sourceLinkOf(s: Skill): SourceLink | undefined {
+  return s.kind === 'skill' && s.linkName && s.linkTarget ? { name: s.linkName, target: s.linkTarget } : undefined;
+}
+
 /** Parent folder shown under the name. Inside a repo group the repo prefix is already in the header. */
 export function parentPath(s: Skill, inGroup = false): string {
   const i = s.relPath.lastIndexOf('/');
   if (i <= 0) return '';
   const dir = s.relPath.slice(0, i);
-  const repo = inGroup ? repoOf(s) : undefined;
+  const repo = inGroup ? sourceLinkOf(s)?.name ?? repoOf(s) : undefined;
   if (repo) return dir === repo ? '' : dir.slice(repo.length + 1);
   return formatTrackedRepoName(dir);
 }
 
 export function sourceName(s: Skill): string {
+  const link = sourceLinkOf(s);
+  if (link) return formatTrackedRepoName(link.name);
   const repo = repoOf(s);
   if (repo) return formatTrackedRepoName(repo);
   if (s.source) return parseRemoteURL(s.source)?.ownerRepo ?? s.source;
@@ -96,15 +102,16 @@ export function sourceName(s: Skill): string {
 
 /* -- Source groups -------------------------------- */
 
-export interface Group { key: string; source: SourceType; repo?: string; items: Skill[] }
+export interface Group { key: string; source: SourceType; repo?: string; link?: SourceLink; items: Skill[] }
 
 export function groupBySource(items: Skill[]): Group[] {
   const groups = new Map<string, Group>();
   for (const s of items) {
     const source = resolveSource(s.type, s.isInRepo);
     const repo = repoOf(s);
-    const key = repo ?? source;
-    if (!groups.has(key)) groups.set(key, { key, source, repo, items: [] });
+    const link = sourceLinkOf(s);
+    const key = link ? `link:${link.name}` : repo ?? source;
+    if (!groups.has(key)) groups.set(key, { key, source, repo, link, items: [] });
     groups.get(key)!.items.push(s);
   }
   return [...groups.values()].sort((a, b) => SOURCE_ORDER.indexOf(a.source) - SOURCE_ORDER.indexOf(b.source) || a.key.localeCompare(b.key));
@@ -112,14 +119,15 @@ export function groupBySource(items: Skill[]): Group[] {
 
 /* -- Folder groups -------------------------------- */
 
-export interface FolderGroup { key: string; repo: boolean; items: Skill[] }
+export interface FolderGroup { key: string; repo: boolean; link?: SourceLink; items: Skill[] }
 
 /** Root first, then folder name A→Z; items keep the order they came in (the current sort). */
 export function groupByFolder(items: Skill[]): FolderGroup[] {
   const groups = new Map<string, FolderGroup>();
   for (const s of items) {
-    const key = folderOf(s);
-    if (!groups.has(key)) groups.set(key, { key, repo: !!repoOf(s), items: [] });
+    const link = sourceLinkOf(s);
+    const key = link?.name ?? folderOf(s);
+    if (!groups.has(key)) groups.set(key, { key, repo: !!repoOf(s), link, items: [] });
     groups.get(key)!.items.push(s);
   }
   return [...groups.values()].sort((a, b) => formatTrackedRepoName(a.key).localeCompare(formatTrackedRepoName(b.key)));

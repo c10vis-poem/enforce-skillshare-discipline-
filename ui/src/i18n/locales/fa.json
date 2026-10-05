@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "پیوندشده",
+  "sourceLinks.unlink": "حذف پیوند",
+  "sourceLinks.unlinkTitle": "پیوند {name} حذف شود؟",
+  "sourceLinks.unlinkMessage": "خود پوشه تغییری نمی‌کند. پیوند به سطل زباله منتقل می‌شود و قابل بازیابی است.",
+  "sourceLinks.unlinked": "پیوند {name} حذف شد",
   "sourceLinks.title": "پیوند پوشه",
   "sourceLinks.description": "یک پوشه در این رایانه را به منبع مهارت‌ها پیوند دهید.",
   "sourceLinks.path": "مسیر پوشه",

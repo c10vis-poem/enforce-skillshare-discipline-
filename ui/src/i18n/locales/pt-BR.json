@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "vinculado",
+  "sourceLinks.unlink": "Desvincular",
+  "sourceLinks.unlinkTitle": "Desvincular {name}?",
+  "sourceLinks.unlinkMessage": "A pasta permanece intacta. O link é movido para a lixeira e pode ser restaurado.",
+  "sourceLinks.unlinked": "{name} desvinculado",
   "sourceLinks.title": "Vincular pasta",
   "sourceLinks.description": "Vincule uma pasta deste computador à fonte de skills.",
   "sourceLinks.path": "Caminho da pasta",

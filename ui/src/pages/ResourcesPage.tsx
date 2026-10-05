@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../api/client';
-import type { Skill } from '../api/client';
+import type { Skill, SourceLink } from '../api/client';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { globToRegex } from '../lib/glob';
 import { folderOf, formatTrackedRepoName, resourceHref } from '../lib/resourceNames';
@@ -63,6 +63,7 @@ import TreeDetailPane from '../components/resources/TreeDetailPane';
 import type { PaneSubject } from '../components/resources/TreeDetailPane';
 import { UninstallDialog } from '../components/resources/UninstallDialog';
 import LinkFolderDialog from '../components/resources/LinkFolderDialog';
+import UnlinkFolderDialog from '../components/resources/UnlinkFolderDialog';
 import TreeSplit from '../components/resources/TreeSplit';
 import ArrangeMenu from '../components/resources/ArrangeMenu';
 import { buildTree, findFolder, flattenTree, folderPaths, isRepoRoot, rangeIds, selectedSkills, skillsUnder, summarize } from '../components/resources/tree';
@@ -197,6 +198,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const syncPending = diffData ? countChanges(resourceGroups(diffData.diffs, targetsData?.targets ?? [], new Set([kind]), false).groups) > 0 : false;
   const [syncOpen, setSyncOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [unlinking, setUnlinking] = useState<SourceLink | null>(null);
   const { matrix, getSkillTargets } = useSyncMatrix();
   // The project count needs room, and the wider column fits more icons; without projects nothing changes.
   const hasProjects = matrix.some((e) => projectOf(e.target));
@@ -500,17 +502,23 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     </>
   );
 
+  const unlinkButton = (link: SourceLink) => (
+    <Button variant="danger" size="sm" onClick={() => setUnlinking(link)}>{t('sourceLinks.unlink')}</Button>
+  );
+
   const groupHead = (g: Group, asLabel: boolean) => {
     const Icon = SOURCE_ICON[g.source];
     const meta = [countLabel(t, kind, g.items.length), g.repo ? g.items[0].branch : ''];
     return (
       <div key={`g:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'}>
         <Icon size={15} className="shrink-0 text-ink-2" />
-        {g.repo ? <b className="font-mono">{formatTrackedRepoName(g.repo)}</b> : <b>{SOURCE_LABEL[g.source]}</b>}
+        {g.link ? <b className="font-mono">{g.link.name}</b> : g.repo ? <b className="font-mono">{formatTrackedRepoName(g.repo)}</b> : <b>{SOURCE_LABEL[g.source]}</b>}
         {g.repo && <span className="ss-tag">tracked</span>}
+        {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
         <span className="text-ink-3">{meta.filter(Boolean).join(' · ')}</span>
         <span className="flex-1" />
         {g.repo && !isAgent && repoActions(g.repo)}
+        {g.link && !isAgent && unlinkButton(g.link)}
       </div>
     );
   };
@@ -522,14 +530,16 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       <Folder size={15} className="shrink-0 text-ink-2" />
       <b className={g.key ? 'font-mono' : ''}>{folderName(g.key)}</b>
       {g.repo && <span className="ss-tag">tracked</span>}
+      {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
       <span className="text-ink-3">{countLabel(t, kind, g.items.length)}</span>
+      {g.link && !isAgent && <><span className="flex-1" />{unlinkButton(g.link)}</>}
     </div>
   );
 
   const itemRow = (s: Skill) => {
     const { synced, reachable, tone, label } = rowInfo(s);
     // Grouped by folder, the header already names the parent path.
-    const sub = group === 'folder' ? '' : parentPath(s, group === 'source');
+    const sub = group === 'folder' && !s.linkName ? '' : parentPath(s, group === 'source' || group === 'folder');
     return (
       <div
         key={s.flatName}
@@ -638,6 +648,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
             onSelect={selectNode}
             onToggleFolder={toggleFolder}
             onOpen={(s) => navigate(resourceHref(s))}
+            onUnlink={isAgent ? undefined : setUnlinking}
           />
         }
         pane={
@@ -1015,6 +1026,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       <SyncPreviewModal open={syncOpen} onClose={() => setSyncOpen(false)} kind={kind} />
       {installTab && <InstallDialog kind={kind} initialTab={installTab === 'url' ? 'url' : 'search'} initialSource={params.get('source') ?? undefined} onClose={() => setInstall(null)} />}
       {!isAgent && linkOpen && <LinkFolderDialog onClose={() => setLinkOpen(false)} />}
+      {!isAgent && unlinking && <UnlinkFolderDialog link={unlinking} onClose={() => setUnlinking(null)} />}
     </div>
   );
 }

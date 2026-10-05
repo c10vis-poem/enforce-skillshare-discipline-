@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "linked",
+  "sourceLinks.unlink": "Unlink",
+  "sourceLinks.unlinkTitle": "Unlink {name}?",
+  "sourceLinks.unlinkMessage": "The folder itself is not touched. The link goes to trash and can be restored.",
+  "sourceLinks.unlinked": "Unlinked {name}",
   "sourceLinks.title": "Link folder",
   "sourceLinks.description": "Link a folder on this machine into the skills source.",
   "sourceLinks.path": "Folder path",

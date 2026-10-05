@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "已链接",
+  "sourceLinks.unlink": "取消链接",
+  "sourceLinks.unlinkTitle": "取消链接 {name}？",
+  "sourceLinks.unlinkMessage": "文件夹本身不会变更。链接将移至回收站，之后可以还原。",
+  "sourceLinks.unlinked": "已取消链接 {name}",
   "sourceLinks.title": "链接文件夹",
   "sourceLinks.description": "将这台电脑上的文件夹链接至技能来源。",
   "sourceLinks.path": "文件夹路径",

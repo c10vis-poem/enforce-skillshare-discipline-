@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "リンク済み",
+  "sourceLinks.unlink": "リンクを解除",
+  "sourceLinks.unlinkTitle": "{name} のリンクを解除しますか？",
+  "sourceLinks.unlinkMessage": "フォルダー自体は変更されません。リンクはゴミ箱に移動され、復元できます。",
+  "sourceLinks.unlinked": "{name} のリンクを解除しました",
   "sourceLinks.title": "フォルダーをリンク",
   "sourceLinks.description": "この端末のフォルダーをスキルソースにリンクします。",
   "sourceLinks.path": "フォルダーのパス",

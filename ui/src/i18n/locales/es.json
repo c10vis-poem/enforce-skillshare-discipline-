@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "enlazado",
+  "sourceLinks.unlink": "Desenlazar",
+  "sourceLinks.unlinkTitle": "¿Desenlazar {name}?",
+  "sourceLinks.unlinkMessage": "La carpeta no se modifica. El enlace se mueve a la papelera y se puede restaurar.",
+  "sourceLinks.unlinked": "{name} desenlazado",
   "sourceLinks.title": "Enlazar carpeta",
   "sourceLinks.description": "Enlaza una carpeta de este equipo con la fuente de skills.",
   "sourceLinks.path": "Ruta de la carpeta",

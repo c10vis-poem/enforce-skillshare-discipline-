@@ -1,11 +1,12 @@
 import { Fragment, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import { Bot, ChevronDown, ChevronRight, Folder, FolderOpen, GitBranch, Power, PowerOff, Puzzle } from 'lucide-react';
-import type { Skill } from '../../api/client';
+import type { Skill, SourceLink } from '../../api/client';
 import { useT } from '../../i18n';
 import { formatTrackedRepoName } from '../../lib/resourceNames';
 import { insideSelection, skillsUnder } from './tree';
 import type { TreeRow } from './tree';
+import Button from '../Button';
 
 export type SelectMode = 'only' | 'toggle' | 'range';
 
@@ -17,13 +18,14 @@ interface Props {
   onSelect: (id: string, mode: SelectMode) => void;
   onToggleFolder: (path: string) => void;
   onOpen: (skill: Skill) => void;
+  onUnlink?: (link: SourceLink) => void;
 }
 
 /**
  * Explorer-style tree: click selects, Cmd/Ctrl-click adds, Shift-click takes a range,
  * double-click (or Enter) opens a skill. Keyboard follows the WAI-ARIA tree pattern.
  */
-export default function SkillTree({ rows, selected, kind, label, onSelect, onToggleFolder, onOpen }: Props) {
+export default function SkillTree({ rows, selected, kind, label, onSelect, onToggleFolder, onOpen, onUnlink }: Props) {
   const t = useT();
   const refs = useRef(new Map<string, HTMLDivElement>());
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
         const isSel = selected.has(row.id);
         const inside = !isSel && insideSelection(row, selected);
         const folder = row.type === 'folder' ? row : null;
+        const link = kind === 'skill' ? folder?.node.link : undefined;
         const skills = folder ? skillsUnder(folder.node) : [];
         const off = folder ? skills.filter((s) => s.disabled).length : row.type === 'item' && row.skill.disabled ? 1 : 0;
         const dim = folder ? off === skills.length : off === 1;
@@ -130,6 +133,13 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
                 : row.type === 'item' && row.skill.name}
             </span>
             {folder?.repo && <span className="ss-tag shrink-0">tracked</span>}
+            {link && (
+              <>
+                <span className="ss-tag shrink-0">{t('sourceLinks.linked')}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink-3" title={link.target}>{link.target}</span>
+                {onUnlink && <Button variant="danger" size="sm" className="shrink-0" onKeyDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onUnlink(link); }}>{t('sourceLinks.unlink')}</Button>}
+              </>
+            )}
             <span className="hv">
               {folder && <span>{skills.length}</span>}
               {folder && off > 0 && (

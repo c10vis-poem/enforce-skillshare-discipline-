@@ -1,4 +1,9 @@
 {
+  "sourceLinks.linked": "ditautkan",
+  "sourceLinks.unlink": "Lepas tautan",
+  "sourceLinks.unlinkTitle": "Lepas tautan {name}?",
+  "sourceLinks.unlinkMessage": "Folder itu sendiri tidak diubah. Tautan dipindahkan ke tempat sampah dan dapat dipulihkan.",
+  "sourceLinks.unlinked": "Tautan {name} dilepas",
   "sourceLinks.title": "Tautkan folder",
   "sourceLinks.description": "Tautkan folder di komputer ini ke sumber skill.",
   "sourceLinks.path": "Jalur folder",
