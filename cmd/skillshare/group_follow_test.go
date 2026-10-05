@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"skillshare/internal/sourcewalk"
@@ -22,12 +23,13 @@ func TestGroupFollowedLogicalPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	removals, err := resolveGroupSkills("_dev-skills", source, walk)
-	if err != nil {
-		t.Fatal(err)
+	// uninstall --group on the link would empty the user's checkout, so it is
+	// refused in favor of `uninstall _dev-skills` or naming the skills.
+	if _, err := resolveGroupSkills("_dev-skills", source, walk); err == nil || !strings.Contains(err.Error(), "followed source link") {
+		t.Fatalf("uninstall --group on a followed link: %v", err)
 	}
-	if len(updates) != 2 || len(removals) != 2 {
-		t.Fatalf("updates=%+v removals=%+v", updates, removals)
+	if len(updates) != 2 {
+		t.Fatalf("updates=%+v", updates)
 	}
 	for _, target := range updates {
 		if target.path != filepath.Join(source, target.name) {
@@ -35,11 +37,6 @@ func TestGroupFollowedLogicalPaths(t *testing.T) {
 		}
 		if !target.isRepo && (target.meta == nil || target.name != filepath.Join("_dev-skills", "foo")) {
 			t.Errorf("metadata identity lost: %+v", target)
-		}
-	}
-	for _, target := range removals {
-		if target.path != filepath.Join(source, target.name) {
-			t.Errorf("nonlogical uninstall: %+v", target)
 		}
 	}
 	if _, err := resolveGroupUpdatable("_dev-skills", source); err == nil {
