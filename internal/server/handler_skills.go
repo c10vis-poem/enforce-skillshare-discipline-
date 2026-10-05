@@ -87,14 +87,13 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
-		var err error
-		sourceLinks, err = listSourceLinks(source, walk)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
-		if err != nil {
+		// After discovery, so a traversal failure inside a target shows on its link.
+		if sourceLinks, err = listSourceLinks(source, walk); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

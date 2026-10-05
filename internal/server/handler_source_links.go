@@ -31,6 +31,12 @@ func listSourceLinks(source string, walk sourcewalk.Options) ([]sourceLinkItem, 
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
+	// Skips recorded so far, including traversal failures discovery met inside
+	// a target that was readable at its root; call this after discovery.
+	skipped := map[string]string{}
+	for _, sk := range walk.Follow.Skipped() {
+		skipped[sk.Name] = sk.Reason
+	}
 	links := []sourceLinkItem{}
 	for _, entry := range entries {
 		path := filepath.Join(source, entry.Name())
@@ -39,20 +45,18 @@ func listSourceLinks(source string, walk sourcewalk.Options) ([]sourceLinkItem, 
 		}
 		item := sourceLinkItem{Name: entry.Name()}
 		item.Target, err = utils.ResolveLinkTarget(path)
-		if err != nil {
+		resolved, followed := walk.Follow.Resolve(path)
+		switch {
+		case err != nil:
 			item.Warning = err.Error()
-		} else if resolved, followed := walk.Follow.Resolve(path); followed {
+		case followed && skipped[item.Name] == "":
 			item.Target, item.Available = resolved, true
-		} else if walk.Follow == nil {
+		case walk.Follow == nil:
 			item.Warning = "follow_source_links is off"
-		} else {
+		case skipped[item.Name] != "":
+			item.Warning = skipped[item.Name]
+		default:
 			item.Warning = "target is not a directory"
-			for _, skipped := range walk.Follow.Skipped() {
-				if skipped.Name == item.Name {
-					item.Warning = skipped.Reason
-					break
-				}
-			}
 		}
 		links = append(links, item)
 	}

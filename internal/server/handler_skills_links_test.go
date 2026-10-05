@@ -53,6 +53,48 @@ func TestHandleListSkills_SourceLinksWithoutSkills(t *testing.T) {
 	}
 }
 
+func TestHandleListSkills_SourceLinkTraversalFailure(t *testing.T) {
+	s, src := newTestServer(t)
+	s.cfg.FollowSourceLinks = true
+	if err := s.saveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	for _, name := range []string{"a", "z"} {
+		if err := os.MkdirAll(filepath.Join(target, name), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(target, name, "SKILL.md"), []byte("---\nname: "+name+"\n---\n# "+name), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unreadable := filepath.Join(target, "z")
+	if err := os.Chmod(unreadable, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(unreadable, 0755) })
+	if _, err := os.ReadDir(unreadable); !os.IsPermission(err) {
+		t.Skip("requires directory read permissions to be enforced")
+	}
+	if err := os.Symlink(target, filepath.Join(src, "_team")); err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources?kind=skill", nil))
+	var res struct {
+		SourceLinks []struct {
+			Name, Warning string
+			Available     bool
+		} `json:"sourceLinks"`
+	}
+	if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &res) != nil || len(res.SourceLinks) != 1 {
+		t.Fatalf("missing standalone link: %d: %s", rr.Code, rr.Body.String())
+	}
+	if link := res.SourceLinks[0]; link.Available || !strings.Contains(link.Warning, "not readable") {
+		t.Fatalf("traversal failure not reflected on the link: %+v", link)
+	}
+}
+
 func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
