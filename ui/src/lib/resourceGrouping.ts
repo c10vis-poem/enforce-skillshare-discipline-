@@ -104,7 +104,7 @@ export function sourceName(s: Skill): string {
 
 export interface Group { key: string; source: SourceType; repo?: string; link?: SourceLink; items: Skill[] }
 
-export function groupBySource(items: Skill[]): Group[] {
+export function groupBySource(items: Skill[], links: SourceLink[] = []): Group[] {
   const groups = new Map<string, Group>();
   for (const s of items) {
     const source = resolveSource(s.type, s.isInRepo);
@@ -114,6 +114,12 @@ export function groupBySource(items: Skill[]): Group[] {
     if (!groups.has(key)) groups.set(key, { key, source, repo, link, items: [] });
     groups.get(key)!.items.push(s);
   }
+  for (const link of links) {
+    const key = `link:${link.name}`;
+    const group = groups.get(key);
+    if (group) group.link = link;
+    else groups.set(key, { key, source: 'local', link, items: [] });
+  }
   return [...groups.values()].sort((a, b) => SOURCE_ORDER.indexOf(a.source) - SOURCE_ORDER.indexOf(b.source) || a.key.localeCompare(b.key));
 }
 
@@ -122,7 +128,7 @@ export function groupBySource(items: Skill[]): Group[] {
 export interface FolderGroup { key: string; repo: boolean; link?: SourceLink; items: Skill[] }
 
 /** Root first, then folder name A→Z; items keep the order they came in (the current sort). */
-export function groupByFolder(items: Skill[]): FolderGroup[] {
+export function groupByFolder(items: Skill[], links: SourceLink[] = []): FolderGroup[] {
   const groups = new Map<string, FolderGroup>();
   for (const s of items) {
     const link = sourceLinkOf(s);
@@ -130,15 +136,20 @@ export function groupByFolder(items: Skill[]): FolderGroup[] {
     if (!groups.has(key)) groups.set(key, { key, repo: !!repoOf(s), link, items: [] });
     groups.get(key)!.items.push(s);
   }
+  for (const link of links) {
+    const group = groups.get(link.name);
+    if (group) group.link = link;
+    else groups.set(link.name, { key: link.name, repo: false, link, items: [] });
+  }
   return [...groups.values()].sort((a, b) => formatTrackedRepoName(a.key).localeCompare(formatTrackedRepoName(b.key)));
 }
 
-/** Cut groups down to the first `limit` items, keeping headers only for groups that still show something. */
+/** Cut groups down to the first `limit` items, preserving standalone empty groups. */
 export function limitGroups<G extends { items: Skill[] }>(groups: G[], limit: number): G[] {
   const out: G[] = [];
   let left = limit;
   for (const g of groups) {
-    if (left <= 0) break;
+    if (left <= 0 && g.items.length > 0) continue;
     out.push({ ...g, items: g.items.slice(0, left) });
     left -= g.items.length;
   }

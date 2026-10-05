@@ -75,7 +75,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
     path = node.path.slice(0, node.path.length - node.name.length);
     title = link ? link.name : repo ? formatTrackedRepoName(node.name) : node.name;
     tracked = !link && node.path.startsWith('_');
-    meta = [count(skills.length), repo ? skills[0]?.branch : ''].filter(Boolean).join(' · ');
+    meta = [link?.warning ?? count(skills.length), repo ? skills[0]?.branch : ''].filter(Boolean).join(' · ');
   } else if (subject.type === 'skill') {
     const { skill } = subject;
     path = skill.relPath.slice(0, Math.max(0, skill.relPath.lastIndexOf('/')));
@@ -117,7 +117,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
       </div>
 
       <div className="ss-tree-props">
-        <div>
+        {skills.length > 0 && <div>
           <span className="lb">{t('resources.col.status')}</span>
           <Switch
             on={allOn}
@@ -127,8 +127,8 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
             onClick={() => onToggleAll(skills, !allOn)}
           />
           <span className="text-[13px] font-semibold">{state}</span>
-        </div>
-        {(!isAgent || syncedTo) && (
+        </div>}
+        {skills.length > 0 && (!isAgent || syncedTo) && (
           <div>
             <span className="lb">{t('resources.col.targets')}</span>
             {syncedTo ? (

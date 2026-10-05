@@ -50,7 +50,7 @@ export default function UnlinkFolderDialog({ link, skills, onClose }: { link: So
             <div className="ss-r items-start gap-3">
               <span className="w-16 shrink-0 text-xs text-ink-3">{t('layout.nav.skills')}</span>
               <div className="min-w-0">
-                <p className="break-words font-mono text-xs">{skills.map((s) => s.name).join(', ')}</p>
+                <p className="break-words font-mono text-xs">{skills.length ? skills.map((s) => s.name).join(', ') : t('resources.count.skills', { count: 0 })}</p>
                 <p className="mt-1 text-xs text-ink-3">{t('sourceLinks.unlinkSkills')}</p>
               </div>
             </div>

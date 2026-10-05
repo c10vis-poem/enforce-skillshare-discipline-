@@ -7,10 +7,51 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"skillshare/internal/config"
 )
+
+func TestHandleListSkills_SourceLinksWithoutSkills(t *testing.T) {
+	for _, follow := range []bool{false, true} {
+		t.Run(map[bool]string{false: "off", true: "on"}[follow], func(t *testing.T) {
+			s, src := newTestServer(t)
+			s.cfg.FollowSourceLinks = follow
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			targets := map[string]string{"empty": t.TempDir(), "_missing": filepath.Join(t.TempDir(), "missing")}
+			for name, target := range targets {
+				if err := os.Symlink(target, filepath.Join(src, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rr := httptest.NewRecorder()
+			s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources?kind=skill", nil))
+			var res struct {
+				SourceLinks []struct {
+					Name, Target, Warning string
+					Available             bool
+				} `json:"sourceLinks"`
+			}
+			if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &res) != nil || len(res.SourceLinks) != 2 {
+				t.Fatalf("missing standalone links: %d: %s", rr.Code, rr.Body.String())
+			}
+			for _, link := range res.SourceLinks {
+				if link.Target != targets[link.Name] || link.Available != (follow && link.Name == "empty") {
+					t.Fatalf("incorrect link: %+v", link)
+				}
+				if follow && link.Name == "_missing" && !strings.Contains(link.Warning, "missing") {
+					t.Fatalf("missing unavailable reason: %+v", link)
+				}
+				if !follow && link.Warning != "follow_source_links is off" {
+					t.Fatalf("missing off-policy reason: %+v", link)
+				}
+			}
+		})
+	}
+}
 
 func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 	for _, tc := range []struct {

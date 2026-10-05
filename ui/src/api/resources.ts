@@ -1,5 +1,5 @@
 import { apiFetch, kindQuery } from './http';
-import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, LinkedRepo, Skill, SkillFileContent, SourceLinkRequest, SourceLinkResult, TemplatesResponse } from './types/resources';
+import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, LinkedRepo, Skill, SkillFileContent, SourceLink, SourceLinkRequest, SourceLinkResult, TemplatesResponse } from './types/resources';
 
 export const resourcesApi = {
   createSourceLink: (body: SourceLinkRequest) =>
@@ -8,7 +8,7 @@ export const resourcesApi = {
     apiFetch<{ success: boolean; name: string }>(`/source-links/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   getOverview: () => apiFetch<Overview>('/overview'),
   listSkills: (kind?: 'skill' | 'agent') =>
-    apiFetch<{ resources: Skill[]; sourceLinkWarnings?: string[]; linked_repos?: LinkedRepo[] }>(`/resources${kindQuery(kind)}`),
+    apiFetch<{ resources: Skill[]; sourceLinks?: SourceLink[]; sourceLinkWarnings?: string[]; linked_repos?: LinkedRepo[] }>(`/resources${kindQuery(kind)}`),
   getResource: (name: string, kind?: 'skill' | 'agent') =>
     apiFetch<{ resource: Skill; skillMdContent: string; files: string[] }>(
       `/resources/${encodeURIComponent(name)}${kindQuery(kind)}`

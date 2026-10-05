@@ -3,16 +3,60 @@ package server
 import (
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"skillshare/internal/config"
 	"skillshare/internal/sourcelink"
+	"skillshare/internal/sourcewalk"
+	"skillshare/internal/utils"
 )
 
 type sourceLinkRequest struct {
 	Path   string `json:"path"`
 	Name   string `json:"name,omitempty"`
 	Enable bool   `json:"enable,omitempty"`
+}
+
+type sourceLinkItem struct {
+	Name      string `json:"name"`
+	Target    string `json:"target"`
+	Available bool   `json:"available"`
+	Warning   string `json:"warning,omitempty"`
+}
+
+func listSourceLinks(source string, walk sourcewalk.Options) ([]sourceLinkItem, error) {
+	entries, err := sourcewalk.ReadDir(source, sourcewalk.Options{})
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	links := []sourceLinkItem{}
+	for _, entry := range entries {
+		path := filepath.Join(source, entry.Name())
+		if !utils.IsLinkMode(path, entry.Type()) {
+			continue
+		}
+		item := sourceLinkItem{Name: entry.Name()}
+		item.Target, err = utils.ResolveLinkTarget(path)
+		if err != nil {
+			item.Warning = err.Error()
+		} else if resolved, followed := walk.Follow.Resolve(path); followed {
+			item.Target, item.Available = resolved, true
+		} else if walk.Follow == nil {
+			item.Warning = "follow_source_links is off"
+		} else {
+			item.Warning = "target is not a directory"
+			for _, skipped := range walk.Follow.Skipped() {
+				if skipped.Name == item.Name {
+					item.Warning = skipped.Reason
+					break
+				}
+			}
+		}
+		links = append(links, item)
+	}
+	return links, nil
 }
 
 func (s *Server) handleCreateSourceLink(w http.ResponseWriter, r *http.Request) {

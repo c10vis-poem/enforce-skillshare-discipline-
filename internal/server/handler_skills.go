@@ -83,9 +83,16 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	var items []skillItem
+	sourceLinks := []sourceLinkItem{}
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
+		var err error
+		sourceLinks, err = listSourceLinks(source, walk)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -165,7 +172,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, linked := dashboardRepos(source, walk)
-	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
+	writeJSON(w, map[string]any{"resources": items, "sourceLinks": sourceLinks, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
 }
 
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {

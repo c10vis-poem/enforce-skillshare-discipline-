@@ -51,6 +51,8 @@ export interface Skill {
 export interface SourceLink {
   name: string;
   target: string;
+  available?: boolean;
+  warning?: string;
 }
 
 export interface SkillPattern {

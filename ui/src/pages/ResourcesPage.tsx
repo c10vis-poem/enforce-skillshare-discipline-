@@ -240,6 +240,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
 
   const all = data?.resources ?? EMPTY;
   const items = useMemo(() => all.filter((s) => s.kind === kind), [all, kind]);
+  const sourceLinks = useMemo(() => isAgent ? [] : data?.sourceLinks ?? [], [isAgent, data?.sourceLinks]);
 
   const targetIndex = useMemo(() => byTargetOrProject(syncedByTarget(items, matrix)), [items, matrix]);
   // A target that stopped appearing (kind switch, uninstall) would filter everything out.
@@ -275,9 +276,9 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     ), sort);
   }, [items, query, source, status, sort, activeTarget, targetIndex, activeFolder]);
 
-  const groups = useMemo(() => groupBySource(filtered), [filtered]);
-  const folderGroups = useMemo(() => groupByFolder(filtered), [filtered]);
-  const tree = useMemo(() => buildTree(filtered), [filtered]);
+  const groups = useMemo(() => groupBySource(filtered, sourceLinks), [filtered, sourceLinks]);
+  const folderGroups = useMemo(() => groupByFolder(filtered, sourceLinks), [filtered, sourceLinks]);
+  const tree = useMemo(() => buildTree(filtered, sourceLinks), [filtered, sourceLinks]);
   const treeRows = useMemo(() => flattenTree(tree, collapsed, filtering), [tree, collapsed, filtering]);
   const shownTreeRows = useMemo(() => {
     let left = limit;
@@ -291,10 +292,10 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const byName = useMemo(() => new Map(items.map((s) => [s.flatName, s])), [items]);
   const treeSkills = useMemo(() => selectedSkills(tree, treeSel, byName), [tree, treeSel, byName]);
   const paneSubject = useMemo((): PaneSubject => {
-    if (treeSkills.length === 0) return { type: 'none' };
     const [only] = treeSel.size === 1 ? treeSel : [];
     const node = only?.startsWith('f:') ? findFolder(tree, only.slice(2)) : undefined;
     if (node) return { type: 'folder', node, skills: treeSkills };
+    if (treeSkills.length === 0) return { type: 'none' };
     if (only) return { type: 'skill', skill: treeSkills[0] };
     return { type: 'multi', skills: treeSkills };
   }, [tree, treeSel, treeSkills]);
@@ -513,7 +514,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     <Tooltip content={t('sourceLinks.unlink')}>
       {/* Reads as the link it is; only hover or focus turns it into the unlink action. */}
       <button type="button" className="ss-ib group hover:!text-bad focus-visible:!text-bad" aria-label={t('sourceLinks.unlink')}
-        onClick={() => setUnlinking(link)}>
+        onClick={(e) => { e.stopPropagation(); setUnlinking(link); }} onKeyDown={(e) => e.stopPropagation()}>
         <Link2 size={16} className="group-hover:hidden group-focus-visible:hidden" />
         <Unlink2 size={16} className="hidden group-hover:block group-focus-visible:block" />
       </button>
@@ -522,7 +523,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
 
   const groupHead = (g: Group, asLabel: boolean) => {
     const Icon = g.link ? Link2 : SOURCE_ICON[g.source];
-    const meta = [countLabel(t, kind, g.items.length), g.repo && !g.link ? g.items[0].branch : ''];
+    const meta = [g.link?.warning ?? countLabel(t, kind, g.items.length), g.repo && !g.link ? g.items[0].branch : ''];
     return (
       <div key={`g:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'} onContextMenu={g.link ? undefined : (e) => openGroupMenu(e, g.repo)}>
         <Icon size={15} className="shrink-0 text-ink-2" />
@@ -544,7 +545,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       <b className={g.key ? 'font-mono' : ''}>{g.link ? g.link.name : folderName(g.key)}</b>
       {g.repo && !g.link && <span className="ss-tag">tracked</span>}
       {g.link && <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span>}
-      <span className="shrink-0 text-ink-3">{countLabel(t, kind, g.items.length)}</span>
+      <span className="shrink-0 text-ink-3">{g.link?.warning ?? countLabel(t, kind, g.items.length)}</span>
       {g.link && !isAgent && <><span className="flex-1" />{unlinkButton(g.link)}</>}
     </div>
   );
@@ -609,7 +610,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const shown = Math.min(limit, total);
   let content: React.ReactNode;
 
-  if (items.length === 0 || filtered.length === 0) {
+  if (filtered.length === 0 && sourceLinks.length === 0) {
     content = items.length === 0 ? (
       <EmptyState
         icon={isAgent ? Bot : Puzzle}
@@ -645,7 +646,10 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
         ))}
       </div>
     ) : (
-      <div className="ss-tiles">{filtered.slice(0, limit).map(card)}</div>
+      <>
+        {groups.filter((g) => g.link && g.items.length === 0).map((g) => groupHead(g, true))}
+        <div className="ss-tiles">{filtered.slice(0, limit).map(card)}</div>
+      </>
     );
   } else if (view === 'tree') {
     const subject = paneSubject;
@@ -662,6 +666,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
             onSelect={selectNode}
             onToggleFolder={toggleFolder}
             onOpen={(s) => navigate(resourceHref(s))}
+            renderUnlink={unlinkButton}
             onContextMenu={isAgent ? undefined : (e, row) => {
               if (row.type === 'item') openItemMenu(e, row.skill);
               else if (row.repo && !row.node.link) openGroupMenu(e, row.node.path);
@@ -728,7 +733,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     } else if (group === 'folder') {
       body = limitGroups(folderGroups, limit).map((g) => [folderHead(g, false), ...g.items.map((s) => itemRow(s))]);
     } else {
-      body = filtered.slice(0, limit).map((s) => itemRow(s));
+      body = <>{groups.filter((g) => g.link && g.items.length === 0).map((g) => groupHead(g, false))}{filtered.slice(0, limit).map((s) => itemRow(s))}</>;
     }
     content = <div className="ss-list">{header}{body}</div>;
   }

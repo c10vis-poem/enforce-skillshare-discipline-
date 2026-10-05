@@ -53,7 +53,7 @@ export function isRepoRoot(node: FolderNode): boolean {
   return !node.path.includes('/') && node.name.startsWith('_');
 }
 
-export function buildTree(skills: Skill[]): FolderNode {
+export function buildTree(skills: Skill[], links: SourceLink[] = []): FolderNode {
   const root: FolderNode = { name: '', path: '', children: new Map(), skills: [], count: 0 };
   for (const skill of skills) {
     const link = sourceLinkOf(skill);
@@ -71,6 +71,11 @@ export function buildTree(skills: Skill[]): FolderNode {
       }
     }
     node.skills.push(skill);
+  }
+  for (const link of links) {
+    const node = root.children.get(link.name);
+    if (node) node.link = link;
+    else root.children.set(link.name, { name: link.name, path: link.name, children: new Map(), skills: [], count: 0, link });
   }
   const finish = (node: FolderNode): number => {
     node.count = node.skills.length;

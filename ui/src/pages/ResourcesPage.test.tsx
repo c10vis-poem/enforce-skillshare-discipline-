@@ -279,6 +279,30 @@ describe('Unlink folder', () => {
     vi.mocked(api.getSyncMatrix).mockResolvedValue({ entries: [] } as unknown as Awaited<ReturnType<typeof api.getSyncMatrix>>);
   });
 
+  it.each(['list', 'cards', 'tree'])('unlinks an empty standalone link in %s view', async (view) => {
+    localStorage.setItem('skillshare:skills-view', view);
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [], sourceLinks: [{ name: 'team', target: '/work/team', available: true }] });
+    mount();
+    await screen.findByText('/work/team');
+    const header = view === 'tree' ? await row('team') : linkedHeader();
+    if (view === 'tree') fireEvent.click(header);
+    expect(within(header).getByText('0 skills')).toBeInTheDocument();
+    fireEvent.click(within(header).getByRole('button', { name: 'Unlink' }));
+    const dialog = screen.getByRole('dialog', { name: 'Unlink team?' });
+    expect(within(dialog).getByText('0 skills')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unlink' }));
+    await waitFor(() => expect(api.removeSourceLink).toHaveBeenCalledWith('team'));
+    expect(api.batchUninstall).not.toHaveBeenCalled();
+  });
+
+  it.each(['list', 'cards', 'tree'])('shows an unavailable link warning in %s view', async (view) => {
+    localStorage.setItem('skillshare:skills-view', view);
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [], sourceLinks: [{ name: 'team', target: '/work/team', available: false, warning: 'target is missing' }] });
+    mount();
+    expect(await screen.findByText('target is missing')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unlink' })).toBeEnabled();
+  });
+
   it('shows the link icon, the target and a muted icon-only Unlink button', async () => {
     vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: false }, LINKED[1]] });
     mount();
