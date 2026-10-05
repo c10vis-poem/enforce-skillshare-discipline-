@@ -82,6 +82,42 @@ func (f *Follow) firstLevel(path string) bool {
 	return utils.PathsEqual(filepath.Dir(path), f.root)
 }
 
+// Resolve maps a logical path whose first-level component under the source
+// root is a followed link onto its real location, e.g. <source>/_dev-skills/foo
+// to <checkout>/foo. ok is false when the path is not below a first-level link
+// or the link is one this policy skips; callers then use path as is. The
+// source root in path may be spelled through its own links.
+func (f *Follow) Resolve(path string) (string, bool) {
+	if f == nil {
+		return "", false
+	}
+	link, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	var tail []string
+	for {
+		parent := filepath.Dir(link)
+		if parent == link {
+			return "", false
+		}
+		if utils.PathsEqual(utils.ResolveSymlink(parent), f.root) {
+			break
+		}
+		tail = append([]string{filepath.Base(link)}, tail...)
+		link = parent
+	}
+	info, err := os.Lstat(link)
+	if err != nil || !utils.IsLinkMode(link, info.Mode()) {
+		return "", false
+	}
+	target, _, ok := f.check(link)
+	if !ok {
+		return "", false
+	}
+	return filepath.Join(append([]string{target}, tail...)...), true
+}
+
 // check reports whether the link at path is followed, with its canonical
 // target and a directory FileInfo carrying the link's own name.
 func (f *Follow) check(path string) (string, os.FileInfo, bool) {
