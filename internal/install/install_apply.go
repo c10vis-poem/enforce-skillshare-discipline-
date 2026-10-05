@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -260,7 +261,7 @@ func installFromLocal(source *Source, destPath string, result *InstallResult, op
 	if opts.skillFileOnly {
 		meta.Layout = LayoutSkillFile
 	}
-	if hashes, hashErr := ComputeFileHashes(destPath); hashErr == nil {
+	if hashes, hashErr := ComputeFileHashes(destPath, opts.SourceFollow); hashErr == nil {
 		meta.FileHashes = hashes
 	}
 	if err := WriteMetaToStore(opts.SourceDir, destPath, meta); err != nil {
@@ -305,7 +306,7 @@ func installFromGit(source *Source, destPath string, result *InstallResult, opts
 	if hash, err := getGitCommit(destPath); err == nil {
 		meta.Version = hash
 	}
-	if hashes, hashErr := ComputeFileHashes(destPath); hashErr == nil {
+	if hashes, hashErr := ComputeFileHashes(destPath, opts.SourceFollow); hashErr == nil {
 		meta.FileHashes = hashes
 	}
 	if err := WriteMetaToStore(opts.SourceDir, destPath, meta); err != nil {
@@ -452,7 +453,7 @@ func installFromDiscoveryInternal(discovery *DiscoveryResult, skill SkillInfo, d
 	}
 
 	if writeMeta {
-		if err := writeDiscoveredSkillMetadata(discovery, skill, destPath, opts.SourceDir, fullSource, fullSubdir); err != nil {
+		if err := writeDiscoveredSkillMetadata(discovery, skill, destPath, opts.SourceDir, fullSource, fullSubdir, opts.SourceFollow); err != nil {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("failed to write metadata: %v", err))
 		}
 	}
@@ -461,7 +462,7 @@ func installFromDiscoveryInternal(discovery *DiscoveryResult, skill SkillInfo, d
 	return result, nil
 }
 
-func writeDiscoveredSkillMetadata(discovery *DiscoveryResult, skill SkillInfo, destPath, sourceDir, fullSource, fullSubdir string) error {
+func writeDiscoveredSkillMetadata(discovery *DiscoveryResult, skill SkillInfo, destPath, sourceDir, fullSource, fullSubdir string, follow ...*sourcewalk.Follow) error {
 	source := &Source{
 		Type:     discovery.Source.Type,
 		Raw:      fullSource,
@@ -482,7 +483,7 @@ func writeDiscoveredSkillMetadata(discovery *DiscoveryResult, skill SkillInfo, d
 	if fullSubdir != "" {
 		meta.TreeHash = getSubdirTreeHash(sourceRoot, fullSubdir)
 	}
-	if hashes, hashErr := ComputeFileHashes(destPath); hashErr == nil {
+	if hashes, hashErr := ComputeFileHashes(destPath, follow...); hashErr == nil {
 		meta.FileHashes = hashes
 	}
 	return WriteMetaToStore(sourceDir, destPath, meta)
@@ -623,7 +624,7 @@ func installFromGitSubdir(source *Source, destPath string, result *InstallResult
 	if resolved != "" {
 		meta.TreeHash = getSubdirTreeHash(tempRepoPath, resolved)
 	}
-	if hashes, hashErr := ComputeFileHashes(destPath); hashErr == nil {
+	if hashes, hashErr := ComputeFileHashes(destPath, opts.SourceFollow); hashErr == nil {
 		meta.FileHashes = hashes
 	}
 	if err := WriteMetaToStore(opts.SourceDir, destPath, meta); err != nil {

@@ -439,6 +439,7 @@ func moveLink(src, dst string, rename func(string, string) error) error {
 	}
 	text, readErr := os.Readlink(src)
 	if readErr == nil && filepath.IsAbs(text) {
+		target = text // Preserve absolute link text exactly, including on fallback.
 		if err := rename(src, dst); err == nil {
 			return nil
 		}

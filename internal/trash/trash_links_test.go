@@ -61,6 +61,22 @@ func TestTrashLink(t *testing.T) {
 	}
 }
 
+func TestTrashLinkListKeepsSiblings(t *testing.T) {
+	base := t.TempDir()
+	trashBase := filepath.Join(base, "trash")
+	os.MkdirAll(trashBase, 0755)
+	target := filepath.Join(base, "checkout")
+	os.MkdirAll(filepath.Join(target, "not-an-entry_2026-01-01_10-00-00"), 0755)
+	for _, name := range []string{"a", "b"} {
+		if err := os.Symlink(target, filepath.Join(trashBase, name+"_2026-01-01_10-00-00")); err != nil {
+			t.Skip(err)
+		}
+	}
+	if items := List(trashBase); len(items) != 2 {
+		t.Fatalf("links must neither hide siblings nor inventory target: %+v", items)
+	}
+}
+
 func TestTrashBrokenLink(t *testing.T) {
 	base := t.TempDir()
 	link := filepath.Join(base, "broken")

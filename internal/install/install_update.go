@@ -51,7 +51,7 @@ func handleUpdate(source *Source, destPath string, result *InstallResult, opts I
 		if !opts.SkipAudit {
 			afterHash, _ := getGitFullHash(destPath)
 			if afterHash != beforeHash {
-				scanResult, err := auditGateFailClosed(opts.SourceDir, destPath, beforeHash, threshold, opts.AuditProjectRoot, opts.AuditOverride)
+				scanResult, err := auditGateFailClosed(opts.SourceDir, destPath, beforeHash, threshold, opts.AuditProjectRoot, opts.AuditOverride, opts.SourceFollow)
 				if err != nil {
 					return nil, err
 				}
@@ -77,7 +77,7 @@ func handleUpdate(source *Source, destPath string, result *InstallResult, opts I
 		if meta.Subdir != "" {
 			meta.TreeHash = getSubdirTreeHash(destPath, meta.Subdir)
 		}
-		if hashes, hashErr := ComputeFileHashes(destPath); hashErr == nil {
+		if hashes, hashErr := ComputeFileHashes(destPath, opts.SourceFollow); hashErr == nil {
 			meta.FileHashes = hashes
 		}
 		if err := WriteMetaToStore(opts.SourceDir, destPath, meta); err != nil {
@@ -255,7 +255,7 @@ func updateRepoRootOrchestrator(source *Source, destPath string, result *Install
 	}
 
 	fullSource, fullSubdir := discoveredSkillSourceParts(discovery, rootSkill)
-	if err := writeDiscoveredSkillMetadata(discovery, rootSkill, destPath, opts.SourceDir, fullSource, fullSubdir); err != nil {
+	if err := writeDiscoveredSkillMetadata(discovery, rootSkill, destPath, opts.SourceDir, fullSource, fullSubdir, opts.SourceFollow); err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("failed to write metadata: %v", err))
 	}
 

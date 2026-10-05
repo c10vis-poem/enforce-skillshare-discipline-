@@ -231,7 +231,7 @@ func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]boo
 	// --- Skill-scope analyzers (via registry) ---
 	result.TierProfile = skillTierProfile
 	skillCtx := &AnalyzeContext{
-		SkillPath:      skillPath,
+		SkillPath:      logicalPath, // Central metadata belongs to the logical source.
 		MDFiles:        mdFiles,
 		FileCache:      fileCache,
 		TierProfile:    skillTierProfile,
