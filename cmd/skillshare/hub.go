@@ -25,7 +25,7 @@ func cmdHub(args []string) error {
 	case "index":
 		return cmdHubIndex(subargs)
 	case "add":
-		mode, rest, err := parseModeArgs(subargs)
+		mode, rest, err := parseModeArgs(subargs, "--label", "-l")
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func cmdHub(args []string) error {
 
 func cmdHubIndex(args []string) error {
 	// Parse mode flags first
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--source", "-s", "--output", "-o")
 	if err != nil {
 		return err
 	}

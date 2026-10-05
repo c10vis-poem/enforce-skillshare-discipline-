@@ -113,7 +113,7 @@ type auditJSONOutput struct {
 func cmdAudit(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--format", "--threshold", "-T", "--group", "-G", "--profile", "--dedupe", "--analyzer", "--pattern", "--severity")
 	if err != nil {
 		return err
 	}

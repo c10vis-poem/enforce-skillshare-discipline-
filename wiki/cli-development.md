@@ -28,7 +28,7 @@ Put testable core logic in `internal/<domain>/`. Do not let the CLI, Web API, an
 
 ## Global and Project Mode
 
-Most commands route through `parseModeArgs()` for global (`-g`) or project (`-p`) mode. Before changing behavior, verify:
+Most commands route through `parseModeArgs()` for global (`-g`) or project (`-p`) mode. Pass the command's value-taking option names and aliases as additional arguments (for example, `parseModeArgs(args, "--name")`) so their values cannot become mode flags. Do not include optional-value flags that reject a following flag, such as `search --hub`. The parser preserves `--` and everything after it for the command parser. Before changing behavior, verify:
 
 - whether the modes use different configuration, registry, source, or target paths;
 - whether project mode needs a separate handler;

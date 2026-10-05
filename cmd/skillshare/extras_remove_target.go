@@ -18,7 +18,7 @@ import (
 func cmdExtrasRemoveTarget(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--remove-target")
 	if err != nil {
 		return err
 	}

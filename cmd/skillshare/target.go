@@ -21,7 +21,7 @@ import (
 )
 
 func cmdTarget(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--agent", "--config-dir", "--cli", "--add-include", "--add-exclude", "--remove-include", "--remove-exclude", "--add-agent-include", "--add-agent-exclude", "--remove-agent-include", "--remove-agent-exclude", "--mode", "-m", "--agent-mode", "--target-naming", "--skills")
 	if err != nil {
 		return err
 	}

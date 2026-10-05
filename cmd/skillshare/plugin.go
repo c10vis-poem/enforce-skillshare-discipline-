@@ -102,7 +102,7 @@ func pluginAccounts(cfg *config.Config) map[string]plugin.Account {
 }
 
 func pluginContext(args []string) (*plugin.Service, []string, error) {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--target", "--from", "--plugin", "--name", "--revision", "--source-ref", "--entry")
 	if err != nil {
 		return nil, nil, err
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 func cmdNew(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--pattern", "-P")
 	if err != nil {
 		return err
 	}

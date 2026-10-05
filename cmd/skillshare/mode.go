@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"skillshare/internal/projectdir"
@@ -18,11 +19,25 @@ const (
 	modeGlobal
 )
 
-func parseModeArgs(args []string) (runMode, []string, error) {
+// parseModeArgs preserves the next token of each value-taking option for the
+// command parser, even when that value looks like a mode flag.
+func parseModeArgs(args []string, valueFlags ...string) (runMode, []string, error) {
 	mode := modeAuto
 	rest := make([]string, 0, len(args))
 
 	for i := 0; i < len(args); i++ {
+		if args[i] == "--" {
+			rest = append(rest, args[i:]...)
+			break
+		}
+		if slices.Contains(valueFlags, args[i]) {
+			rest = append(rest, args[i])
+			if i+1 < len(args) {
+				i++
+				rest = append(rest, args[i])
+			}
+			continue
+		}
 		switch args[i] {
 		case "--project", "-p":
 			if mode == modeGlobal {

@@ -120,7 +120,7 @@ func parseUpdateArgs(args []string) (*updateOptions, bool, error) {
 func cmdUpdate(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--audit-threshold", "--threshold", "-T", "--group", "-G")
 	if err != nil {
 		return err
 	}
