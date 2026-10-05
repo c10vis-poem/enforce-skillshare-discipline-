@@ -361,7 +361,8 @@ func cmdSync(args []string) error {
 	if !jsonOutput {
 		spinner = ui.StartSpinner("Discovering skills")
 	}
-	discoveredSkills, ignoreStats, discoverErr := sync.DiscoverSourceSkillsWithStatsAndContext(cfg.EffectiveSkillsSource())
+	walk := cfg.SkillsWalk()
+	discoveredSkills, ignoreStats, discoverErr := sync.DiscoverSourceSkillsWithStatsAndContext(cfg.EffectiveSkillsSource(), walk)
 	if discoverErr != nil {
 		if spinner != nil {
 			spinner.Fail("Discovery failed")
@@ -374,6 +375,12 @@ func cmdSync(args []string) error {
 	if spinner != nil {
 		spinner.Stop()
 		reportCollisions(discoveredSkills, cfg.Targets)
+	}
+	sourceIncomplete := walk.Follow.Incomplete()
+	if !jsonOutput {
+		for _, w := range sync.SourceLinkWarnings(walk, sourceIncomplete) {
+			ui.Warning("%s", w)
+		}
 	}
 
 	if !jsonOutput && hasAll {
@@ -395,7 +402,7 @@ func cmdSync(args []string) error {
 	var entries []syncTargetEntry
 	for _, name := range slices.Sorted(maps.Keys(cfg.Targets)) {
 		target := cfg.Targets[name]
-		entries = append(entries, syncTargetEntry{name: name, target: target, mode: getTargetMode(target.SkillsConfig().Mode, cfg.Mode), configErr: invalid[name]})
+		entries = append(entries, syncTargetEntry{name: name, target: target, mode: getTargetMode(target.SkillsConfig().Mode, cfg.Mode), configErr: invalid[name], sourceIncomplete: sourceIncomplete})
 	}
 
 	var results []syncTargetResult

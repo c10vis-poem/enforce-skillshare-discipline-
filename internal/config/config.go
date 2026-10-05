@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -330,6 +331,9 @@ type Config struct {
 	AgentsSource string        `yaml:"agents_source,omitempty"`
 	ExtrasSource string        `yaml:"extras_source,omitempty"`
 	Sources      GlobalSources `yaml:"sources,omitempty"`
+	// FollowSourceLinks treats directory links directly under the skills
+	// source as directories, one hop. Default false leaves them invisible.
+	FollowSourceLinks bool `yaml:"follow_source_links,omitempty"`
 	// GitRoot selects which directory the git integration (commit/push/pull)
 	// operates on. One of: "skills" (default), "agents", "extras", "root".
 	// "root" is BaseDir() and version-controls skills + agents + extras together.
@@ -362,6 +366,27 @@ type Config struct {
 	// RegistryDir is the resolved directory for registry.yaml (cached SourceRoot result).
 	// Set during Load(), not serialized to YAML.
 	RegistryDir string `yaml:"-"`
+}
+
+// SkillsWalk returns a fresh traversal policy for one operation on the skills
+// source. With FollowSourceLinks off it follows nothing.
+func (c *Config) SkillsWalk() sourcewalk.Options {
+	return SkillsWalk(c.FollowSourceLinks, c.EffectiveSkillsSource(), c.Targets)
+}
+
+// SkillsWalk builds the skills source traversal policy for one operation. The
+// skills paths of enabled targets are passed so a link onto a target is skipped.
+func SkillsWalk(follow bool, source string, targets map[string]TargetConfig) sourcewalk.Options {
+	if !follow {
+		return sourcewalk.Options{}
+	}
+	var paths []string
+	for _, t := range targets {
+		if sc := t.SkillsConfig(); sc.IsEnabled() && sc.Path != "" {
+			paths = append(paths, ExpandPath(sc.Path))
+		}
+	}
+	return sourcewalk.Options{Follow: sourcewalk.NewFollow(source, paths)}
 }
 
 // EffectiveSkillsSource returns the resolved skills source directory.

@@ -217,11 +217,11 @@ func CheckCrossPathDuplicate(sourceDir, cloneURL, targetPrefix string) error {
 // It walks subdirectories recursively so repos nested in organizational
 // directories (e.g. category/_team-repo/) are found.
 
-func getTrackedReposImpl(sourceDir string) ([]string, error) {
+func getTrackedReposImpl(sourceDir string, walk sourcewalk.Options) ([]string, error) {
 	var repos []string
 
 	walkRoot := utils.ResolveSymlink(sourceDir)
-	err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	err := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

@@ -32,6 +32,7 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 	// Snapshot source under RLock, then release before slow I/O.
 	s.mu.RLock()
 	source := s.cfg.EffectiveSkillsSource()
+	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
 	// Collect items to update based on "names" query param.
@@ -80,7 +81,7 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Update all: tracked repos + regular skills
-		repos, err := install.GetTrackedRepos(source)
+		repos, err := install.GetTrackedRepos(source, walk)
 		if err == nil {
 			for _, repo := range repos {
 				items = append(items, updateItem{
@@ -91,7 +92,7 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		s.mu.RLock()
-		skills, err := getServerUpdatableSkills(source, s.skillsStore)
+		skills, err := getServerUpdatableSkills(source, s.skillsStore, walk)
 		s.mu.RUnlock()
 		if err == nil {
 			for _, skill := range skills {

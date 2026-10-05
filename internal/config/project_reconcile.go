@@ -8,6 +8,7 @@ import (
 
 	"skillshare/internal/install"
 	"skillshare/internal/projectdir"
+	"skillshare/internal/sourcewalk"
 )
 
 // ReconcileProjectSkills scans the project source directory recursively for
@@ -28,12 +29,17 @@ func ReconcileProjectSkills(projectRoot string, projectCfg *ProjectConfig, store
 		}
 	}
 
-	result, err := reconcileSkillsWalk(sourcePath, store, onFound)
+	var walk sourcewalk.Options
+	if projectCfg != nil {
+		targets, _ := ResolveValidProjectTargets(projectRoot, projectCfg)
+		walk = SkillsWalk(projectCfg.FollowSourceLinks, sourcePath, targets)
+	}
+	result, err := reconcileSkillsWalk(sourcePath, walk, store, onFound)
 	if err != nil {
 		return fmt.Errorf("failed to scan project skills: %w", err)
 	}
 
-	if pruneStaleEntries(store, result.live) {
+	if !result.incomplete && pruneStaleEntries(store, result.live) {
 		result.changed = true
 	}
 
@@ -49,6 +55,11 @@ func ReconcileProjectSkills(projectRoot string, projectCfg *ProjectConfig, store
 		}
 	}
 
+	if result.incomplete && projectCfg != nil {
+		for _, sk := range projectCfg.Skills {
+			result.live[sk.FullName()] = true
+		}
+	}
 	if projectCfg != nil && reconcileProjectConfigSkills(projectCfg, store, result.live) {
 		if err := projectCfg.Save(projectRoot); err != nil {
 			return fmt.Errorf("failed to save project config after reconcile: %w", err)

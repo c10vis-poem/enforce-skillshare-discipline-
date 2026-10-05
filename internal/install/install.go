@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"skillshare/internal/sourcewalk"
 )
 
 // InstallOptions configures the install behavior
@@ -334,9 +336,14 @@ func GetUpdatableSkills(sourceDir string) ([]string, error) {
 	return getUpdatableSkillsImpl(sourceDir)
 }
 
-// GetTrackedRepos returns tracked repositories in the source directory.
-func GetTrackedRepos(sourceDir string) ([]string, error) {
-	return getTrackedReposImpl(sourceDir)
+// GetTrackedRepos returns tracked repositories in the source directory. An
+// optional walk policy follows first-level source links; omitted, none are.
+func GetTrackedRepos(sourceDir string, walk ...sourcewalk.Options) ([]string, error) {
+	var opts sourcewalk.Options
+	if len(walk) > 0 {
+		opts = walk[0]
+	}
+	return getTrackedReposImpl(sourceDir, opts)
 }
 
 // GetMissingTrackedRepos returns tracked metadata entries whose repo clone is absent.

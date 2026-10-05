@@ -8,6 +8,7 @@ import (
 
 	"skillshare/internal/install"
 	"skillshare/internal/sourcewalk"
+	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 	"skillshare/internal/utils"
 )
@@ -48,7 +49,7 @@ func cmdUpdateProject(args []string, root string) (*updateResult, error) {
 
 	if opts.all {
 		uc := &updateContext{sourcePath: sourcePath, projectRoot: root, opts: opts, parseOpts: parseOptsFromProjectConfig(runtime.config)}
-		return updateAllProjectSkills(uc)
+		return updateAllProjectSkills(uc, runtime.skillsWalk())
 	}
 
 	return cmdUpdateProjectBatch(sourcePath, opts, root, parseOptsFromProjectConfig(runtime.config))
@@ -171,13 +172,13 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	return &batchResult, batchErr
 }
 
-func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
+func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*updateResult, error) {
 	var targets []updateTarget
 
 	scanSpinner := ui.StartSpinner("Scanning skills...")
 	walkRoot := uc.sourcePath
 	metaStore, _ := install.LoadMetadataWithMigration(uc.sourcePath, "")
-	err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	err := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -215,6 +216,9 @@ func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
 	scanSpinner.Stop()
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan skills: %w", err)
+	}
+	for _, w := range ssync.SourceLinkWarnings(walk, false) {
+		ui.Warning("%s", w)
 	}
 
 	// Tracked repos declared in metadata but absent on disk (issue #212):

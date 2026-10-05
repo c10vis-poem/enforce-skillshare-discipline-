@@ -11,6 +11,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/oplog"
 	"skillshare/internal/sourcewalk"
+	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 	"skillshare/internal/utils"
 )
@@ -215,7 +216,8 @@ func cmdUpdate(args []string) error {
 		if metaErr != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("could not read skill metadata: %v", metaErr))
 		}
-		err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+		walk := cfg.SkillsWalk()
+		err := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 			if err != nil || path == walkRoot {
 				return nil
 			}
@@ -258,6 +260,7 @@ func cmdUpdate(args []string) error {
 			}
 			return fmt.Errorf("failed to scan skills: %w", err)
 		}
+		resolveWarnings = append(resolveWarnings, ssync.SourceLinkWarnings(walk, false)...)
 		missingRepos, _ := install.GetMissingTrackedRepos(sourcePath)
 		for _, repo := range missingRepos {
 			if !seen[repo.Name] {

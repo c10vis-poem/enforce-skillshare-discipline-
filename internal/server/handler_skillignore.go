@@ -60,7 +60,7 @@ func (s *Server) handleGetSkillignore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Always discover stats — tracked repos may have their own .skillignore
-	_, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(source)
+	_, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(source, s.skillsWalk())
 	if discoverErr == nil && stats != nil {
 		patterns := stats.Patterns
 		if patterns == nil {

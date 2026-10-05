@@ -66,7 +66,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -160,7 +160,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find the skill by flat name (exact) first, then fall back to base name.
 	if kind != "agent" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -316,7 +316,7 @@ func (s *Server) handleGetSkillFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find the skill
-	discovered, err := sync.DiscoverSourceSkills(source)
+	discovered, err := sync.DiscoverSourceSkills(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -510,7 +510,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find skill path. Disabled skills are listed in .skillignore, but the UI
 	// still shows them, so single-resource uninstall must resolve them too (#190).
-	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource())
+	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -575,7 +575,7 @@ func (s *Server) resolveTrackedRepo(input string) (string, string, error) {
 	}
 
 	// Fallback: match nested tracked repos by basename.
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource())
+	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
 	if err != nil {
 		return "", "", fmt.Errorf("failed to list tracked repositories: %w", err)
 	}

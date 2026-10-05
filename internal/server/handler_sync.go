@@ -213,10 +213,13 @@ func (s *Server) syncResources(start time.Time, dryRun, force bool, kind, projec
 	// Skill sync (skip when kind == "agent")
 	if kind != kindAgent {
 		var err error
-		allSkills, ignoreStats, err = ssync.DiscoverSourceSkillsWithStatsAndContext(s.cfg.EffectiveSkillsSource())
+		walk := s.skillsWalk()
+		allSkills, ignoreStats, err = ssync.DiscoverSourceSkillsWithStatsAndContext(s.cfg.EffectiveSkillsSource(), walk)
 		if err != nil {
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to discover skills: %w", err)
 		}
+		sourceIncomplete := walk.Follow.Incomplete()
+		warnings = append(warnings, ssync.SourceLinkWarnings(walk, sourceIncomplete)...)
 
 		if len(allSkills) == 0 {
 			warnings = append(warnings, "source directory is empty (0 skills)")
@@ -234,7 +237,7 @@ func (s *Server) syncResources(start time.Time, dryRun, force bool, kind, projec
 		}
 		runOpts := ssync.SkillRunOptions{
 			Source: s.cfg.EffectiveSkillsSource(), ProjectRoot: s.projectRoot, IgnorePatterns: ignorePatterns,
-			DryRun: dryRun, Force: force,
+			DryRun: dryRun, Force: force, SourceIncomplete: sourceIncomplete,
 		}
 		for name, target := range runTargets {
 			sc := target.SkillsConfig()
@@ -594,7 +597,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 
 	filterTarget := r.URL.Query().Get("target")
 
-	discovered, ignoreStats, err := ssync.DiscoverSourceSkillsWithStats(source)
+	discovered, ignoreStats, err := ssync.DiscoverSourceSkillsWithStats(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

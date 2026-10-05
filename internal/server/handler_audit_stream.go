@@ -35,7 +35,7 @@ func (s *Server) handleAuditStream(w http.ResponseWriter, r *http.Request) {
 	if isAgents {
 		skills, err = discoverAuditAgents(source)
 	} else {
-		skills, err = discoverAuditSkills(source)
+		skills, err = discoverAuditSkills(source, s.skillsWalk())
 	}
 	if err != nil {
 		safeSend("error", map[string]string{"error": err.Error()})

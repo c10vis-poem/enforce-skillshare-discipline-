@@ -622,7 +622,7 @@ func cmdList(args []string) error {
 		loadFn := func() listLoadResult {
 			// Always load both skills and agents — tab UI filters the view.
 			var allEntries []skillEntry
-			discovered, discErr := sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource())
+			discovered, discErr := sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 			if discErr != nil {
 				return listLoadResult{err: fmt.Errorf("cannot discover skills: %w", discErr)}
 			}
@@ -688,14 +688,14 @@ func cmdList(args []string) error {
 
 	if kind.IncludesSkills() {
 		var discErr error
-		discoveredSkills, discErr = sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource())
+		discoveredSkills, discErr = sync.DiscoverSourceSkillsAll(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 		if discErr != nil {
 			if sp != nil {
 				sp.Fail("Discovery failed")
 			}
 			return fmt.Errorf("cannot discover skills: %w", discErr)
 		}
-		trackedRepos = extractTrackedRepos(cfg.EffectiveSkillsSource())
+		trackedRepos = extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 		if sp != nil {
 			sp.Update(fmt.Sprintf("Reading metadata for %d skills...", len(discoveredSkills)))
 		}

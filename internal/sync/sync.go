@@ -9,6 +9,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/skillignore"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -48,14 +49,24 @@ func isSkillIgnored(parts []string, walkRoot string, ignoreMatchers map[string]*
 	return m.Match(strings.Join(parts[1:], "/"), false)
 }
 
+// walkOptions returns the optional traversal policy passed to a Discover
+// function. Omitted, no source links are followed.
+func walkOptions(walk []sourcewalk.Options) sourcewalk.Options {
+	if len(walk) == 0 {
+		return sourcewalk.Options{}
+	}
+	return walk[0]
+}
+
 // DiscoverSourceSkillsLite recursively scans the source directory for skills
 // without parsing SKILL.md frontmatter. Targets is always nil for each skill.
 // It also collects tracked repo paths (directories starting with _ that contain
 // .git) during the same walk, eliminating the need for a separate GetTrackedRepos call.
 //
 // Use this for commands like list/uninstall that don't need per-skill target filtering.
-func DiscoverSourceSkillsLite(sourcePath string) ([]DiscoveredSkill, []string, error) {
+func DiscoverSourceSkillsLite(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, []string, error) {
 	skills, trackedRepos, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: false,
 		collectIgnored:   false,
 		collectTracked:   true,
@@ -66,8 +77,9 @@ func DiscoverSourceSkillsLite(sourcePath string) ([]DiscoveredSkill, []string, e
 // DiscoverSourceSkills recursively scans the source directory for skills.
 // A skill is identified by the presence of a SKILL.md file.
 // Returns all discovered skills with their metadata for syncing.
-func DiscoverSourceSkills(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkills(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   false,
 		collectTracked:   false,
@@ -80,8 +92,9 @@ func DiscoverSourceSkills(sourcePath string) ([]DiscoveredSkill, error) {
 // SKILL.md files in a separate analysis phase. Skills disabled by .skillignore
 // are kept with Disabled=true, since a symlink-mode target still loads them;
 // TargetSkills drops them for every other mode.
-func DiscoverSourceSkillsForAnalyze(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkillsForAnalyze(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectContext:   true,
 		includeIgnored:   true,
@@ -92,8 +105,9 @@ func DiscoverSourceSkillsForAnalyze(sourcePath string) ([]DiscoveredSkill, error
 // DiscoverSourceSkillsWithStats recursively scans the source directory for skills
 // and collects .skillignore statistics (which files are active, patterns, ignored paths).
 // Use this for commands like doctor/status that need to report on .skillignore state.
-func DiscoverSourceSkillsWithStats(sourcePath string) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
+func DiscoverSourceSkillsWithStats(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
 	skills, _, stats, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   true,
 		collectTracked:   false,
@@ -104,8 +118,9 @@ func DiscoverSourceSkillsWithStats(sourcePath string) ([]DiscoveredSkill, *skill
 // DiscoverSourceSkillsWithStatsAndContext is like DiscoverSourceSkillsWithStats
 // but also computes DescChars/BodyChars for each skill in a single walk pass.
 // Use this for commands (e.g. sync) that need both ignore stats and context cost.
-func DiscoverSourceSkillsWithStatsAndContext(sourcePath string) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
+func DiscoverSourceSkillsWithStatsAndContext(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
 	skills, _, stats, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   true,
 		collectContext:   true,
@@ -117,8 +132,9 @@ func DiscoverSourceSkillsWithStatsAndContext(sourcePath string) ([]DiscoveredSki
 // DiscoverSourceSkillsAll scans the source directory and returns ALL skills
 // including those ignored by .skillignore. Ignored skills have Disabled=true.
 // Use this for list/UI commands that need to show disabled skills.
-func DiscoverSourceSkillsAll(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkillsAll(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		includeIgnored:   true,
 	})

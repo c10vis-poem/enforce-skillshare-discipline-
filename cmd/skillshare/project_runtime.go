@@ -5,6 +5,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/install"
+	"skillshare/internal/sourcewalk"
 )
 
 type projectRuntime struct {
@@ -67,10 +68,17 @@ func newProjectRuntime(root string, cfg *config.ProjectConfig, skip map[string]e
 // carrying host lists so that source parsing uses the project's azure_hosts / gitlab_hosts.
 func configFromProjectRuntime(r *projectRuntime) *config.Config {
 	return &config.Config{
-		Source:       r.sourcePath,
-		AgentsSource: r.agentsSourcePath,
-		Ignore:       r.config.Ignore,
-		GitLabHosts:  r.config.GitLabHosts,
-		AzureHosts:   r.config.AzureHosts,
+		Source:            r.sourcePath,
+		AgentsSource:      r.agentsSourcePath,
+		FollowSourceLinks: r.config.FollowSourceLinks,
+		Ignore:            r.config.Ignore,
+		GitLabHosts:       r.config.GitLabHosts,
+		AzureHosts:        r.config.AzureHosts,
 	}
+}
+
+// skillsWalk returns a fresh traversal policy for one operation on the
+// project's skills source.
+func (r *projectRuntime) skillsWalk() sourcewalk.Options {
+	return config.SkillsWalk(r.config.FollowSourceLinks, r.sourcePath, r.targets)
 }

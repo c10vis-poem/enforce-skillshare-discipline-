@@ -12,6 +12,7 @@ import (
 	"skillshare/internal/config"
 	"skillshare/internal/install"
 	"skillshare/internal/oplog"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 )
@@ -222,7 +223,7 @@ func cmdCheck(args []string) error {
 
 	// No names and no groups → check all (existing behavior)
 	if len(opts.names) == 0 && len(opts.groups) == 0 {
-		cmdErr := runCheck(cfg.EffectiveSkillsSource(), "", opts.json, targetNamesFromConfig(cfg.Targets))
+		cmdErr := runCheck(cfg.EffectiveSkillsSource(), "", opts.json, targetNamesFromConfig(cfg.Targets), cfg.SkillsWalk())
 		logCheckOp(cfgPath, 0, 0, 0, 0, scope, start, cmdErr)
 		return cmdErr
 	}
@@ -248,7 +249,7 @@ func logCheckOp(cfgPath string, repos, skills, updatesAvailable, errors int, sco
 	oplog.WriteWithLimit(cfgPath, oplog.OpsFile, e, logMaxEntries()) //nolint:errcheck
 }
 
-func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames []string) error {
+func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames []string, walk sourcewalk.Options) error {
 	start := time.Now()
 
 	var scanSpinner *ui.Spinner
@@ -256,7 +257,7 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 		scanSpinner = ui.StartSpinner("Scanning skills...")
 	}
 
-	repos, err := install.GetTrackedRepos(sourceDir)
+	repos, err := install.GetTrackedRepos(sourceDir, walk)
 	if err != nil {
 		repos = nil
 	}
@@ -372,7 +373,7 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 
 	// Display results + summary, with unknown target names in skill-level
 	// targets fields among the warnings
-	warnings := unknownSkillTargetWarnings(sourceDir, extraTargetNames)
+	warnings := unknownSkillTargetWarnings(sourceDir, extraTargetNames, walk)
 	renderCheckResults(repoResults, skillResults, false, warnings, start)
 
 	return nil
@@ -874,10 +875,10 @@ func singleCheckStatus(repos []checkRepoResult, skills []checkSkillResult) singl
 
 // unknownSkillTargetWarnings names skill-level targets that match no
 // configured or known target.
-func unknownSkillTargetWarnings(sourceDir string, extraTargetNames []string) []string {
+func unknownSkillTargetWarnings(sourceDir string, extraTargetNames []string, walk sourcewalk.Options) []string {
 	sp := ui.StartSpinner("Validating skill targets...")
 	defer sp.Stop()
-	discovered, err := ssync.DiscoverSourceSkills(sourceDir)
+	discovered, err := ssync.DiscoverSourceSkills(sourceDir, walk)
 	if err != nil {
 		return nil
 	}

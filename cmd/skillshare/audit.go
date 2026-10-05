@@ -46,6 +46,7 @@ type auditOptions struct {
 	PolicyProfile   string   // resolved profile name (for summary/TUI)
 	PolicyDedupe    string   // resolved dedupe mode (for summary/TUI)
 	PolicyAnalyzers []string // resolved enabled analyzers (for summary/TUI)
+	skillsWalk      sourcewalk.Options
 }
 
 // isStructured returns true if the output format is machine-readable (json/sarif/markdown).
@@ -185,6 +186,7 @@ func cmdAudit(args []string) error {
 		}
 		sourcePath = rt.sourcePath
 		agentsSourcePath = rt.agentsSourcePath
+		opts.skillsWalk = rt.skillsWalk()
 		projectRoot = cwd
 		defaultThreshold = rt.config.Audit.BlockThreshold
 		configProfile = rt.config.Audit.Profile
@@ -198,6 +200,7 @@ func cmdAudit(args []string) error {
 		}
 		sourcePath = cfg.EffectiveSkillsSource()
 		agentsSourcePath = cfg.EffectiveAgentsSource()
+		opts.skillsWalk = cfg.SkillsWalk()
 		defaultThreshold = cfg.Audit.BlockThreshold
 		configProfile = cfg.Audit.Profile
 		configDedupe = cfg.Audit.DedupeMode
@@ -236,7 +239,7 @@ func cmdAudit(args []string) error {
 	case isSinglePath:
 		results, summary, err = auditPath(opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, registry)
 	case isSingleName:
-		results, summary, err = auditSkillByName(auditScanRoot(kind, sourcePath, agentsSourcePath), opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, kind, registry)
+		results, summary, err = auditSkillByName(auditScanRoot(kind, sourcePath, agentsSourcePath), opts.Targets[0], modeString(mode), projectRoot, threshold, opts.Format, opts.PolicyLine, kind, registry, opts.skillsWalk)
 	default:
 		results, summary, err = auditFiltered(sourcePath, agentsSourcePath, opts.Targets, opts.Groups, modeString(mode), projectRoot, threshold, kind, opts, registry)
 	}
@@ -389,10 +392,10 @@ type auditSkillRef struct {
 	path string
 }
 
-func collectInstalledSkillPaths(sourcePath string) ([]auditSkillRef, error) {
+func collectInstalledSkillPaths(sourcePath string, walk sourcewalk.Options) ([]auditSkillRef, error) {
 	// Use Lite variant: audit does not need Targets (frontmatter parsing),
 	// saving ~2-5s on large source directories (skips 100k SKILL.md reads).
-	discovered, _, err := sync.DiscoverSourceSkillsLite(sourcePath)
+	discovered, _, err := sync.DiscoverSourceSkillsLite(sourcePath, walk)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover skills: %w", err)
 	}
@@ -407,7 +410,7 @@ func collectInstalledSkillPaths(sourcePath string) ([]auditSkillRef, error) {
 		skillPaths = append(skillPaths, auditSkillRef{d.FlatName, d.SourcePath})
 	}
 
-	entries, _ := sourcewalk.ReadDir(sourcePath, sourcewalk.Options{})
+	entries, _ := sourcewalk.ReadDir(sourcePath, walk)
 	for _, e := range entries {
 		if !e.IsDir() || utils.IsHidden(e.Name()) || utils.IsTrackedRepoDir(e.Name()) {
 			// Tracked hub repos are already handled by DiscoverSourceSkillsLite.
@@ -425,8 +428,8 @@ func collectInstalledSkillPaths(sourcePath string) ([]auditSkillRef, error) {
 
 // resolveSkillPath searches installed skills for a match by flat name or basename.
 // Returns the full path if found, empty string otherwise.
-func resolveSkillPath(sourcePath, name string) string {
-	skills, err := collectInstalledSkillPaths(sourcePath)
+func resolveSkillPath(sourcePath, name string, walk sourcewalk.Options) string {
+	skills, err := collectInstalledSkillPaths(sourcePath, walk)
 	if err != nil {
 		return ""
 	}
@@ -487,11 +490,11 @@ func collectInstalledAgentPaths(agentsSourcePath string) ([]auditSkillRef, error
 	return agentPaths, nil
 }
 
-func discoverForKind(kind resourceKindFilter, sourcePath string) ([]auditSkillRef, error) {
+func discoverForKind(kind resourceKindFilter, sourcePath string, skillsWalk sourcewalk.Options) ([]auditSkillRef, error) {
 	if kind == kindAgents {
 		return collectInstalledAgentPaths(sourcePath)
 	}
-	return collectInstalledSkillPaths(sourcePath)
+	return collectInstalledSkillPaths(sourcePath, skillsWalk)
 }
 
 // auditScanRoot picks the source a kind-filtered scan reads and relativizes
@@ -537,7 +540,7 @@ func auditInstalled(sourcePath, agentsSourcePath, mode, projectRoot, threshold s
 		spinner = ui.StartSpinner(fmt.Sprintf("Discovering %s...", kind.Noun(2)))
 	}
 	scanRoot := auditScanRoot(kind, sourcePath, agentsSourcePath)
-	skillPaths, err := discoverForKind(kind, scanRoot)
+	skillPaths, err := discoverForKind(kind, scanRoot, opts.skillsWalk)
 	if err != nil {
 		if spinner != nil {
 			spinner.Fail("Discovery failed")
@@ -628,6 +631,7 @@ func auditInstalled(sourcePath, agentsSourcePath, mode, projectRoot, threshold s
 	tuiCtx := &auditTUIContext{
 		kind:             kind,
 		sourcePath:       sourcePath,
+		skillsWalk:       opts.skillsWalk,
 		agentsSourcePath: agentsSourcePath,
 		projectRoot:      projectRoot,
 		threshold:        threshold,
@@ -650,7 +654,7 @@ func auditFiltered(sourcePath, agentsSourcePath string, names, groups []string, 
 	}
 
 	scanRoot := auditScanRoot(kind, sourcePath, agentsSourcePath)
-	allSkills, err := discoverForKind(kind, scanRoot)
+	allSkills, err := discoverForKind(kind, scanRoot, opts.skillsWalk)
 	if err != nil {
 		return nil, base, err
 	}
@@ -767,6 +771,7 @@ func auditFiltered(sourcePath, agentsSourcePath string, names, groups []string, 
 	tuiCtx := &auditTUIContext{
 		kind:             kind,
 		sourcePath:       sourcePath,
+		skillsWalk:       opts.skillsWalk,
 		agentsSourcePath: agentsSourcePath,
 		projectRoot:      projectRoot,
 		threshold:        threshold,
@@ -780,7 +785,7 @@ func auditFiltered(sourcePath, agentsSourcePath string, names, groups []string, 
 	return results, summary, nil
 }
 
-func auditSkillByName(sourcePath, name, mode, projectRoot, threshold, format, policyLine string, kind resourceKindFilter, reg *audit.Registry) ([]*audit.Result, auditRunSummary, error) {
+func auditSkillByName(sourcePath, name, mode, projectRoot, threshold, format, policyLine string, kind resourceKindFilter, reg *audit.Registry, skillsWalk sourcewalk.Options) ([]*audit.Result, auditRunSummary, error) {
 	summary := auditRunSummary{
 		Scope:     "single",
 		Skill:     name,
@@ -791,7 +796,7 @@ func auditSkillByName(sourcePath, name, mode, projectRoot, threshold, format, po
 	skillPath := filepath.Join(sourcePath, name)
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		// Short-name fallback: search installed skills by flat name or basename.
-		resolved := resolveSkillPath(sourcePath, name)
+		resolved := resolveSkillPath(sourcePath, name, skillsWalk)
 		if resolved == "" {
 			return nil, summary, fmt.Errorf("%s not found: %s", kind.SingularNoun(), name)
 		}

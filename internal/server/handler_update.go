@@ -466,7 +466,8 @@ func (s *Server) updateAll(force, skipAudit bool) []updateResultItem {
 	var results []updateResultItem
 
 	// Update tracked repos
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource())
+	walk := s.skillsWalk()
+	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), walk)
 	if err == nil {
 		for _, repo := range repos {
 			repoPath := filepath.Join(s.cfg.EffectiveSkillsSource(), repo)
@@ -475,7 +476,7 @@ func (s *Server) updateAll(force, skipAudit bool) []updateResultItem {
 	}
 
 	// Update regular skills with source metadata
-	skills, err := getServerUpdatableSkills(s.cfg.EffectiveSkillsSource(), s.skillsStore)
+	skills, err := getServerUpdatableSkills(s.cfg.EffectiveSkillsSource(), s.skillsStore, walk)
 	if err == nil {
 		for _, skill := range skills {
 			skillPath := filepath.Join(s.cfg.EffectiveSkillsSource(), skill)
@@ -551,10 +552,10 @@ func (s *Server) handleRehydrateTrackedRepos(w http.ResponseWriter, r *http.Requ
 
 // getServerUpdatableSkills returns relative paths of skills that have metadata with a remote source.
 // It walks the source directory recursively to find nested skills (e.g. utils/ascii-box-check).
-func getServerUpdatableSkills(sourceDir string, store *install.MetadataStore) ([]string, error) {
+func getServerUpdatableSkills(sourceDir string, store *install.MetadataStore, walk sourcewalk.Options) ([]string, error) {
 	var skills []string
 	walkRoot := utils.ResolveSymlink(sourceDir)
-	err := sourcewalk.WalkDir(walkRoot, sourcewalk.Options{}, func(path string, d os.DirEntry, err error) error {
+	err := sourcewalk.WalkDir(walkRoot, walk, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

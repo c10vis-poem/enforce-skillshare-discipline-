@@ -67,7 +67,7 @@ func (s *Server) handleBatchSetTargets(w http.ResponseWriter, r *http.Request) {
 	source := s.cfg.EffectiveSkillsSource()
 	s.mu.RUnlock()
 
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 		return
@@ -196,7 +196,7 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 	source := s.cfg.EffectiveSkillsSource()
 	s.mu.RUnlock()
 
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 		return

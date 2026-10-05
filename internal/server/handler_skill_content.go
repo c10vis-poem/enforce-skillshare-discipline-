@@ -247,7 +247,7 @@ type metadataLookup struct {
 // findMetadataEntry looks up a metadata entry by name across skills and agents stores.
 func (s *Server) findMetadataEntry(name, kind, source, agentsSource string) *metadataLookup {
 	if kind != "agent" && source != "" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 		if err == nil {
 			for _, d := range discovered {
 				if d.FlatName != name && filepath.Base(d.SourcePath) != name {
@@ -308,7 +308,7 @@ func findRepoRoot(path, root string) string {
 // Returns (absPath, resolvedKind, error).
 func (s *Server) resolveEditableSkillPath(source, agentsSource, name, kind string) (string, string, error) {
 	if kind != "agent" && source != "" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 		if err == nil {
 			for _, d := range discovered {
 				baseName := filepath.Base(d.SourcePath)

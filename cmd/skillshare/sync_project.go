@@ -58,7 +58,8 @@ func cmdSyncProject(root string, dryRun, force, jsonOutput, quiet bool) (syncLog
 	if !jsonOutput {
 		spinner = ui.StartSpinner("Discovering skills")
 	}
-	discoveredSkills, ignoreStats, discoverErr := sync.DiscoverSourceSkillsWithStatsAndContext(runtime.sourcePath)
+	walk := runtime.skillsWalk()
+	discoveredSkills, ignoreStats, discoverErr := sync.DiscoverSourceSkillsWithStatsAndContext(runtime.sourcePath, walk)
 	if discoverErr != nil {
 		if spinner != nil {
 			spinner.Fail("Discovery failed")
@@ -68,6 +69,12 @@ func cmdSyncProject(root string, dryRun, force, jsonOutput, quiet bool) (syncLog
 	if spinner != nil {
 		spinner.Stop()
 		reportCollisions(discoveredSkills, runtime.targets)
+	}
+	sourceIncomplete := walk.Follow.Incomplete()
+	if !jsonOutput {
+		for _, w := range sync.SourceLinkWarnings(walk, sourceIncomplete) {
+			ui.Warning("%s", w)
+		}
 	}
 
 	var entries []syncTargetEntry
@@ -86,7 +93,7 @@ func cmdSyncProject(root string, dryRun, force, jsonOutput, quiet bool) (syncLog
 		if mode == "" {
 			mode = "merge"
 		}
-		entries = append(entries, syncTargetEntry{name: name, target: target, mode: mode, configErr: invalid[name]})
+		entries = append(entries, syncTargetEntry{name: name, target: target, mode: mode, configErr: invalid[name], sourceIncomplete: sourceIncomplete})
 	}
 
 	var results []syncTargetResult

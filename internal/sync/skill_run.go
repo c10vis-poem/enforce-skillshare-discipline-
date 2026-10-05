@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -27,6 +28,10 @@ type SkillRunOptions struct {
 	IgnorePatterns []string
 	DryRun         bool
 	Force          bool
+	// SourceIncomplete means a followed source link could not be read, so
+	// skills are missing from the list without being removed. Nothing is
+	// pruned; linking and copying still run.
+	SourceIncomplete bool
 	// OnProgress reports copy-mode progress; nil reports nothing.
 	OnProgress func(current, total int, skill string)
 }
@@ -63,6 +68,9 @@ func SyncSkillTarget(t SkillTarget, skills []DiscoveredSkill, opts SkillRunOptio
 		}
 		res.Linked, res.Updated, res.Skipped, res.DirCreated = result.Linked, result.Updated, result.Skipped, result.DirCreated
 		res.addTargetWarnings(result.Warnings)
+		if opts.SourceIncomplete {
+			break
+		}
 		prune, err := PruneOrphanLinksWithSkills(PruneOptions{
 			TargetPath: sc.Path, SourcePath: opts.Source, Skills: skills,
 			Include: sc.Include, Exclude: sc.Exclude, TargetNaming: sc.TargetNaming, TargetName: t.Name,
@@ -81,6 +89,9 @@ func SyncSkillTarget(t SkillTarget, skills []DiscoveredSkill, opts SkillRunOptio
 		}
 		res.Linked, res.Updated, res.Skipped, res.DirCreated = result.Copied, result.Updated, result.Skipped, result.DirCreated
 		res.addTargetWarnings(result.Warnings)
+		if opts.SourceIncomplete {
+			break
+		}
 		prune, err := PruneOrphanCopiesWithSkills(sc.Path, skills, sc.Include, sc.Exclude, t.Name, sc.TargetNaming, opts.DryRun)
 		res.addPrune(prune, err)
 
@@ -103,6 +114,21 @@ func SyncSkillTarget(t SkillTarget, skills []DiscoveredSkill, opts SkillRunOptio
 		res.Err = SyncTarget(t.Name, t.Target, opts.Source, opts.DryRun, opts.ProjectRoot)
 	}
 	return res
+}
+
+// SourceLinkWarnings returns one warning per first-level source link the walk
+// did not follow. With pruneSkipped, a warning for an unavailable link also
+// says that target entries were kept.
+func SourceLinkWarnings(walk sourcewalk.Options, pruneSkipped bool) []string {
+	var warnings []string
+	for _, s := range walk.Follow.Skipped() {
+		w := s.String()
+		if pruneSkipped && s.Unavailable {
+			w += "; kept existing target entries, nothing pruned this run"
+		}
+		warnings = append(warnings, w)
+	}
+	return warnings
 }
 
 // addTargetWarnings records warnings about the target's own config.

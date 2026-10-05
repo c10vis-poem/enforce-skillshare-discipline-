@@ -12,6 +12,7 @@ import (
 	"skillshare/internal/git"
 	"skillshare/internal/install"
 	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/trash"
@@ -22,6 +23,7 @@ import (
 type uninstallMode struct {
 	sourceDir   string
 	sourceLabel string // names sourceDir in not-found errors
+	walk        sourcewalk.Options
 	trashDir    string
 	configPath  string // oplog location
 	store       *install.MetadataStore
@@ -199,7 +201,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 		if !opts.jsonOutput {
 			sp = ui.StartSpinner("Discovering skills...")
 		}
-		discovered, _, err := sync.DiscoverSourceSkillsLite(mode.sourceDir)
+		discovered, _, err := sync.DiscoverSourceSkillsLite(mode.sourceDir, mode.walk)
 		if err != nil {
 			if sp != nil {
 				sp.Fail("Discovery failed")
@@ -239,7 +241,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 	for _, name := range opts.skillNames {
 		// Glob pattern matching (e.g. "core-*", "_team-?")
 		if mode.globs && isGlobPattern(name) {
-			globMatches, globErr := resolveUninstallByGlob(name, mode.sourceDir)
+			globMatches, globErr := resolveUninstallByGlob(name, mode.sourceDir, mode.walk)
 			if globErr != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, globErr))
 				continue
@@ -260,7 +262,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 			continue
 		}
 
-		t, err := resolveUninstallTarget(name, mode.sourceDir, mode.sourceLabel)
+		t, err := resolveUninstallTarget(name, mode.sourceDir, mode.sourceLabel, mode.walk)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, err))
 			continue

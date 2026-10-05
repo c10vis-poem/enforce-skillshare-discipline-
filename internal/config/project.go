@@ -307,6 +307,9 @@ type ProjectConfig struct {
 	AzureHosts    []string             `yaml:"azure_hosts,omitempty"`
 	CNBHosts      []string             `yaml:"cnb_hosts,omitempty"`
 	GiteaHosts    []string             `yaml:"gitea_hosts,omitempty"`
+
+	// FollowSourceLinks is Config.FollowSourceLinks for the project's skills source.
+	FollowSourceLinks bool `yaml:"follow_source_links,omitempty"`
 }
 
 // EffectiveSkillsSource returns the resolved skills source directory.

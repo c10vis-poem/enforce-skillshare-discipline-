@@ -24,11 +24,11 @@ func cmdStatusProject(root string) error {
 	}
 
 	sp := ui.StartSpinner("Discovering skills...")
-	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath)
+	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, runtime.skillsWalk())
 	if discoverErr != nil {
 		discovered = nil
 	}
-	trackedRepos := extractTrackedRepos(runtime.sourcePath)
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, runtime.skillsWalk())
 	sp.Stop()
 
 	agentCount := -1
@@ -67,8 +67,8 @@ func cmdStatusProjectJSON(root string) error {
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath)
-	trackedRepos := extractTrackedRepos(runtime.sourcePath)
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, runtime.skillsWalk())
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, runtime.skillsWalk())
 
 	output.Source = statusJSONSource{
 		Path:        runtime.sourcePath,

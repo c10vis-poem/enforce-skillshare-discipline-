@@ -38,7 +38,7 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 	// Immediate feedback before the potentially slow discovery walk.
 	safeSend("discovering", map[string]string{"phase": "scanning source directory"})
 
-	repos, _ := install.GetTrackedRepos(sourceDir)
+	repos, _ := install.GetTrackedRepos(sourceDir, s.skillsWalk())
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 
 	// --- Pre-process: group skills by URL (fast, local only) ---

@@ -16,6 +16,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
 	"skillshare/internal/skillignore"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/ui"
@@ -117,11 +118,11 @@ func cmdStatus(args []string) error {
 
 	if !jsonOutput {
 		sp := ui.StartSpinner("Discovering skills...")
-		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
+		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 		if discoverErr != nil {
 			discovered = nil
 		}
-		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource())
+		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 		sp.Stop()
 
 		printSourceStatus(cfg.EffectiveSkillsSource(), cfg.EffectiveAgentsSource(), utils.FoldHomePath, len(discovered), countSourceAgents(cfg.EffectiveAgentsSource()), stats)
@@ -146,8 +147,8 @@ func cmdStatus(args []string) error {
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
-	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource())
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
+	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 
 	output.Source = statusJSONSource{
 		Path:        cfg.EffectiveSkillsSource(),
@@ -241,8 +242,8 @@ func buildSkillignoreJSON(stats *skillignore.IgnoreStats) *statusJSONSourceIgnor
 // git repositories. Using a directory walk (instead of deriving from discovered
 // skills) ensures repos with zero discoverable skills — e.g. those whose only
 // SKILL.md sits at the repo root — still appear in status output.
-func extractTrackedRepos(sourcePath string) []string {
-	repos, err := install.GetTrackedRepos(sourcePath)
+func extractTrackedRepos(sourcePath string, walk sourcewalk.Options) []string {
+	repos, err := install.GetTrackedRepos(sourcePath, walk)
 	if err != nil {
 		return nil
 	}

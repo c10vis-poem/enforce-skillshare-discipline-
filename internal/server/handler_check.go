@@ -55,7 +55,7 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 	projectRoot := s.projectRoot
 	s.mu.RUnlock()
 
-	repos, _ := install.GetTrackedRepos(sourceDir)
+	repos, _ := install.GetTrackedRepos(sourceDir, s.skillsWalk())
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 
 	var repoResults []repoCheckResult

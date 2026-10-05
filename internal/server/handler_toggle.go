@@ -132,7 +132,7 @@ func (s *Server) disabledByRelPath(kind, source, agentsSource string) (map[strin
 		}
 		return states, nil
 	}
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover skills: %w", err)
 	}
@@ -168,7 +168,7 @@ func (s *Server) resolveSkillRelPath(source, name string) (string, error) {
 // resolveSkillRelPathWithStatus is like resolveSkillRelPath but also returns
 // whether the skill is currently disabled (matched by .skillignore).
 func (s *Server) resolveSkillRelPathWithStatus(source, name string) (string, bool, error) {
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 	if err != nil {
 		return "", false, fmt.Errorf("failed to discover skills: %w", err)
 	}

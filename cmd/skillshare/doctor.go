@@ -206,11 +206,12 @@ func cmdDoctorProject(root string, jsonMode bool) error {
 	}
 
 	cfg := &config.Config{
-		Source:       rt.sourcePath,
-		AgentsSource: rt.agentsSourcePath,
-		Targets:      rt.targets,
-		Mode:         "merge",
-		Audit:        rt.config.Audit,
+		Source:            rt.sourcePath,
+		AgentsSource:      rt.agentsSourcePath,
+		FollowSourceLinks: rt.config.FollowSourceLinks,
+		Targets:           rt.targets,
+		Mode:              "merge",
+		Audit:             rt.config.Audit,
 	}
 
 	runDoctorChecks(cfg, result, true)
@@ -234,16 +235,17 @@ func cmdDoctorProject(root string, jsonMode bool) error {
 func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	// Single discovery pass for all checks (with .skillignore stats)
 	sp := ui.StartSpinner("Discovering skills...")
-	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
+	walk := cfg.SkillsWalk()
+	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
 	if discoverErr != nil {
 		discovered = nil
 	}
 	sp.Stop()
 
-	checkSource(cfg, result, discovered, discoverErr)
+	checkSource(cfg, walk, result, discovered, discoverErr)
 	checkAgentsSource(cfg, result)
 	checkSkillignore(result, stats)
-	checkUndeclaredSourceLinks(cfg.EffectiveSkillsSource(), result)
+	checkUndeclaredSourceLinks(cfg.EffectiveSkillsSource(), walk, result)
 	checkSymlinkSupport(result)
 	checkTheme(result)
 
@@ -252,7 +254,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	}
 	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject)
 
-	checkSkillsValidity(cfg.EffectiveSkillsSource(), result, discovered)
+	checkSkillsValidity(cfg.EffectiveSkillsSource(), walk, result, discovered)
 	checkSkillIntegrity(result, discovered)
 	checkSkillTargetsField(result, discovered, targetNamesFromConfig(cfg.Targets))
 	targetCache := checkTargets(cfg, result, isProject)
@@ -306,12 +308,25 @@ func checkSkillignore(result *doctorResult, stats *skillignore.IgnoreStats) {
 	result.addCheck("skillignore", checkPass, ".skillignore: "+msg, details)
 }
 
-// checkUndeclaredSourceLinks reports first-level links without following them.
-func checkUndeclaredSourceLinks(source string, result *doctorResult) {
+// checkUndeclaredSourceLinks reports first-level links by their raw identity:
+// not followed while follow_source_links is off; followed, or skipped with the
+// reason, while walk follows them.
+func checkUndeclaredSourceLinks(source string, walk sourcewalk.Options, result *doctorResult) {
 	root := utils.ResolveSymlink(source)
 	entries, err := sourcewalk.ReadDir(root, sourcewalk.Options{})
 	if err != nil {
 		return
+	}
+	followed := map[string]bool{}
+	skipped := map[string]sourcewalk.Skipped{}
+	if walk.Follow != nil {
+		view, _ := sourcewalk.ReadDir(root, walk)
+		for _, e := range view {
+			followed[e.Name()] = e.IsDir()
+		}
+		for _, s := range walk.Follow.Skipped() {
+			skipped[s.Name] = s
+		}
 	}
 	for _, entry := range entries {
 		path := filepath.Join(root, entry.Name())
@@ -319,13 +334,29 @@ func checkUndeclaredSourceLinks(source string, result *doctorResult) {
 		if err != nil || !utils.IsLinkMode(path, info.Mode()) {
 			continue
 		}
-		message := entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
+		if s, ok := skipped[entry.Name()]; ok {
+			message := entry.Name() + ": not followed: " + s.Reason
+			ui.Row(ui.MarkWarn, "Source link", message, doctorWidth)
+			result.addWarning()
+			result.addCheck("undeclared_source_links", checkWarning, message, nil)
+			continue
+		}
+		message := entry.Name() + ": followed as a directory (follow_source_links)"
+		if !followed[entry.Name()] {
+			if walk.Follow != nil {
+				continue // a link to a file is an ordinary entry
+			}
+			message = entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
+			if target, err := os.Stat(path); err != nil || target.IsDir() {
+				message += ". Set follow_source_links: true to follow it"
+			}
+		}
 		ui.Row(ui.MarkNone, "Source link", message, doctorWidth)
 		result.addInfo("undeclared_source_links", message)
 	}
 }
 
-func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
+func checkSource(cfg *config.Config, walk sourcewalk.Options, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
 	info, err := os.Stat(cfg.EffectiveSkillsSource())
 	if err != nil {
 		ui.Row(ui.MarkFail, "Source", "not found: "+shortenPath(cfg.EffectiveSkillsSource()), doctorWidth)
@@ -346,7 +377,7 @@ func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.Dis
 	if discoverErr == nil {
 		skillCount = len(discovered)
 	} else {
-		entries, _ := sourcewalk.ReadDir(cfg.EffectiveSkillsSource(), sourcewalk.Options{})
+		entries, _ := sourcewalk.ReadDir(cfg.EffectiveSkillsSource(), walk)
 		for _, e := range entries {
 			if e.IsDir() && !utils.IsHidden(e.Name()) {
 				skillCount++
@@ -825,8 +856,8 @@ func checkMissingTrackedRepos(source string, result *doctorResult, isProject boo
 	)
 }
 
-func checkSkillsValidity(source string, result *doctorResult, discovered []sync.DiscoveredSkill) {
-	entries, err := sourcewalk.ReadDir(source, sourcewalk.Options{})
+func checkSkillsValidity(source string, walk sourcewalk.Options, result *doctorResult, discovered []sync.DiscoveredSkill) {
+	entries, err := sourcewalk.ReadDir(source, walk)
 	if err != nil {
 		return
 	}
