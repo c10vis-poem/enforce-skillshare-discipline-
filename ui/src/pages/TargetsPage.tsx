@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Plus, Target as TargetIcon } from 'lucide-react';
 import { api, type Target } from '../api/client';
 import { isPiTarget } from '../api/piExtensions';
+import { isOmpTarget } from '../api/ompExtensions';
 import AgentIcon from '../components/AgentIcon';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -60,7 +61,7 @@ export default function TargetsPage() {
   const doors = (tg: Target, state: TargetState, pending: number): Door[] => {
     const base = `/targets/${encodeURIComponent(tg.name)}`;
     const servers = mcp.data ? serverCount(mcp.data, mcpClient(tg.name)) : 0;
-    const agent = hookAgentOf(tg.name);
+    const agent = hookAgentOf(tg.name, tg.agent);
     const hookN = hooks.data && agent ? hookCount(hooks.data, agent, tg.project) : 0;
     const file = shared.data?.targets.find((s) => s.name === tg.name && !s.rider_of);
     const out: Door[] = [];
@@ -68,7 +69,7 @@ export default function TargetsPage() {
     if (tg.agentPath && tg.agentLinkedCount) out.push({ key: 'agents', label: 'Agents', count: tg.agentLinkedCount, to: `${base}?tab=agents` });
     if (servers > 0) out.push({ key: 'mcp', label: 'MCP', count: servers, to: `${base}?tab=mcp` });
     if (hookN > 0) out.push({ key: 'hooks', label: 'Hooks', count: hookN, to: `${base}?tab=hooks` });
-    if (isPiTarget(tg)) out.push({ key: 'extensions', label: 'Extensions', to: `${base}?tab=extensions` });
+    if (isPiTarget(tg) || isOmpTarget(tg)) out.push({ key: 'extensions', label: 'Extensions', to: `${base}?tab=extensions` });
     // Only a connected shared file is worth a door; a target's own file is the page's business.
     if (file && file.assigned.length > 0) {
       out.push({
