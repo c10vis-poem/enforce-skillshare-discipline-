@@ -34,7 +34,13 @@ func platformIsJunction(path string) bool {
 // falls back to a symlink, so callers can restore a junction exactly.
 func CreateJunction(linkPath, sourcePath string) error {
 	var stderr bytes.Buffer
-	cmd := exec.Command("cmd", "/c", "mklink", "/J", linkPath, sourcePath)
+	cmd := exec.Command("cmd")
+	// Go quotes an argument only when it has whitespace, so a path with
+	// cmd metacharacters such as & would split into a second command. A
+	// Windows path cannot contain a double quote, so quoting both is safe.
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CmdLine: `cmd /c mklink /J "` + linkPath + `" "` + sourcePath + `"`,
+	}
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("mklink /J: %w: %s", err, strings.TrimSpace(stderr.String()))
