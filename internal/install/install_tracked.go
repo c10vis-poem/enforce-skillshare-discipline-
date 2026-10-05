@@ -172,6 +172,10 @@ func updateTrackedRepo(repoPath string, result *TrackedRepoResult, opts InstallO
 		return result, nil
 	}
 
+	if err := checkFollowedCheckoutClean(repoPath, opts); err != nil {
+		return nil, err
+	}
+
 	// Record hash before pull for rollback on audit failure
 	beforeHash, err := getGitFullHash(repoPath)
 	if err != nil {

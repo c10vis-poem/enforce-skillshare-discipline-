@@ -10,6 +10,23 @@ import (
 	"skillshare/internal/sourcewalk"
 )
 
+// Audit rollback resets the whole checkout, so followed user repositories
+// must be clean before pulling even when their edits do not conflict upstream.
+func checkFollowedCheckoutClean(repoPath string, opts InstallOptions) error {
+	checkout, followed := opts.SourceFollow.Resolve(repoPath)
+	if !followed {
+		return nil
+	}
+	status, err := gitOutput(checkout, "status", "--porcelain")
+	if err != nil {
+		return fmt.Errorf("cannot check Git status of followed checkout %s; resolve the status error and commit or stash changes before updating: %w", checkout, err)
+	}
+	if status != "" {
+		return fmt.Errorf("uncommitted changes in followed checkout %s: commit or stash them before updating", checkout)
+	}
+	return nil
+}
+
 // auditInstalledResource runs the audit gate shared by skill and agent installs.
 // scan performs the actual scan; cleanupOnBlock removes the installed artifact
 // when findings at/above threshold fire and --force is not set.

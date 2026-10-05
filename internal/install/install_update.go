@@ -28,6 +28,10 @@ func handleUpdate(source *Source, destPath string, result *InstallResult, opts I
 			return result, nil
 		}
 
+		if err := checkFollowedCheckoutClean(destPath, opts); err != nil {
+			return nil, err
+		}
+
 		threshold, err := audit.NormalizeThreshold(opts.AuditThreshold)
 		if err != nil {
 			threshold = audit.DefaultThreshold()
