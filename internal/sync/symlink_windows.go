@@ -56,11 +56,6 @@ func createLink(linkPath, sourcePath string, relative bool, sourceRoot ...string
 		}
 	}
 
-	// Keep the same logical skills tail when Developer Mode is unavailable.
-	if len(sourceRoot) > 0 {
-		absSource = linkSourcePath(absSource, sourceRoot)
-	}
-
 	if isFile {
 		if symlinkErr := os.Symlink(absSource, absTarget); symlinkErr == nil {
 			return nil

@@ -228,7 +228,7 @@ func (s *Server) handleCollect(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		opts.Walk = s.cfg.SkillsWalk()
+		opts.Walk = s.skillsWalk()
 		result, err := ssync.PullSkills(resolved, s.cfg.EffectiveSkillsSource(), opts)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "collect failed: "+err.Error())
