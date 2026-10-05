@@ -190,9 +190,29 @@ If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-
 - A link pointing at the source root or one of its ancestors is skipped.
 - A link overlapping a sync target is skipped.
 
-#### Current limits
+#### How discovery decides
 
-Dashboard content editing of a skill behind the link, `skillshare uninstall _dev-skills/<child>`, and replacing a regular skill inside the linked directory are refused by the source write boundary. Support for these writes is planned for a later change. `skillshare uninstall _dev-skills` removes the link only, never the real checkout.
+Every command that reads the source (`list`, `sync`, `update`, `status`, the dashboard) walks it through one shared walker. For each first-level entry it decides as follows:
+
+```mermaid
+flowchart TD
+    A[First-level entry under the skills source] --> B{Symlink or junction?}
+    B -- no --> C[Ordinary directory or file]
+    B -- yes --> D{follow_source_links on?}
+    D -- no --> E[Ignored; doctor reports it as not followed]
+    D -- yes --> F{Target exists and is a directory?}
+    F -- no --> G[Skipped with a warning; this run deletes nothing]
+    F -- yes --> H{Target is the source root or a parent of it?}
+    H -- yes --> I[Skipped with a warning: cycle]
+    H -- no --> J{Target overlaps a sync target?}
+    J -- yes --> K[Skipped with a warning: target overlap]
+    J -- no --> L[Treated as a directory under the link name, one level only]
+    L --> M[Skills keep logical paths such as source/_dev-skills/foo]
+```
+
+#### Writes through the link
+
+Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
 
 On Unix, committing the source repo stages the link as an absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
 
