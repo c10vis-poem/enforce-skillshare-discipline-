@@ -63,5 +63,7 @@ source recovery; target backups do not replace source version control.
   This includes read failures while traversing the target or its subdirectories,
   even after some skills have been discovered. Dashboard file lists include
   `SKILL.md` and attachments even when the followed link itself is the skill root.
+  Git worktrees and submodules with a `.git` file have the same checkout guards:
+  `update --all` skips them and the dashboard refuses to update them.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for
   managed MCP entries. Choose the resource and scope before restoring.

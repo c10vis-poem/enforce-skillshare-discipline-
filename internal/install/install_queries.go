@@ -234,8 +234,7 @@ func getTrackedReposImpl(sourceDir string, walk sourcewalk.Options) ([]string, e
 		}
 		// Look for _-prefixed directories that are git repos
 		if info.IsDir() && len(info.Name()) > 0 && info.Name()[0] == '_' {
-			gitDir := filepath.Join(path, ".git")
-			if _, statErr := os.Stat(gitDir); statErr == nil {
+			if IsGitRepo(path) {
 				relPath, relErr := filepath.Rel(walkRoot, path)
 				if relErr == nil {
 					repos = append(repos, relPath)

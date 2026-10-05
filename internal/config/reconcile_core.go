@@ -58,7 +58,7 @@ func reconcileSkillsWalk(sourcePath string, walk sourcewalk.Options, store *inst
 		}
 
 		var source string
-		tracked := isGitRepo(path)
+		tracked := install.IsGitRepo(path)
 
 		existing := store.GetByPath(fullPath)
 		if existing != nil && existing.Source != "" {
@@ -148,12 +148,6 @@ func pruneStaleEntries(store *install.MetadataStore, live map[string]bool) bool 
 		}
 	}
 	return changed
-}
-
-// isGitRepo checks if the given path is a git repository (has .git/ directory or file).
-func isGitRepo(path string) bool {
-	_, err := os.Stat(filepath.Join(path, ".git"))
-	return err == nil
 }
 
 // gitCurrentBranch returns the current branch name for a git repo, or "" on failure.
