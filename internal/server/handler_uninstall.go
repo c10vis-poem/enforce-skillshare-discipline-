@@ -157,13 +157,6 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 		return
 	}
 
-	flatNameMap := make(map[string]*sync.DiscoveredSkill, len(discovered))
-	baseNameMap := make(map[string]*sync.DiscoveredSkill, len(discovered))
-	for i := range discovered {
-		flatNameMap[discovered[i].FlatName] = &discovered[i]
-		baseNameMap[filepath.Base(discovered[i].SourcePath)] = &discovered[i]
-	}
-
 	results := make([]batchUninstallItemResult, 0, len(body.Names))
 	removedPaths := make(map[string]bool) // exact RelPaths of successfully removed items
 	var repoEntriesToRemove []string
@@ -184,17 +177,28 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			continue
 		}
 
-		skill := flatNameMap[name]
-		if skill == nil {
-			skill = baseNameMap[name]
+		repoPath := filepath.Join(source, name)
+		_, repoFollowed := walk.Follow.Resolve(repoPath)
+		managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
+		var skill *sync.DiscoveredSkill
+		if !managedRepo {
+			skill, err = resolveUninstallSkill(discovered, name)
+			if err != nil {
+				res.Error = err.Error()
+				results = append(results, res)
+				failed++
+				if firstErr == "" {
+					firstErr = res.Error
+				}
+				continue
+			}
 		}
 		followed := false
 		if skill != nil {
 			_, followed = walk.Follow.Resolve(skill.SourcePath)
 		}
-		// Resolve followed skills before interpreting the tracked-repo prefix.
-		if strings.HasPrefix(name, "_") && !followed {
-			repoPath := filepath.Join(source, name)
+		// An explicit managed repo takes precedence over a skill's basename.
+		if managedRepo || (strings.HasPrefix(name, "_") && !followed) {
 			if !install.IsGitRepo(repoPath) {
 				res.Success = false
 				res.Error = "not a tracked repository: " + name
@@ -387,4 +391,25 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 			Failed:    failed,
 		},
 	})
+}
+
+// ponytail: scan per requested name; index discovery if large batches become slow.
+func resolveUninstallSkill(discovered []sync.DiscoveredSkill, name string) (*sync.DiscoveredSkill, error) {
+	for i := range discovered {
+		if discovered[i].FlatName == name {
+			return &discovered[i], nil
+		}
+	}
+	var match *sync.DiscoveredSkill
+	var candidates []string
+	for i := range discovered {
+		if filepath.Base(discovered[i].SourcePath) == name {
+			match = &discovered[i]
+			candidates = append(candidates, match.FlatName)
+		}
+	}
+	if len(candidates) > 1 {
+		return nil, fmt.Errorf("ambiguous skill name %q: use one of %s", name, strings.Join(candidates, ", "))
+	}
+	return match, nil
 }

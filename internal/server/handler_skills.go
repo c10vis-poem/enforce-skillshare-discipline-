@@ -536,11 +536,13 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, d := range discovered {
+	d, err := resolveUninstallSkill(discovered, name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if d != nil {
 		baseName := filepath.Base(d.SourcePath)
-		if d.FlatName != name && baseName != name {
-			continue
-		}
 
 		// Followed checkouts allow single-skill removal; managed repos do not.
 		_, followed := walk.Follow.Resolve(d.SourcePath)

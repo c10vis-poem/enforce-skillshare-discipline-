@@ -111,6 +111,117 @@ func TestHandleUninstallSkill_FollowedLink(t *testing.T) {
 	testUninstallFollowedLink(t, false)
 }
 
+func TestHandleUninstallSkill_ExactNameBeforeLinkedBasename(t *testing.T) {
+	s, src := newTestServer(t)
+	addSkill(t, src, "foo")
+	target := t.TempDir()
+	addSkill(t, target, "foo")
+	if err := os.Symlink(target, filepath.Join(src, "_dev")); err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.FollowSourceLinks = true
+	if err := s.saveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	if rr, ok := uninstallLinkedSkill(t, s, "foo", false); !ok {
+		t.Fatalf("root uninstall failed: %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(src, "foo")); !os.IsNotExist(err) {
+		t.Fatalf("root skill remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "foo", "SKILL.md")); err != nil {
+		t.Fatalf("checkout skill modified: %v", err)
+	}
+	if rr, ok := uninstallLinkedSkill(t, s, "_dev__foo", false); !ok {
+		t.Fatalf("linked uninstall failed: %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(target, "foo")); !os.IsNotExist(err) {
+		t.Fatalf("linked skill remains: %v", err)
+	}
+	for _, name := range []string{"foo", "_dev/foo"} {
+		if entry := trash.FindByName(s.trashBase(), name); entry == nil {
+			t.Fatalf("missing trash entry: %s", name)
+		}
+	}
+}
+
+func TestHandleUninstallSkill_AmbiguousLinkedBasename(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		t.Run(map[bool]string{false: "single", true: "batch"}[batch], func(t *testing.T) {
+			s, src := newTestServer(t)
+			for _, name := range []string{"_a", "_b"} {
+				target := t.TempDir()
+				addSkill(t, target, "foo")
+				if err := os.Symlink(target, filepath.Join(src, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			s.cfg.FollowSourceLinks = true
+			if err := s.saveConfig(); err != nil {
+				t.Fatal(err)
+			}
+			rr, ok := uninstallLinkedSkill(t, s, "foo", batch)
+			if ok || (!batch && rr.Code != http.StatusBadRequest) || !strings.Contains(rr.Body.String(), "ambiguous skill name") {
+				t.Fatalf("expected ambiguity refusal: %d: %s", rr.Code, rr.Body.String())
+			}
+			for _, name := range []string{"_a", "_b"} {
+				if !strings.Contains(rr.Body.String(), name+"__foo") {
+					t.Fatalf("ambiguity missing flat name %s: %s", name, rr.Body.String())
+				}
+				if _, err := os.Stat(filepath.Join(src, name, "foo", "SKILL.md")); err != nil {
+					t.Fatalf("ambiguous skill modified: %v", err)
+				}
+			}
+			if items := trash.List(s.trashBase()); len(items) != 0 {
+				t.Fatalf("ambiguous skill trashed: %+v", items)
+			}
+		})
+	}
+}
+
+func TestHandleBatchUninstall_RepoBeforeLinkedBasename(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "_team")
+	addSkill(t, filepath.Join(src, "_team"), "foo")
+	target := t.TempDir()
+	addSkill(t, target, "_team")
+	if err := os.Symlink(target, filepath.Join(src, "_dev")); err != nil {
+		t.Fatal(err)
+	}
+	s.cfg.FollowSourceLinks = true
+	if err := s.saveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(batchUninstallRequest{Names: []string{"_team"}, Force: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/uninstall/batch", bytes.NewReader(body)))
+	var resp struct {
+		Summary batchUninstallSummary `json:"summary"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if rr.Code != http.StatusOK || resp.Summary.Succeeded != 1 || resp.Summary.Failed != 0 {
+		t.Fatalf("repo uninstall failed: %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(src, "_team")); !os.IsNotExist(err) {
+		t.Fatalf("managed repo remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "_team", "SKILL.md")); err != nil {
+		t.Fatalf("checkout skill modified: %v", err)
+	}
+	entry := trash.FindByName(s.trashBase(), "_team")
+	if entry == nil {
+		t.Fatal("managed repo not in trash")
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "foo", "SKILL.md")); err != nil {
+		t.Fatalf("managed repo content missing from trash: %v", err)
+	}
+}
+
 func TestHandleBatchUninstall_FollowedLink(t *testing.T) {
 	testUninstallFollowedLink(t, true)
 }
