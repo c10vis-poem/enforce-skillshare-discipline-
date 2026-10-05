@@ -58,6 +58,8 @@ source recovery; target backups do not replace source version control.
   `target remove` for detaching targets and `uninstall` for removing source resources.
 - A symlink or junction placed directly under the skills source is ignored unless
   `follow_source_links: true` is set; then it is followed one level under its link name,
+  `skillshare link <path> [--name <name>] [--enable]` creates one after the same safety
+  checks (a junction on Windows), `skillshare unlink <name>` moves only the link to trash,
   `uninstall <link>` removes only the link, `uninstall <link>/<skill>` trashes the skill
   from the real checkout, and an unavailable link target holds back pruning.
 - Use [backup/restore](backup.md) for target snapshots and [MCP restore](mcp.md) for

@@ -13,6 +13,8 @@ skillshare のコマンド早見表です。
 | `init` | 初回セットアップ |
 | `install <source>` | Skill を追加 |
 | `uninstall <name>...` | 1 つ以上の Skill を削除 |
+| `link <path>` | 自分の Skill フォルダを Source にリンク |
+| `unlink <name>` | Source からリンクを削除 |
 | `list` | すべての Skill を一覧表示 |
 | `search <query>` | Skill を検索 |
 | `sync` | すべての Target へ反映 |

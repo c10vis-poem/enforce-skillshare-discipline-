@@ -13,6 +13,8 @@ Command cheat sheet for skillshare.
 | `init` | First-time setup |
 | `install <source>` | Add a skill |
 | `uninstall <name>...` | Remove one or more skills |
+| `link <path>` | Link a folder of your own skills into the source |
+| `unlink <name>` | Remove a link from the source |
 | `list` | List all skills |
 | `search <query>` | Search for skills |
 | `sync` | Push to all targets |

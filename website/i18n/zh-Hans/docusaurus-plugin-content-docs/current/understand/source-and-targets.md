@@ -86,7 +86,7 @@ flowchart TD
 :::tip 被 symlink 的 source 目录
 Source 目录本身也可以是一个 symlink — 在使用 dotfiles 管理工具（GNU Stow、chezmoi、yadm）时很常见。例如 `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`。skillshare 在扫描前会解析 Source 根目录，因此各命令都能基于该根目录透明地正常工作。也支持链式的 Source 根目录 symlink。
 
-Skill Source **之下**的链接是另一个需要显式开启的功能：在全局或项目配置中设置 `follow_source_links: true`，会按链接名跟随第一层的目录 symlink（Unix）或 junction（Windows）。默认值为 `false`；发现阶段会忽略这些链接，`doctor` 会将它们报告为未跟随。更深层的链接在发现阶段不会被跟随。示例、判断流程、安全防护以及经由链接的写入，参见 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
+Skill Source **之下**的链接是另一个需要显式开启的功能：在全局或项目配置中设置 `follow_source_links: true`，会按链接名跟随第一层的目录 symlink（Unix）或 junction（Windows）。[`skillshare link <path>`](../reference/commands/link.md) 可以创建这样的链接。默认值为 `false`；发现阶段会忽略这些链接，`doctor` 会将它们报告为未跟随。更深层的链接在发现阶段不会被跟随。示例、判断流程、安全防护以及经由链接的写入，参见 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
 :::
 
 **结构：**

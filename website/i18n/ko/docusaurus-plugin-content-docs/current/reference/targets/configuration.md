@@ -171,12 +171,18 @@ follow_source_links: true
 
 기본값 `false`에서는 discovery가 첫 번째 수준의 링크를 무시하며, `skillshare doctor`는 이를 따라가지 않은 것으로 보고합니다. `true`로 설정하면 디렉터리를 가리키는 첫 번째 수준의 링크는 링크 이름을 가진 해당 디렉터리로 취급됩니다. 트리 더 깊은 곳에 있는 링크는 discovery에서 따라가지 않습니다. 이 설정은 source 루트 자체를 링크하는 것과는 별개이며, 그쪽은 opt-in 없이 이미 지원됩니다.
 
-예를 들어, 기존 checkout을 source에 링크합니다:
+예를 들어, [`skillshare link`](../commands/link.md)로 기존 checkout을 source에 링크합니다:
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+이 명령은 `~/.config/skillshare/skills/_dev-skills`를 만들고, `--enable`을 주면 `follow_source_links: true`도 설정합니다. 아래 안전 장치가 건너뛸 대상은 거부하며, [`skillshare unlink _dev-skills`](../commands/unlink.md)로 링크를 다시 제거할 수 있습니다.
+
+:::note 수동 링크
+직접 만든 링크(`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`)도 같은 방식으로 따라갑니다. 이 경우 안전 장치는 만든 뒤에 `skillshare doctor`에서만 보고됩니다.
+:::
 
 `~/code/dev-skills`에 `.git` 항목이 있으면 `_dev-skills`는 tracked repo 그룹이 되고, 그 하위 항목들이 skill로 발견됩니다. sync는 다른 skill과 마찬가지로 이를 링크하거나 복사합니다. symlink 모드에서는 실제 checkout에서 편집한 파일이 target에 즉시 반영되며, copy 모드에서는 sync를 한 번 더 실행해야 합니다.
 
@@ -220,7 +226,7 @@ flowchart TD
 외장 드라이브에 checkout을 두고 source에 링크합니다:
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -244,7 +250,7 @@ Unix에서 source repo를 commit하면 checkout의 파일이 아니라 링크 �
 
 #### Windows
 
-`mklink /J`로 만든 디렉터리 junction이 의도된 방식입니다:
+디렉터리 junction이 의도된 방식입니다. `skillshare link D:\code\dev-skills`는 junction을 만들며, 개발자 모드나 관리자 권한이 필요 없습니다. junction을 만들 수 없을 때만 디렉터리 symlink로 대체합니다. junction을 직접 만들려면:
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

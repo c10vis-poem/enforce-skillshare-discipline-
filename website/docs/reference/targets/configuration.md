@@ -171,12 +171,18 @@ follow_source_links: true
 
 With the default `false`, discovery ignores first-level links and `skillshare doctor` reports them as not followed. With `true`, a first-level link to a directory is treated as that directory under its link name. Links deeper inside the tree are not followed for discovery. This setting is separate from linking the source root itself, which is already supported without opting in.
 
-For example, link an existing checkout into the source:
+For example, link an existing checkout into the source with [`skillshare link`](../commands/link.md):
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+This creates `~/.config/skillshare/skills/_dev-skills` and, with `--enable`, sets `follow_source_links: true`. The command refuses a target the safety guards below would skip, and [`skillshare unlink _dev-skills`](../commands/unlink.md) removes the link again.
+
+:::note Manual links
+A link you create yourself (`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`) is followed the same way; the guards are then only reported by `skillshare doctor` after the fact.
+:::
 
 If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
 
@@ -220,7 +226,7 @@ flowchart TD
 Keep a checkout on an external drive and link it into the source:
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -244,7 +250,7 @@ On Unix, committing the source repo stages the link entry itself, that is its ta
 
 #### Windows
 
-Directory junctions created with `mklink /J` are the intended mechanism:
+Directory junctions are the intended mechanism. `skillshare link D:\code\dev-skills` creates one, which needs no Developer Mode or elevation, and falls back to a directory symlink only when the junction cannot be made. To create the junction by hand instead:
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

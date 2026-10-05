@@ -171,12 +171,18 @@ follow_source_links: true
 
 默认值为 `false` 时，发现阶段会忽略第一层的链接，`skillshare doctor` 会将它们报告为未跟随。设为 `true` 后，第一层指向目录的链接会被当作以链接名命名的目录来处理。树中更深层的链接在发现阶段不会被跟随。这个设置与把 Source 根目录本身做成链接是两回事，后者无需开启即已支持。
 
-例如，把一个现有的 checkout 链接到 Source 中：
+例如，用 [`skillshare link`](../commands/link.md) 把一个现有的 checkout 链接到 Source 中：
 
 ```bash
-ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link ~/code/dev-skills --enable
 skillshare sync
 ```
+
+这会创建 `~/.config/skillshare/skills/_dev-skills`，加上 `--enable` 还会设置 `follow_source_links: true`。该命令会拒绝下方安全防护会跳过的目标；[`skillshare unlink _dev-skills`](../commands/unlink.md) 可再次移除该链接。
+
+:::note 手动链接
+自己创建的链接（`ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills`）也会以同样方式被跟随；此时安全防护只会在创建之后由 `skillshare doctor` 报告。
+:::
 
 如果 `~/code/dev-skills` 包含 `.git` 条目，`_dev-skills` 就会成为一个 tracked repo 分组，其子目录会被发现为 Skill。Sync 会像对待其他 Skill 一样链接或复制它们。在 symlink 模式下，在真实 checkout 中编辑文件会立即反映到 Target；copy 模式则需要再执行一次 sync。
 
@@ -220,7 +226,7 @@ flowchart TD
 把 checkout 放在外置硬盘上，并把它链接到 Source 中：
 
 ```bash
-ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare link /Volumes/Work/dev-skills --enable
 skillshare sync
 ```
 
@@ -244,7 +250,7 @@ skillshare sync
 
 #### Windows
 
-用 `mklink /J` 创建的目录 junction 是预期的做法：
+目录 junction 是预期的做法。`skillshare link D:\code\dev-skills` 会创建 junction，不需要开发者模式或管理员权限；只有在无法创建 junction 时才退而使用目录 symlink。若要手动创建 junction：
 
 ```powershell
 cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"

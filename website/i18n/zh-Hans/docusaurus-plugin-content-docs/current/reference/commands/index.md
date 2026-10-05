@@ -34,7 +34,7 @@ skillshare 全部命令的完整参考。
 
 | Category | Commands |
 |----------|----------|
-| **Core** | `init`、`install`、`uninstall`、`list`、`search`、`sync`、`status` |
+| **Core** | `init`、`install`、`uninstall`、`link`、`unlink`、`list`、`search`、`sync`、`status` |
 | **Skill Management** | `new`、`check`、`update`、`upgrade`、`enable`、`disable` |
 | **MCP Connections** | `mcp`（`add`、`edit`、`import`、`list`、`remove`、`restore`）、`sync mcp` |
 | **Plugin Management** | `plugin`（`list`、`discover`、`add`、`import`、`inspect`、`sync`、`check`、`update`、`enable`、`disable`、`remove`） |
@@ -52,6 +52,8 @@ skillshare 全部命令的完整参考。
 | [init](./init.md) | 首次设置 |
 | [install](./install.md) | 从仓库或路径添加一个 Skill |
 | [uninstall](./uninstall.md) | 移除一个 Skill |
+| [link](./link.md) | 把自己的 skills 文件夹链接到 Source |
+| [unlink](./unlink.md) | 从 Source 移除链接 |
 | [list](./list.md) | 列出所有 Skill |
 | [search](./search.md) | 搜索 Skill |
 | [sync](./sync.md) | 将 Skill 推送到所有 Target |

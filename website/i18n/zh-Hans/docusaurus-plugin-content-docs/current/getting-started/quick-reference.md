@@ -13,6 +13,8 @@ skillshare 命令速查。
 | `init` | 首次配置 |
 | `install <source>` | 添加一个 skill |
 | `uninstall <name>...` | 移除一个或多个 skills |
+| `link <path>` | 把自己的 skills 文件夹链接到 Source |
+| `unlink <name>` | 从 Source 移除链接 |
 | `list` | 列出所有 skills |
 | `search <query>` | 搜索 skills |
 | `sync` | 推送到所有 Targets |

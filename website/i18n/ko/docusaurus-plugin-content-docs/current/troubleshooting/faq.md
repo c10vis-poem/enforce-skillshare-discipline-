@@ -38,13 +38,13 @@ skillshare sync
 
 아니요. symlink된 source 루트나 target 디렉터리는 해석되어 보존됩니다. [Dotfiles Manager Compatibility](/docs/reference/commands/sync#dotfiles-manager-compatibility)를 참고하세요.
 
-skills source **안쪽**의 링크는 다릅니다. 기본적으로 discovery는 첫 번째 수준의 링크를 무시하며, `skillshare doctor`는 이를 따라가지 않은 것으로 보고합니다. global 또는 project config에서 `follow_source_links: true`를 설정하면 해당 source 바로 아래의 디렉터리 링크를 통해 skill을 한 수준만 발견합니다. 더 깊은 링크는 discovery에서 따라가지 않습니다. 안전 장치, 링크를 통한 쓰기, Windows junction 안내는 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)를 참고하세요.
+skills source **안쪽**의 링크는 다릅니다. 기본적으로 discovery는 첫 번째 수준의 링크를 무시하며, `skillshare doctor`는 이를 따라가지 않은 것으로 보고합니다. global 또는 project config에서 `follow_source_links: true`를 설정하면 해당 source 바로 아래의 디렉터리 링크를 통해 skill을 한 수준만 발견합니다. [`skillshare link <path>`](../reference/commands/link.md)는 먼저 검사한 뒤 이런 링크를 만듭니다. 더 깊은 링크는 discovery에서 따라가지 않습니다. 안전 장치, 링크를 통한 쓰기, Windows junction 안내는 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)를 참고하세요.
 
 `_dev-skills` 같은 링크된 tracked repo의 경우, `skillshare update _dev-skills`는 실제 checkout에서 git을 실행하며, `--force`는 그 checkout을 reset합니다. `skillshare uninstall _dev-skills`는 링크만 제거하고 checkout은 결코 제거하지 않습니다.
 
 ### Can I keep skills on an external drive?
 
-네, `follow_source_links: true`를 사용하면 됩니다. 드라이브에 있는 checkout을 source에 링크하세요(`ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills`). 드라이브가 마운트되어 있지 않으면 명령은 경고와 함께 링크를 건너뛰고 아무것도 삭제하지 않습니다. 해당 skill의 target 링크, 복사본, install 메타데이터는 그대로 유지됩니다. 드라이브를 마운트하고 `skillshare sync`를 다시 실행하면 재개됩니다. 마운트 경로는 안정적으로 유지하세요(macOS에서는 `/Volumes/<name>`, Windows에서는 고정 드라이브 문자). [외장 드라이브의 Skills](../reference/targets/configuration.md#skills-on-an-external-drive)를 참고하세요.
+네, `follow_source_links: true`를 사용하면 됩니다. 드라이브에 있는 checkout을 source에 링크하세요(`skillshare link /Volumes/Work/dev-skills --enable`). 드라이브가 마운트되어 있지 않으면 명령은 경고와 함께 링크를 건너뛰고 아무것도 삭제하지 않습니다. 해당 skill의 target 링크, 복사본, install 메타데이터는 그대로 유지됩니다. 드라이브를 마운트하고 `skillshare sync`를 다시 실행하면 재개됩니다. 마운트 경로는 안정적으로 유지하세요(macOS에서는 `/Volumes/<name>`, Windows에서는 고정 드라이브 문자). [외장 드라이브의 Skills](../reference/targets/configuration.md#skills-on-an-external-drive)를 참고하세요.
 
 dotfiles로 `config.yaml`을 버전 관리한다면, 경로를 절대 경로 대신 `~/...`로 유지하도록 `preserve_tilde_on_save: true`를 활성화하는 것을 고려하세요 — [Configuration](/docs/reference/targets/configuration#preserve_tilde_on_save)를 참고하세요.
 

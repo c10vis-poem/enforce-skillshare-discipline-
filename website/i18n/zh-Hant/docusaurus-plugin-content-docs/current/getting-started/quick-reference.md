@@ -13,6 +13,8 @@ skillshare 的指令速查表。
 | `init` | 首次設定 |
 | `install <source>` | 新增一個 skill |
 | `uninstall <name>...` | 移除一個或多個 skills |
+| `link <path>` | 把自己的 skills 資料夾連結進 source |
+| `unlink <name>` | 從 source 移除連結 |
 | `list` | 列出所有 skills |
 | `search <query>` | 搜尋 skills |
 | `sync` | 推送到所有 targets |
