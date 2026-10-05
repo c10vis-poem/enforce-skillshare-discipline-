@@ -417,6 +417,14 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 
 	// --- Phase 5: DRY-RUN or CONFIRM ---
 	if opts.dryRun {
+		for _, t := range targets {
+			if err := sourcefs.CheckSkillMoveOut(mode.sourceDir, t.path, mode.walk.Follow); err != nil {
+				if opts.jsonOutput {
+					return writeJSONError(err)
+				}
+				return err
+			}
+		}
 		if opts.jsonOutput {
 			dryRunNames := make([]string, len(targets))
 			for i, t := range targets {

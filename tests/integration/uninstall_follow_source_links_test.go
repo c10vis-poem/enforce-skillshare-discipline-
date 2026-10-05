@@ -3,8 +3,10 @@
 package integration
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,7 +15,7 @@ import (
 )
 
 func TestUninstall_FollowedLinkRootSkillRefused(t *testing.T) {
-	for _, args := range [][]string{{"dev"}, {"--all"}, {"dev", "--json"}} {
+	for _, args := range [][]string{{"dev"}, {"--all"}, {"dev", "--json"}, {"dev", "--dry-run"}, {"dev", "--dry-run", "--json"}} {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
 			sb := testutil.NewSandbox(t)
 			defer sb.Cleanup()
@@ -26,6 +28,18 @@ func TestUninstall_FollowedLinkRootSkillRefused(t *testing.T) {
 			result := sb.RunCLI(append([]string{"uninstall", "--force"}, args...)...)
 			result.AssertFailure(t)
 			result.AssertAnyOutputContains(t, "dev is the linked folder itself; use unlink to remove the link")
+			if slices.Contains(args, "--dry-run") && slices.Contains(args, "--json") {
+				var output struct {
+					Error   string   `json:"error"`
+					Removed []string `json:"removed"`
+				}
+				if err := json.Unmarshal([]byte(result.Stdout), &output); err != nil {
+					t.Fatalf("decode dry-run refusal: %v: %s", err, result.Stdout)
+				}
+				if output.Error != "dev is the linked folder itself; use unlink to remove the link" || len(output.Removed) != 0 {
+					t.Fatalf("dry run claimed root skill removal: %+v", output)
+				}
+			}
 			if !utils.IsSymlinkOrJunction(link) {
 				t.Fatal("link was removed")
 			}
