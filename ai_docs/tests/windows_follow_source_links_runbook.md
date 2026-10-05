@@ -83,9 +83,40 @@ still works, but git-status lines in the report differ.
 
 Report which token (full or basic-user) and architecture the result came from.
 
+## Developer Mode round (symlinks, project mode)
+
+`scripts/windows/e2e-follow-source-links-devmode.ps1` repeats the core checks with directory
+symlinks (`mklink /D`) instead of junctions and a project (`.skillshare/config.yaml` with
+`follow_source_links: true`), where the per-skill target links are relative symlinks. Enable
+Developer Mode in the guest first, as SYSTEM through `utm.sh ps`:
+
+```powershell
+reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock /v AllowDevelopmentWithoutDevLicense /t REG_DWORD /d 1 /f
+```
+
+Run it like the junction script, with `-Root C:\Users\Public\sstest\devmode` and
+`-Out C:\Users\Public\sstest\devmode.txt`. The script probes with `mklink`, not
+`New-Item -ItemType SymbolicLink`: Windows PowerShell 5.1 does not pass the
+unprivileged-create flag and fails even with Developer Mode on.
+
+Pass criteria:
+
+- `sync #1`: `_dev-skills__foo`, `_dev-skills__bar`, `_vendor__baz` and `local-skill` are
+  `LinkType=SymbolicLink` with relative targets `..\..\.skillshare\skills\<logical path>`
+  (the followed link name stays in the link text, never the checkout path) and `read=yes`.
+- `sync #2`: `foo target recreated on second sync: False` and `sync output mentions reformat: False`.
+- `simulate unmounted drive`: the `nothing pruned this run` warning, the two `_dev-skills__*`
+  links kept (`read=NO`), and `doctor -p` prints `2 links behind an unavailable source link,
+  kept until it is back` with no `prune` suggestion.
+- `global mode with Developer Mode on`: target entries are still `LinkType=Junction` with the
+  absolute logical path, and the second sync does not reformat them.
+
 ## History
 
 - 2026-10-05, ARM64 guest, full desktop-user token, head `e3c9763e1`: the first run
   on `660cc33c2` found that `filepath.EvalSymlinks` leaves a junction unresolved on
   Windows, so discovery followed the junction entry itself and found no skills;
   fixed by resolving the link text with `utils.ResolveLinkTarget` first.
+- 2026-10-05, ARM64 guest, full desktop-user token, head `8092b234b`, Developer Mode on:
+  the symlink round passed (12 `rc=0`); relative symlinks keep the logical tail, the
+  unavailable-link doctor warning shows, global mode still uses junctions.
