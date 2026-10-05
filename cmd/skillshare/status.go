@@ -16,6 +16,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
 	"skillshare/internal/skillignore"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/ui"
@@ -115,14 +116,16 @@ func cmdStatus(args []string) error {
 		return err
 	}
 
+	walk := cfg.SkillsWalk()
 	if !jsonOutput {
 		sp := ui.StartSpinner("Discovering skills...")
-		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
+		discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
 		if discoverErr != nil {
 			discovered = nil
 		}
-		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource())
+		trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), walk)
 		sp.Stop()
+		printSkippedSourceLinkWarnings(walk, false)
 
 		printSourceStatus(cfg.EffectiveSkillsSource(), cfg.EffectiveAgentsSource(), utils.FoldHomePath, len(discovered), countSourceAgents(cfg.EffectiveAgentsSource()), stats)
 		printTrackedReposStatus(cfg.EffectiveSkillsSource(), discovered, trackedRepos)
@@ -146,16 +149,17 @@ func cmdStatus(args []string) error {
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
-	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource())
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
+	trackedRepos := extractTrackedRepos(cfg.EffectiveSkillsSource(), walk)
 
+	printSkippedSourceLinkWarnings(walk, true)
 	output.Source = statusJSONSource{
 		Path:        cfg.EffectiveSkillsSource(),
 		Exists:      dirExists(cfg.EffectiveSkillsSource()),
 		Skillignore: buildSkillignoreJSON(stats),
 	}
 	output.SkillCount = len(discovered)
-	output.TrackedRepos = buildTrackedRepoJSON(cfg.EffectiveSkillsSource(), trackedRepos, discovered)
+	output.TrackedRepos = buildTrackedRepoJSON(cfg.EffectiveSkillsSource(), trackedRepos, discovered, walk)
 
 	for name, target := range cfg.Targets {
 		sc := target.SkillsConfig()
@@ -241,8 +245,8 @@ func buildSkillignoreJSON(stats *skillignore.IgnoreStats) *statusJSONSourceIgnor
 // git repositories. Using a directory walk (instead of deriving from discovered
 // skills) ensures repos with zero discoverable skills — e.g. those whose only
 // SKILL.md sits at the repo root — still appear in status output.
-func extractTrackedRepos(sourcePath string) []string {
-	repos, err := install.GetTrackedRepos(sourcePath)
+func extractTrackedRepos(sourcePath string, walk sourcewalk.Options) []string {
+	repos, err := install.GetTrackedRepos(sourcePath, walk)
 	if err != nil {
 		return nil
 	}
@@ -251,10 +255,10 @@ func extractTrackedRepos(sourcePath string) []string {
 }
 
 // buildTrackedRepoJSON builds statusJSONRepo entries with parallel git.IsDirty checks.
-func buildTrackedRepoJSON(sourcePath string, trackedRepos []string, discovered []sync.DiscoveredSkill) []statusJSONRepo {
+func buildTrackedRepoJSON(sourcePath string, trackedRepos []string, discovered []sync.DiscoveredSkill, walks ...sourcewalk.Options) []statusJSONRepo {
 	results := make([]statusJSONRepo, len(trackedRepos))
 
-	missingRepos, _ := install.GetMissingTrackedRepos(sourcePath)
+	missingRepos, _ := install.GetMissingTrackedRepos(sourcePath, walks...)
 
 	// Count skills per repo (single pass). A tracked repo may surface skills
 	// at the repo root (RelPath equals the repo name, no slash) or nested

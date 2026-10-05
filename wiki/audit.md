@@ -41,6 +41,10 @@ Mutating commands should write the operations log; read-only commands should not
 
 Compare routes in `internal/server/server.go`, `handler_*.go` files, handler tests, and `ui/src/api/client.ts`. CLI-only or API-only behavior may be intentional; inspect the product surface before reporting an issue.
 
+`GET /api/resources` returns `resources` and `sourceLinkWarnings` (one string per first-level source link skipped during discovery). Healthy resources remain in the inventory when a link is unavailable. It also returns `linked_repos: [{name, target}]` so the Updates tab knows which followed Git checkouts are user-owned before running a check.
+
+`GET /api/check` and the `done` event of `GET /api/check/stream` return the same `linked_repos` field separately from `tracked_repos`. Linked checkouts are excluded from Git checks and work-unit totals. Dashboard update endpoints return a `skipped` result for them before running Git, including force retries and skills within those checkouts.
+
 ## Report
 
 Use a concise table for each dimension:

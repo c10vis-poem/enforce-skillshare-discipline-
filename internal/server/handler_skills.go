@@ -13,6 +13,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
 	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/trash"
 	"skillshare/internal/utils"
@@ -60,13 +61,14 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	source := s.cfg.EffectiveSkillsSource()
 	agentsSource := s.agentsSource()
+	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
 	var items []skillItem
 
 	// Skills
 	if kindFilter == "" || kindFilter == "skill" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -141,7 +143,8 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]any{"resources": items})
+	_, linked := dashboardRepos(source, walk)
+	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
 }
 
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +163,8 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find the skill by flat name (exact) first, then fall back to base name.
 	if kind != "agent" {
-		discovered, err := sync.DiscoverSourceSkillsAll(source)
+		walk := s.skillsWalk()
+		discovered, err := sync.DiscoverSourceSkillsAll(source, walk)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -217,9 +221,13 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				skillMdContent = string(data)
 			}
 
-			// List all files in the skill directory
+			// List files from the followed root, keeping response paths relative to it.
+			walkRoot := d.SourcePath
+			if resolved, ok := walk.Follow.Resolve(walkRoot); ok {
+				walkRoot = resolved
+			}
 			files := make([]string, 0)
-			filepath.Walk(d.SourcePath, func(path string, info os.FileInfo, err error) error {
+			filepath.Walk(walkRoot, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return nil
 				}
@@ -227,7 +235,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 					return filepath.SkipDir
 				}
 				if !info.IsDir() {
-					rel, _ := filepath.Rel(d.SourcePath, path)
+					rel, _ := filepath.Rel(walkRoot, path)
 					// Normalize separators
 					rel = strings.ReplaceAll(rel, "\\", "/")
 					files = append(files, rel)
@@ -316,7 +324,7 @@ func (s *Server) handleGetSkillFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find the skill
-	discovered, err := sync.DiscoverSourceSkills(source)
+	discovered, err := sync.DiscoverSourceSkills(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -392,7 +400,7 @@ func (s *Server) handleUninstallRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Move to trash first — only clean gitignore after durable removal.
-	if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath); err != nil {
+	if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath, s.skillsWalk().Follow); err != nil {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
@@ -510,7 +518,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 
 	// Find skill path. Disabled skills are listed in .skillignore, but the UI
 	// still shows them, so single-resource uninstall must resolve them too (#190).
-	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource())
+	discovered, err := sync.DiscoverSourceSkillsAll(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -528,7 +536,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath); err != nil {
+		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath, s.skillsWalk().Follow); err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
@@ -553,7 +561,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 // resolveTrackedRepo resolves a repo name (flat or nested) to its directory name
 // and absolute path under s.cfg.EffectiveSkillsSource(). Returns ("", "", nil) if not found.
 // Returns a non-nil error for ambiguous matches or internal failures.
-func (s *Server) resolveTrackedRepo(input string) (string, string, error) {
+func (s *Server) resolveTrackedRepo(input string, walks ...sourcewalk.Options) (string, string, error) {
 	sourceRoot := filepath.Clean(s.cfg.EffectiveSkillsSource())
 	candidates := []string{input}
 	if !strings.HasPrefix(filepath.Base(input), "_") {
@@ -575,7 +583,13 @@ func (s *Server) resolveTrackedRepo(input string) (string, string, error) {
 	}
 
 	// Fallback: match nested tracked repos by basename.
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource())
+	var walk sourcewalk.Options
+	if len(walks) > 0 {
+		walk = walks[0]
+	} else {
+		walk = s.skillsWalk()
+	}
+	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), walk)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to list tracked repositories: %w", err)
 	}

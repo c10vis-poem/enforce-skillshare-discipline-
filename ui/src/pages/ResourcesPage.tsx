@@ -252,7 +252,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     return counts;
   }, [items]);
   const activeFolder = folder !== null && folderIndex.has(folder) ? folder : null;
-  const updateCount = useMemo(() => countUpdates(checks, updateUnits(all, kind)), [checks, all, kind]);
+  const updateCount = useMemo(() => countUpdates(checks, updateUnits(all, kind, data?.linked_repos)), [checks, all, kind, data?.linked_repos]);
   const query = search.trim();
   const isGlob = /[*?]/.test(query);
   const filtering = query !== '' || source !== 'all' || status !== 'all' || activeTarget !== 'all' || activeFolder !== null;

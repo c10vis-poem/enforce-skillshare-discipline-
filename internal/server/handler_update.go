@@ -37,7 +37,7 @@ type missingTrackedRepoInfo struct {
 
 // missingTrackedRepos returns tracked repos declared in metadata but absent on disk.
 func (s *Server) missingTrackedRepos() []missingTrackedRepoInfo {
-	repos, err := install.GetMissingTrackedRepos(s.cfg.EffectiveSkillsSource())
+	repos, err := install.GetMissingTrackedRepos(s.cfg.EffectiveSkillsSource(), s.skillsWalk())
 	if err != nil || len(repos) == 0 {
 		return nil
 	}
@@ -169,19 +169,23 @@ func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) up
 	if kind == "agent" {
 		return s.updateAgent(name, force, skipAudit)
 	}
+	walk := s.skillsWalk()
 	// Try exact skill path first (prevents basename collision with nested repos)
 	skillPath := filepath.Join(s.cfg.EffectiveSkillsSource(), name)
+	if refusal := s.refuseFollowedCheckout(name, skillPath, []*sourcewalk.Follow{walk.Follow}); refusal != nil {
+		return *refusal
+	}
 	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" {
-		return s.updateRegularSkill(name, skillPath, force, skipAudit)
+		return s.updateRegularSkill(name, skillPath, force, skipAudit, walk.Follow)
 	}
 
 	// Try tracked repo (flat, nested, or basename fallback)
-	repoName, repoPath, err := s.resolveTrackedRepo(name)
+	repoName, repoPath, err := s.resolveTrackedRepo(name, walk)
 	if err != nil {
 		return updateResultItem{Name: name, Action: "error", Message: err.Error()}
 	}
 	if repoPath != "" {
-		return s.updateTrackedRepo(repoName, repoPath, force, skipAudit)
+		return s.updateTrackedRepo(repoName, repoPath, force, skipAudit, walk.Follow)
 	}
 
 	return updateResultItem{
@@ -295,7 +299,10 @@ func (s *Server) updateAgent(name string, force, skipAudit bool) updateResultIte
 	}
 }
 
-func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool) updateResultItem {
+func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
+	if refusal := s.refuseFollowedCheckout(name, repoPath, follow); refusal != nil {
+		return *refusal
+	}
 	// Check for uncommitted changes
 	if isDirty, _ := git.IsDirty(repoPath); isDirty {
 		if !force {
@@ -348,7 +355,7 @@ func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool)
 		IsRepo:  true,
 	}
 	if !skipAudit {
-		blocked, auditResult := s.auditGateTrackedRepo(name, repoPath, info.BeforeHash, force, s.updateAuditThreshold())
+		blocked, auditResult := s.auditGateTrackedRepo(name, repoPath, info.BeforeHash, force, s.updateAuditThreshold(), follow...)
 		if blocked != nil {
 			return *blocked
 		}
@@ -364,13 +371,17 @@ func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool)
 // auditGateTrackedRepo scans a tracked repo after pull and rolls back if findings are detected
 // at or above the active threshold.
 // Returns (blocked item, audit result). blocked is non-nil when the update should be rejected.
-func (s *Server) auditGateTrackedRepo(name, repoPath, beforeHash string, force bool, threshold string) (*updateResultItem, *audit.Result) {
+func (s *Server) auditGateTrackedRepo(name, repoPath, beforeHash string, force bool, threshold string, follow ...*sourcewalk.Follow) (*updateResultItem, *audit.Result) {
 	var result *audit.Result
 	var err error
+	var policy *sourcewalk.Follow
+	if len(follow) > 0 {
+		policy = follow[0]
+	}
 	if s.IsProjectMode() {
-		result, err = audit.ScanSkillForProject(repoPath, s.projectRoot)
+		result, err = audit.ScanSkillForProject(repoPath, s.projectRoot, policy)
 	} else {
-		result, err = audit.ScanSkill(repoPath)
+		result, err = audit.ScanSkillWithFollow(repoPath, policy)
 	}
 
 	if err != nil {
@@ -410,7 +421,10 @@ func (s *Server) auditGateTrackedRepo(name, repoPath, beforeHash string, force b
 	return nil, result
 }
 
-func (s *Server) updateRegularSkill(name, skillPath string, force, skipAudit bool) updateResultItem {
+func (s *Server) updateRegularSkill(name, skillPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
+	if refusal := s.refuseFollowedCheckout(name, skillPath, follow); refusal != nil {
+		return *refusal
+	}
 	entry := s.skillsStore.GetByPath(name)
 	if entry == nil {
 		return updateResultItem{Name: name, Action: "error", Message: "no metadata found"}
@@ -433,6 +447,9 @@ func (s *Server) updateRegularSkill(name, skillPath string, force, skipAudit boo
 		SkipAudit:      skipAudit,
 		AuditThreshold: s.updateAuditThreshold(),
 		SourceDir:      sourceDir,
+	}
+	if len(follow) > 0 {
+		opts.SourceFollow = follow[0]
 	}
 	if s.IsProjectMode() {
 		opts.AuditProjectRoot = s.projectRoot
@@ -466,20 +483,21 @@ func (s *Server) updateAll(force, skipAudit bool) []updateResultItem {
 	var results []updateResultItem
 
 	// Update tracked repos
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource())
+	walk := s.skillsWalk()
+	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), walk)
 	if err == nil {
 		for _, repo := range repos {
 			repoPath := filepath.Join(s.cfg.EffectiveSkillsSource(), repo)
-			results = append(results, s.updateTrackedRepo(repo, repoPath, force, skipAudit))
+			results = append(results, s.updateTrackedRepo(repo, repoPath, force, skipAudit, walk.Follow))
 		}
 	}
 
 	// Update regular skills with source metadata
-	skills, err := getServerUpdatableSkills(s.cfg.EffectiveSkillsSource(), s.skillsStore)
+	skills, err := getServerUpdatableSkills(s.cfg.EffectiveSkillsSource(), s.skillsStore, walk)
 	if err == nil {
 		for _, skill := range skills {
 			skillPath := filepath.Join(s.cfg.EffectiveSkillsSource(), skill)
-			results = append(results, s.updateRegularSkill(skill, skillPath, force, skipAudit))
+			results = append(results, s.updateRegularSkill(skill, skillPath, force, skipAudit, walk.Follow))
 		}
 	}
 
@@ -509,6 +527,7 @@ func (s *Server) handleRehydrateTrackedRepos(w http.ResponseWriter, r *http.Requ
 	opts := install.InstallOptions{
 		AuditThreshold: s.updateAuditThreshold(),
 		SourceDir:      sourceDir,
+		SourceFollow:   s.skillsWalk().Follow,
 	}
 	if s.IsProjectMode() {
 		opts.AuditProjectRoot = s.projectRoot
@@ -551,10 +570,10 @@ func (s *Server) handleRehydrateTrackedRepos(w http.ResponseWriter, r *http.Requ
 
 // getServerUpdatableSkills returns relative paths of skills that have metadata with a remote source.
 // It walks the source directory recursively to find nested skills (e.g. utils/ascii-box-check).
-func getServerUpdatableSkills(sourceDir string, store *install.MetadataStore) ([]string, error) {
+func getServerUpdatableSkills(sourceDir string, store *install.MetadataStore, walk sourcewalk.Options) ([]string, error) {
 	var skills []string
 	walkRoot := utils.ResolveSymlink(sourceDir)
-	err := sourcewalk.WalkDir(walkRoot, sourcewalk.Options{}, func(path string, d os.DirEntry, err error) error {
+	err := sourcewalk.WalkDir(walkRoot, walk, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

@@ -77,6 +77,9 @@ Or simply re-run `skillshare init --force` (global) or `skillshare init -p --for
 # Source directory (where you edit skills)
 source: ~/.config/skillshare/skills
 
+# Follow directory links directly under the skills source (opt-in)
+# follow_source_links: true
+
 # Default sync mode for new targets
 mode: merge
 
@@ -153,6 +156,109 @@ source: ~/.config/skillshare/skills
 ```
 
 **Default:** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+Opt in to discovering skills through a symlink (Unix) or junction (Windows) placed directly under the skills source.
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Global and project config |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+With the default `false`, discovery ignores first-level links and `skillshare doctor` reports them as not followed. With `true`, a first-level link to a directory is treated as that directory under its link name. Links deeper inside the tree are not followed for discovery. This setting is separate from linking the source root itself, which is already supported without opting in.
+
+For example, link an existing checkout into the source:
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+If `~/code/dev-skills` contains a `.git` entry, `_dev-skills` becomes a tracked-repo group and its children are discovered as skills. Sync links or copies them like any other skill. In symlink mode, editing files in the real checkout is visible immediately in targets; copy mode requires another sync.
+
+Git worktrees and submodules with a `.git` file are also checkouts: `update --all` skips them, and the dashboard refuses to update them.
+
+:::warning Updates change the real checkout
+`skillshare update _dev-skills` runs git inside `~/code/dev-skills`, not a separate managed clone. `skillshare update _dev-skills --force` resets that real checkout and discards its local changes. `skillshare update --all` skips followed links with a warning for that reason, including with `--force`; update them by name. `skillshare install <url> --track --update` refuses to pull a followed checkout with uncommitted changes, because a blocking audit finding could roll it back with `git reset --hard`; commit or stash first. The dashboard never updates followed Git checkouts, including force retries; they are managed by you.
+:::
+
+#### Safety guards
+
+- A link pointing at the source root or one of its ancestors is skipped.
+- A link overlapping a sync target is skipped. This is decided from the link text, so it also applies when the target directory does not exist yet.
+- A link whose target is missing or unreadable is skipped with a warning. A read failure while traversing the target or any of its subdirectories also marks the link as unavailable, even if discovery has already returned some skills. That run performs **no pruning, orphan-copy deletion, or metadata deletion**. An unmounted external drive is safe: remount it and run sync again. `skillshare doctor` lists the dangling target links behind that source link as waiting for it, not as broken links to prune. This classification uses the stored link destination, so it also works with `target_naming: standard`.
+- A link to a file (a shared `.skillignore`, say) is not a directory link. It stays an ordinary entry and never affects pruning.
+
+#### How discovery decides
+
+Every command that reads the source (`list`, `sync`, `update`, `status`, the dashboard) walks it through one shared walker. For each first-level entry it decides as follows:
+
+```mermaid
+flowchart TD
+    A[First-level entry under the skills source] --> B{Symlink or junction?}
+    B -- no --> C[Ordinary directory or file]
+    B -- yes --> D{follow_source_links on?}
+    D -- no --> E[Ignored; doctor reports it as not followed]
+    D -- yes --> H{Link points at the source root or a parent of it?}
+    H -- yes --> I[Skipped with a warning: cycle]
+    H -- no --> J{Link points into or around a sync target?}
+    J -- yes --> K[Skipped with a warning: target overlap]
+    J -- no --> F{Target exists?}
+    F -- no --> G[Skipped with a warning; this run deletes nothing]
+    F -- yes --> N{Target is a directory?}
+    N -- no --> O[Ordinary entry, such as a link to a shared file]
+    N -- yes --> R{Target readable?}
+    R -- no --> G
+    R -- yes --> L[Treated as a directory under the link name, one level only]
+    L --> M[Skills keep logical paths such as source/_dev-skills/foo]
+```
+
+#### Skills on an external drive
+
+Keep a checkout on an external drive and link it into the source:
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+While the drive is mounted, `_dev-skills` behaves like any other tracked-repo group. When it is not mounted:
+
+- `list`, `sync`, `status`, `update --all`, `audit`, and the dashboard skip the link and print one warning naming it. `sync --json` lists it under `warnings`; `audit --format json` lists it under `warnings` and sets `incomplete: true`, so automation can tell a partial run from a complete one.
+- That run makes **no deletions**: target links and copies that came from the drive stay in place, orphan copies are not cleaned up, and install metadata for its skills is kept, because an unavailable link means the inventory is incomplete, not that the skills were removed.
+- In symlink mode, the target links point at the unmounted path, so the AI tools cannot read those skills until the drive is back. In copy mode, the copies keep working.
+- `skillshare doctor` shows those target links as waiting for the source link, as a warning, and does not suggest pruning them.
+- Nothing has to be re-registered: mount the drive and run `skillshare sync` again.
+
+The mount path must stay the same between sessions. On macOS that is `/Volumes/<name>`, so keep the volume name fixed. On Windows, a drive letter that changes between plugs leaves the junction pointing at the wrong place; assign a fixed letter in Disk Management or use a mounted folder path instead.
+
+#### Writes through the link
+
+Writes to a skill behind the link land in the real checkout: editing content in the dashboard, `skillshare install --into _dev-skills`, and replacing a regular skill inside the linked directory all change `~/code/dev-skills`. `skillshare uninstall _dev-skills/<child>` moves that child from the real checkout to the trash. `skillshare uninstall _dev-skills` removes the link entry only, never the real checkout; the trash lists the link and `restore` recreates it. `skillshare trash restore _dev-skills/<child>` puts the child back in the real checkout under the same policy, and a nested link below the checkout that leads elsewhere makes the restore fail while the trash entry is kept. Paths that would escape the checkout (`..`, or a nested link leading outside it) are still refused.
+
+When dashboard target assignment writes frontmatter, it also uses this boundary: a nested `SKILL.md` link is refused without changing its target. Batch assignment reports the refusal for that skill and continues with regular skills.
+
+Replacing a skill behind a followed link keeps the old skill until the replacement succeeds; a copy failure restores it. Links in incoming staged content are copied as real files or directories, and dangling links are skipped.
+
+When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted.
+
+`--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare uninstall _dev-skills` for the link, or name the skills to trash.
+
+On Unix, committing the source repo stages the link entry itself, that is its target text, which is usually a machine-local absolute path, not the checkout's files. Add `/_dev-skills` to the skills directory's `.gitignore`. `skillshare commit`, `push`, and `init` print a warning when a link would be staged.
+
+#### Windows
+
+Directory junctions created with `mklink /J` are the intended mechanism:
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+The drive letter must stay stable. Verified on Windows 11 ARM64 with `ai_docs/tests/windows_follow_source_links_runbook.md`.
 
 ### `mode`
 
@@ -895,6 +1001,9 @@ Project config uses a different format from global config.
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# Follow directory links directly under the project skills source (opt-in)
+# follow_source_links: true
+
 # Targets — string or object form
 targets:
   - claude                    # String: known target with defaults
@@ -919,6 +1028,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links` (project)
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Project config (`.skillshare/config.yaml`) |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+Follows directory links directly under the project skills source (normally `.skillshare/skills/`), one level only. The same [discovery behavior, safety guards, and current limits](#follow_source_links) apply as in global mode.
 
 ### `targets` (project)
 

@@ -40,7 +40,7 @@ func (s *Server) handleDiffStream(w http.ResponseWriter, r *http.Request) {
 
 	safeSend("discovering", map[string]string{"phase": "scanning source directory"})
 
-	discovered, ignoreStats, err := ssync.DiscoverSourceSkillsWithStats(source)
+	discovered, ignoreStats, err := ssync.DiscoverSourceSkillsWithStats(source, s.skillsWalk())
 	if err != nil {
 		safeSend("error", map[string]string{"error": err.Error()})
 		return

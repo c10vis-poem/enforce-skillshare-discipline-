@@ -248,7 +248,7 @@ func updateRegularSkill(uc *updateContext, skillName string) (updateResult, erro
 	// Snapshot before update for --diff
 	var beforeHashes map[string]string
 	if uc.opts.diff {
-		beforeHashes, _ = install.ComputeFileHashes(skillPath)
+		beforeHashes, _ = install.ComputeFileHashes(skillPath, uc.follow)
 	}
 
 	spinner := ui.StartSpinner("Updating " + skillName + "...")
@@ -291,7 +291,7 @@ func updateRegularSkill(uc *updateContext, skillName string) (updateResult, erro
 	renderInstallWarningsWithResult("", result.Warnings, uc.opts.auditVerbose, result)
 
 	if uc.opts.diff {
-		afterHashes, _ := install.ComputeFileHashes(skillPath)
+		afterHashes, _ := install.ComputeFileHashes(skillPath, uc.follow)
 		renderHashDiffSummary(beforeHashes, afterHashes)
 	}
 
@@ -359,7 +359,7 @@ func refreshTrackedRootSkillMetadata(uc *updateContext, repoName, repoPath strin
 		}
 		relPath = rel
 	}
-	return install.RefreshTrackedRootSkillMetadata(uc.sourcePath, filepath.ToSlash(relPath), repoPath)
+	return install.RefreshTrackedRootSkillMetadata(uc.sourcePath, filepath.ToSlash(relPath), repoPath, uc.follow)
 }
 
 // updateSkillFromMeta updates a skill using its metadata in batch mode.

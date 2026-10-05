@@ -77,6 +77,9 @@ targets:
 # Source 디렉터리 (skill을 편집하는 곳)
 source: ~/.config/skillshare/skills
 
+# skills source 바로 아래의 디렉터리 링크 따라가기 (opt-in)
+# follow_source_links: true
+
 # 새 Target의 기본 Sync 모드
 mode: merge
 
@@ -153,6 +156,109 @@ source: ~/.config/skillshare/skills
 ```
 
 **Default:** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+skills source 바로 아래에 둔 symlink(Unix) 또는 junction(Windows)을 통해 skill을 발견하도록 opt-in합니다.
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Global 및 project config |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+기본값 `false`에서는 discovery가 첫 번째 수준의 링크를 무시하며, `skillshare doctor`는 이를 따라가지 않은 것으로 보고합니다. `true`로 설정하면 디렉터리를 가리키는 첫 번째 수준의 링크는 링크 이름을 가진 해당 디렉터리로 취급됩니다. 트리 더 깊은 곳에 있는 링크는 discovery에서 따라가지 않습니다. 이 설정은 source 루트 자체를 링크하는 것과는 별개이며, 그쪽은 opt-in 없이 이미 지원됩니다.
+
+예를 들어, 기존 checkout을 source에 링크합니다:
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+`~/code/dev-skills`에 `.git` 항목이 있으면 `_dev-skills`는 tracked repo 그룹이 되고, 그 하위 항목들이 skill로 발견됩니다. sync는 다른 skill과 마찬가지로 이를 링크하거나 복사합니다. symlink 모드에서는 실제 checkout에서 편집한 파일이 target에 즉시 반영되며, copy 모드에서는 sync를 한 번 더 실행해야 합니다.
+
+`.git` 파일이 있는 Git worktree와 submodule도 체크아웃입니다. `update --all`은 이들을 건너뛰며 대시보드는 업데이트를 거부합니다.
+
+:::warning update는 실제 checkout을 변경합니다
+`skillshare update _dev-skills`는 별도의 관리형 clone이 아니라 `~/code/dev-skills` 안에서 git을 실행합니다. `skillshare update _dev-skills --force`는 그 실제 checkout을 reset하고 로컬 변경 사항을 버립니다. 같은 이유로 `skillshare update --all`은 `--force`를 지정해도 따라간 링크를 경고와 함께 건너뛰므로, 이름을 지정해 update하세요. `skillshare install <url> --track --update`는 커밋하지 않은 변경이 있는 연결된 체크아웃의 pull을 거부합니다. 차단 수준의 audit 결과로 `git reset --hard`가 실행될 수 있으므로 먼저 커밋하거나 stash하세요. 대시보드는 강제 재시도를 포함해 연결된 Git 체크아웃을 업데이트하지 않습니다. 사용자가 직접 관리합니다.
+:::
+
+#### 안전 장치 {#safety-guards}
+
+- source 루트 또는 그 상위 디렉터리를 가리키는 링크는 건너뜁니다.
+- sync target과 겹치는 링크는 건너뜁니다. 이는 링크 텍스트로 판단하므로, target 디렉터리가 아직 존재하지 않는 경우에도 적용됩니다.
+- 대상이 없거나 읽을 수 없는 링크는 경고와 함께 건너뜁니다. 대상이나 그 하위 디렉터리를 순회하는 중 읽기에 실패해도, 일부 skill이 이미 발견되었더라도 해당 링크를 사용할 수 없는 것으로 처리합니다. 그 실행에서는 **pruning, orphan 복사본 삭제, 메타데이터 삭제를 전혀 수행하지 않습니다**. 마운트되지 않은 외장 드라이브는 안전합니다. 다시 마운트하고 sync를 다시 실행하세요. `skillshare doctor`는 그 source 링크 뒤에 있는 dangling target 링크를 prune할 깨진 링크가 아니라, 해당 source 링크를 기다리는 중으로 표시합니다. 이 분류는 링크에 저장된 경로를 사용하므로 `target_naming: standard`에서도 동작합니다.
+- 파일을 가리키는 링크(예: 공유 `.skillignore`)는 디렉터리 링크가 아닙니다. 일반 항목으로 남으며 pruning에 영향을 주지 않습니다.
+
+#### discovery의 판단 방식 {#how-discovery-decides}
+
+source를 읽는 모든 명령(`list`, `sync`, `update`, `status`, 대시보드)은 하나의 공유 walker를 통해 source를 순회합니다. 첫 번째 수준의 각 항목에 대해 다음과 같이 판단합니다:
+
+```mermaid
+flowchart TD
+    A[skills source 아래의 첫 번째 수준 항목] --> B{symlink 또는 junction인가?}
+    B -- 아니오 --> C[일반 디렉터리 또는 파일]
+    B -- 예 --> D{follow_source_links가 켜져 있는가?}
+    D -- 아니오 --> E[무시됨; doctor가 따라가지 않은 것으로 보고]
+    D -- 예 --> H{링크가 source 루트 또는 그 상위를 가리키는가?}
+    H -- 예 --> I[경고와 함께 건너뜀: 순환]
+    H -- 아니오 --> J{링크가 sync target 안쪽이나 주변을 가리키는가?}
+    J -- 예 --> K[경고와 함께 건너뜀: target 겹침]
+    J -- 아니오 --> F{대상이 존재하는가?}
+    F -- 아니오 --> G[경고와 함께 건너뜀; 이 실행에서는 아무것도 삭제하지 않음]
+    F -- 예 --> N{대상이 디렉터리인가?}
+    N -- 아니오 --> O[일반 항목, 예를 들어 공유 파일에 대한 링크]
+    N -- 예 --> R{대상을 읽을 수 있는가?}
+    R -- 아니오 --> G
+    R -- 예 --> L[링크 이름을 가진 디렉터리로 취급, 한 수준만]
+    L --> M[skill은 source/_dev-skills/foo 같은 논리 경로를 유지]
+```
+
+#### 외장 드라이브의 Skills {#skills-on-an-external-drive}
+
+외장 드라이브에 checkout을 두고 source에 링크합니다:
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+드라이브가 마운트되어 있는 동안 `_dev-skills`는 다른 tracked repo 그룹과 똑같이 동작합니다. 마운트되어 있지 않을 때는:
+
+- `list`, `sync`, `status`, `update --all`, `audit`, 대시보드는 링크를 건너뛰고 그 이름을 담은 경고를 하나 출력합니다. `sync --json`은 이를 `warnings`에 나열하고, `audit --format json`은 이를 `warnings`에 나열하면서 `incomplete: true`를 설정하므로, 자동화에서 부분 실행과 완전한 실행을 구분할 수 있습니다.
+- 그 실행에서는 **아무것도 삭제하지 않습니다**: 드라이브에서 온 target 링크와 복사본은 그대로 유지되고, orphan 복사본은 정리되지 않으며, 해당 skill의 install 메타데이터도 보존됩니다. 사용할 수 없는 링크는 인벤토리가 불완전하다는 뜻이지 skill이 제거되었다는 뜻이 아니기 때문입니다.
+- symlink 모드에서는 target 링크가 마운트되지 않은 경로를 가리키므로, 드라이브가 돌아올 때까지 AI 도구가 해당 skill을 읽을 수 없습니다. copy 모드에서는 복사본이 계속 동작합니다.
+- `skillshare doctor`는 해당 target 링크를 source 링크를 기다리는 중으로 경고 수준에서 표시하며, prune을 제안하지 않습니다.
+- 다시 등록할 것은 없습니다. 드라이브를 마운트하고 `skillshare sync`를 다시 실행하세요.
+
+마운트 경로는 세션 간에 동일하게 유지되어야 합니다. macOS에서는 `/Volumes/<name>`이므로 볼륨 이름을 고정하세요. Windows에서는 연결할 때마다 드라이브 문자가 바뀌면 junction이 잘못된 위치를 가리키게 되므로, 디스크 관리에서 고정 문자를 할당하거나 마운트된 폴더 경로를 대신 사용하세요.
+
+#### 링크를 통한 쓰기 {#writes-through-the-link}
+
+링크 뒤에 있는 skill에 대한 쓰기는 실제 checkout에 반영됩니다. 대시보드에서 내용을 편집하거나, `skillshare install --into _dev-skills`를 실행하거나, 링크된 디렉터리 안의 일반 skill을 교체하는 것은 모두 `~/code/dev-skills`를 변경합니다. `skillshare uninstall _dev-skills/<child>`는 그 하위 항목을 실제 checkout에서 휴지통으로 이동합니다. `skillshare uninstall _dev-skills`는 링크 항목만 제거하며 실제 checkout은 결코 제거하지 않습니다. 휴지통에는 링크가 나열되고 `restore`는 링크를 다시 만듭니다. `skillshare trash restore _dev-skills/<child>`는 같은 정책에 따라 하위 항목을 실제 checkout에 되돌려 놓으며, checkout 아래에 다른 곳으로 이어지는 중첩 링크가 있으면 복원은 실패하고 휴지통 항목은 유지됩니다. checkout을 벗어나는 경로(`..`, 또는 바깥으로 이어지는 중첩 링크)는 여전히 거부됩니다.
+
+대시보드의 Target 할당이 frontmatter를 쓸 때도 같은 쓰기 경계가 적용됩니다. 중첩된 `SKILL.md` 링크는 대상을 변경하지 않고 거부합니다. 일괄 할당은 해당 Skill의 거부 사유를 보고하고 일반 Skill 처리를 계속합니다.
+
+따라가는 링크 내부의 Skill을 교체할 때는 교체가 성공할 때까지 기존 Skill을 보존하고, 복사가 실패하면 복원합니다. 가져오는 콘텐츠의 링크는 실제 파일이나 디렉터리로 복사하며, 대상이 없는 링크는 건너뜁니다.
+
+Skill을 다른 파일시스템의 trash로 옮길 때 내부 파일 및 디렉터리 링크는 원래 대상 문자열을 가진 링크로 보존됩니다. 링크 대상은 복사하거나 삭제하지 않습니다.
+
+`--group`은 `update`와 `check`에서 링크 이름을 받습니다(`skillshare update --group _dev-skills`). `_dev-skills/sub`처럼 링크 아래에 중첩된 그룹은 `--group`에서 받지 않으므로, 대신 skill 이름을 지정하세요. `skillshare uninstall --group _dev-skills`는 실제 checkout을 비워 버리기 때문에 거부됩니다. 링크를 제거하려면 `skillshare uninstall _dev-skills`를 사용하고, 휴지통으로 보낼 skill은 이름을 지정하세요.
+
+Unix에서 source repo를 commit하면 checkout의 파일이 아니라 링크 항목 자체, 즉 보통 머신 로컬 절대 경로인 링크의 대상 텍스트가 stage됩니다. skills 디렉터리의 `.gitignore`에 `/_dev-skills`를 추가하세요. `skillshare commit`, `push`, `init`은 링크가 stage될 때 경고를 출력합니다.
+
+#### Windows
+
+`mklink /J`로 만든 디렉터리 junction이 의도된 방식입니다:
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+드라이브 문자는 안정적으로 유지되어야 합니다. `ai_docs/tests/windows_follow_source_links_runbook.md`로 Windows 11 ARM64에서 검증되었습니다.
 
 ### `mode`
 
@@ -890,6 +996,9 @@ Project config는 global config와 다른 형식을 사용합니다.
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# project skills source 바로 아래의 디렉터리 링크 따라가기 (opt-in)
+# follow_source_links: true
+
 # Targets — 문자열 또는 객체 형태
 targets:
   - claude                    # 문자열: 기본값을 가진 알려진 Target
@@ -914,6 +1023,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links` (project)
+
+| Field | Type | Default | Scope |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Project config (`.skillshare/config.yaml`) |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+project skills source(보통 `.skillshare/skills/`) 바로 아래의 디렉터리 링크를 한 수준만 따라갑니다. global mode와 동일한 [discovery 동작, 안전 장치, 현재 제한 사항](#follow_source_links)이 적용됩니다.
 
 ### `targets` (project)
 

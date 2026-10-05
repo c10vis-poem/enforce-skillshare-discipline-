@@ -219,3 +219,29 @@ func TestReconcileGlobalSkills_PrunesStaleEntries(t *testing.T) {
 		t.Errorf("expected surviving entry 'alive-skill'")
 	}
 }
+
+func TestReconcileGlobalSkills_KeepsMetadataOfUnavailableSourceLink(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "skills")
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "unmounted"), filepath.Join(sourceDir, "_dev-skills")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+
+	for _, follow := range []bool{true, false} {
+		store := install.NewMetadataStore()
+		store.Set("_dev-skills", &install.MetadataEntry{Source: "github.com/user/dev-skills", Tracked: true})
+		cfg := &Config{Source: sourceDir, FollowSourceLinks: follow}
+		if err := ReconcileGlobalSkills(cfg, store); err != nil {
+			t.Fatalf("ReconcileGlobalSkills: %v", err)
+		}
+		// Off, the link is invisible and its entry goes, as before; on, the
+		// walk knows it missed the link and keeps the entry.
+		if store.Has("_dev-skills") != follow {
+			t.Errorf("follow=%v: entry kept = %v", follow, store.Has("_dev-skills"))
+		}
+	}
+}

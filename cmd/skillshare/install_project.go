@@ -44,6 +44,7 @@ func cmdInstallProjectParsed(parsed *installArgs, root string) (installLogSummar
 		parsed.opts.AuditThreshold = runtime.config.Audit.BlockThreshold
 	}
 	parsed.opts.AuditProjectRoot = root
+	parsed.opts.SourceFollow = runtime.skillsWalk().Follow
 	summary.AuditThreshold = parsed.opts.AuditThreshold
 
 	if parsed.sourceArg == "" {

@@ -139,7 +139,7 @@ func looksLikeShellGlob(names []string, warnings []string) bool {
 // Supports short names for nested skills (e.g. "react-best-practices" resolves
 // to "frontend/react/react-best-practices"). sourceLabel names sourceDir in
 // not-found errors.
-func resolveUninstallTarget(skillName, sourceDir, sourceLabel string) (*uninstallTarget, error) {
+func resolveUninstallTarget(skillName, sourceDir, sourceLabel string, walk sourcewalk.Options) (*uninstallTarget, error) {
 	skillName = strings.TrimRight(strings.TrimSpace(skillName), `/\`)
 	skillName = normalizeUninstallName(skillName)
 	if skillName == "" || skillName == "." {
@@ -159,7 +159,7 @@ func resolveUninstallTarget(skillName, sourceDir, sourceLabel string) (*uninstal
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Fallback: search by basename in nested directories
-			resolved, resolveErr := resolveNestedSkillDir(sourceDir, skillName, sourceLabel)
+			resolved, resolveErr := resolveNestedSkillDir(sourceDir, skillName, sourceLabel, walk)
 			if resolveErr != nil {
 				return nil, resolveErr
 			}
@@ -181,8 +181,8 @@ func resolveUninstallTarget(skillName, sourceDir, sourceLabel string) (*uninstal
 
 // resolveUninstallByGlob scans the source directory for top-level entries
 // whose names match the given glob pattern (e.g. "core-*", "_team-?").
-func resolveUninstallByGlob(pattern, sourceDir string) ([]*uninstallTarget, error) {
-	entries, err := sourcewalk.ReadDir(sourceDir, sourcewalk.Options{})
+func resolveUninstallByGlob(pattern, sourceDir string, walk sourcewalk.Options) ([]*uninstallTarget, error) {
+	entries, err := sourcewalk.ReadDir(sourceDir, walk)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read source directory: %w", err)
 	}
@@ -206,7 +206,7 @@ func resolveUninstallByGlob(pattern, sourceDir string) ([]*uninstallTarget, erro
 
 // resolveGroupSkills finds all skills under a group directory (prefix match).
 // Returns uninstallTargets for each skill found.
-func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
+func resolveGroupSkills(group, sourceDir string, walks ...sourcewalk.Options) ([]*uninstallTarget, error) {
 	group = strings.TrimRight(strings.TrimSpace(group), `/\`)
 	group = normalizeUninstallName(group)
 	if group == "" || group == "." {
@@ -219,14 +219,19 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 		return nil, fmt.Errorf("group '%s' not found in source", group)
 	}
 
-	walkRoot := utils.ResolveSymlink(groupPath)
-	resolvedSourceDir := utils.ResolveSymlink(sourceDir)
-
-	// Guard: walkRoot must be inside resolvedSourceDir to prevent
-	// symlinked groups from reaching outside the source tree.
-	if srcRel, relErr := filepath.Rel(resolvedSourceDir, walkRoot); relErr != nil || strings.HasPrefix(srcRel, "..") {
+	// A followed first-level link is the user's own checkout: --group would
+	// move every skill out of it, while `uninstall <link>` removes only the
+	// link entry. Refuse the ambiguous form.
+	if len(walks) > 0 && utils.PathsEqual(utils.ResolveSymlink(filepath.Dir(groupPath)), utils.ResolveSymlink(sourceDir)) {
+		if _, followed := walks[0].Follow.Resolve(groupPath); followed {
+			return nil, fmt.Errorf("group '%s' is a followed source link; run `skillshare uninstall %s` to remove the link, or name its skills", group, group)
+		}
+	}
+	walkRoot, logicalRoot, err := resolveGroupWalk(groupPath, sourceDir, walks)
+	if err != nil {
 		return nil, fmt.Errorf("group '%s' resolves outside source directory", group)
 	}
+	resolvedSourceDir := utils.ResolveSymlink(sourceDir)
 
 	var targets []*uninstallTarget
 	if walkErr := filepath.Walk(walkRoot, func(path string, fi os.FileInfo, err error) error {
@@ -240,6 +245,12 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 			return filepath.SkipDir
 		}
 
+		tail, err := filepath.Rel(walkRoot, path)
+		if err != nil {
+			return err
+		}
+		logicalPath := filepath.Join(logicalRoot, tail)
+
 		// Check if this directory is a skill (has SKILL.md) or tracked repo
 		hasSkillMD := false
 		if _, statErr := os.Stat(filepath.Join(path, "SKILL.md")); statErr == nil {
@@ -248,11 +259,11 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 		isRepo := install.IsGitRepo(path)
 
 		if hasSkillMD || isRepo {
-			rel, relErr := filepath.Rel(resolvedSourceDir, path)
+			rel, relErr := filepath.Rel(resolvedSourceDir, logicalPath)
 			if relErr == nil && !strings.HasPrefix(rel, "..") {
 				targets = append(targets, &uninstallTarget{
 					name:          normalizeUninstallName(rel),
-					path:          path,
+					path:          logicalPath,
 					isTrackedRepo: isRepo,
 				})
 			}
@@ -274,11 +285,11 @@ func resolveGroupSkills(group, sourceDir string) ([]*uninstallTarget, error) {
 // nested organizational folders. Also matches _name variant for tracked repos.
 // Returns the relative path from sourceDir, or an error listing all matches
 // when the name is ambiguous.
-func resolveNestedSkillDir(sourceDir, name, sourceLabel string) (string, error) {
+func resolveNestedSkillDir(sourceDir, name, sourceLabel string, walk sourcewalk.Options) (string, error) {
 	var matches []string
 
 	walkRoot := utils.ResolveSymlink(sourceDir)
-	if walkErr := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	if walkErr := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -484,6 +495,7 @@ func cmdUninstall(args []string) error {
 	sort.Strings(targetNames)
 	skillsMode := &uninstallMode{
 		sourceDir:      sourceDir,
+		walk:           cfg.SkillsWalk(),
 		sourceLabel:    "source",
 		trashDir:       trash.TrashDir(),
 		configPath:     config.ConfigPath(),

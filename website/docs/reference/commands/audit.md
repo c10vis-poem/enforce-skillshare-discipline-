@@ -329,7 +329,7 @@ Binary files (images, `.wasm`, etc.) and hidden directories (`.git`) are skipped
 | `--profile` `<p>` | Audit profile preset: `default`, `strict`, `permissive` |
 | `--dedupe` `<mode>` | Dedup mode: `legacy`, `global` (default) |
 | `--analyzer` `<id>` | Only run specified analyzer (repeatable). IDs: `static`, `dataflow`, `tier`, `integrity`, `metadata`, `structure`, `cross-skill` |
-| `--format` `<f>` | Output format: `text` (default), `json`, `sarif`, `markdown` |
+| `--format` `<f>` | Output format: `text` (default), `json`, `sarif`, `markdown`. JSON adds `warnings` and `incomplete: true` when a [followed source link](../targets/configuration.md#follow_source_links) could not be read, so a partial scan is not mistaken for a full one |
 | `--json` | Output JSON (**deprecated**: use `--format json`) |
 | `--yes`, `-y` | Skip large-scan confirmation prompt (auto-confirms) |
 | `--quiet`, `-q` | Only show skills with findings + summary (suppress clean ✓ lines) |

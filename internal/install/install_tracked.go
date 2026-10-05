@@ -34,7 +34,7 @@ func installTrackedRepoImpl(source *Source, sourceDir string, opts InstallOption
 	if err := validateTrackedRepoDirName(trackedName); err != nil {
 		return nil, fmt.Errorf("invalid tracked repo name %q: %w", trackedName, err)
 	}
-	src, err := sourcefs.Create(sourceDir)
+	src, err := sourcefs.Create(sourceDir, opts.SourceFollow)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create source directory: %w", err)
 	}
@@ -170,6 +170,10 @@ func updateTrackedRepo(repoPath string, result *TrackedRepoResult, opts InstallO
 	if opts.DryRun {
 		result.Action = "would update (git pull)"
 		return result, nil
+	}
+
+	if err := checkFollowedCheckoutClean(repoPath, opts); err != nil {
+		return nil, err
 	}
 
 	// Record hash before pull for rollback on audit failure

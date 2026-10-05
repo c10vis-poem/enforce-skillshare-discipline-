@@ -103,6 +103,8 @@ Glob matching is case-insensitive: `"Core-*"` matches `core-auth`, `CORE-DB`, et
 Glob patterns match against **top-level directory names** in the source folder. Nested skills (e.g. `frontend/react-hooks`) are not matched by `"react-*"` — use `--group frontend` to target skills within a subdirectory.
 :::
 
+`--group` refuses a [followed source link](../targets/configuration.md#follow_source_links) such as `_dev-skills`, because it would move every skill out of the real checkout. Use `skillshare uninstall _dev-skills` to remove the link entry, or name the skills (`skillshare uninstall _dev-skills/foo`) to trash them from the checkout.
+
 ## Remove All
 
 Use `--all` to remove every skill from the source directory at once:

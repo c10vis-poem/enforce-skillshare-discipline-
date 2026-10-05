@@ -171,11 +171,11 @@ func (s *Server) handleInstallBatch(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure Into directory exists
 	if body.Into != "" {
-		baseDir := s.cfg.EffectiveSkillsSource()
+		baseDir, follow := s.cfg.EffectiveSkillsSource(), s.skillsWalk().Follow
 		if body.Kind == "agent" {
-			baseDir = s.agentsSource()
+			baseDir, follow = s.agentsSource(), nil
 		}
-		if err := sourcefs.MkdirAllIn(baseDir, body.Into); err != nil {
+		if err := sourcefs.MkdirAllIn(baseDir, body.Into, follow); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to create into directory: "+err.Error())
 			return
 		}
@@ -192,13 +192,14 @@ func (s *Server) handleInstallBatch(w http.ResponseWriter, r *http.Request) {
 		AuditThreshold: s.auditThreshold(),
 		Branch:         body.Branch,
 		SourceDir:      s.cfg.EffectiveSkillsSource(),
+		SourceFollow:   s.skillsWalk().Follow,
 	}
 	if s.IsProjectMode() {
 		installOpts.AuditProjectRoot = s.projectRoot
 	}
 	isAgent := body.Kind == "agent"
 	if isAgent {
-		installOpts.SourceDir = s.agentsSource()
+		installOpts.SourceDir, installOpts.SourceFollow = s.agentsSource(), nil
 	}
 
 	for _, sel := range body.Skills {
@@ -394,9 +395,9 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		trackSourceDir := s.cfg.EffectiveSkillsSource()
+		trackSourceDir, trackFollow := s.cfg.EffectiveSkillsSource(), s.skillsWalk().Follow
 		if trackedKind == "agent" {
-			trackSourceDir = s.agentsSource()
+			trackSourceDir, trackFollow = s.agentsSource(), nil
 		}
 
 		installOpts := install.InstallOptions{
@@ -409,6 +410,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			Branch:         body.Branch,
 			AuditThreshold: s.auditThreshold(),
 			SourceDir:      trackSourceDir,
+			SourceFollow:   trackFollow,
 		}
 		if s.IsProjectMode() {
 			installOpts.AuditProjectRoot = s.projectRoot
@@ -423,6 +425,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 			Branch:           installOpts.Branch,
 			AuditThreshold:   installOpts.AuditThreshold,
 			AuditProjectRoot: installOpts.AuditProjectRoot,
+			SourceFollow:     installOpts.SourceFollow,
 		})
 		if err != nil {
 			s.writeOpsLog("install", "error", start, map[string]any{
@@ -487,13 +490,14 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 	// Regular install
 	destPath := filepath.Join(s.cfg.EffectiveSkillsSource(), body.Into, source.Name)
 	if body.Into != "" {
-		if err := sourcefs.MkdirAllIn(s.cfg.EffectiveSkillsSource(), body.Into); err != nil {
+		if err := sourcefs.MkdirAllIn(s.cfg.EffectiveSkillsSource(), body.Into, s.skillsWalk().Follow); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to create into directory: "+err.Error())
 			return
 		}
 	}
 
 	result, err := install.Install(source, destPath, install.InstallOptions{
+		SourceFollow:   s.skillsWalk().Follow,
 		Name:           body.Name,
 		Force:          body.Force,
 		AuditOverride:  body.Force,

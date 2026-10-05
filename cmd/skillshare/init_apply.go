@@ -131,7 +131,7 @@ func applyInitPlan(p *initPlan) (*initResult, error) {
 	}
 
 	if p.git {
-		if err := commitSourceFiles(res.gitRoot); err != nil {
+		if err := commitSourceFiles(res.gitRoot, cfg.EffectiveSkillsSource()); err != nil {
 			res.warnings = append(res.warnings, fmt.Sprintf("Failed to create initial commit: %v", err))
 		}
 	}
@@ -265,7 +265,7 @@ func printInitDone(p *initPlan, res *initResult) {
 func firstSync(cfg *config.Config) (skills int, kept []string, err error) {
 	start := time.Now()
 	spinner := ui.StartSpinner("Syncing…")
-	discovered, err := ssync.DiscoverSourceSkills(cfg.EffectiveSkillsSource())
+	discovered, err := ssync.DiscoverSourceSkills(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 	if err != nil {
 		spinner.Fail("Sync failed")
 		return 0, nil, err

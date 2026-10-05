@@ -93,7 +93,7 @@ func (s *Server) handleBatchToggleSkills(w http.ResponseWriter, r *http.Request)
 		}
 		ignorePath = filepath.Join(agentsSource, ".agentignore")
 	} else {
-		discovered, err := ssync.DiscoverSourceSkillsAll(source)
+		discovered, err := ssync.DiscoverSourceSkillsAll(source, s.skillsWalk())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 			return

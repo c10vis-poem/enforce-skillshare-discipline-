@@ -97,6 +97,8 @@ skillshare check my-skill                # 單一 skill
 skillshare check skill-a skill-b         # 多個 skills
 ```
 
+設定 `follow_source_links: true` 後，也可以依連結名稱檢查被跟隨的 Git checkout，例如 `skillshare check _dev-skills`。
+
 使用 `--group` / `-G` 檢查群組目錄下所有可更新的 skills：
 
 ```bash

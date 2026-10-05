@@ -11,6 +11,7 @@ import (
 	"skillshare/internal/install"
 	"skillshare/internal/oplog"
 	"skillshare/internal/sourcewalk"
+	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 	"skillshare/internal/utils"
 )
@@ -187,6 +188,7 @@ func cmdUpdate(args []string) error {
 		opts.threshold = cfg.Audit.BlockThreshold
 	}
 	sourcePath := utils.ResolveSymlink(cfg.EffectiveSkillsSource())
+	walk := cfg.SkillsWalk()
 
 	// In JSON mode, redirect all UI output to stderr early so the
 	// header, step, spinner, and handler output don't corrupt stdout.
@@ -215,7 +217,7 @@ func cmdUpdate(args []string) error {
 		if metaErr != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("could not read skill metadata: %v", metaErr))
 		}
-		err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+		err := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 			if err != nil || path == walkRoot {
 				return nil
 			}
@@ -228,6 +230,12 @@ func cmdUpdate(args []string) error {
 
 			// Tracked repo
 			if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+				if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
+					if warning != "" {
+						resolveWarnings = append(resolveWarnings, warning)
+					}
+					return filepath.SkipDir
+				}
 				if install.IsGitRepo(path) {
 					rel, _ := filepath.Rel(walkRoot, path)
 					if !seen[rel] {
@@ -258,7 +266,8 @@ func cmdUpdate(args []string) error {
 			}
 			return fmt.Errorf("failed to scan skills: %w", err)
 		}
-		missingRepos, _ := install.GetMissingTrackedRepos(sourcePath)
+		resolveWarnings = append(resolveWarnings, ssync.SourceLinkWarnings(walk, false)...)
+		missingRepos, _ := install.GetMissingTrackedRepos(sourcePath, walk)
 		for _, repo := range missingRepos {
 			if !seen[repo.Name] {
 				seen[repo.Name] = true
@@ -272,7 +281,7 @@ func cmdUpdate(args []string) error {
 		for _, name := range opts.names {
 			// Glob pattern matching (e.g. "core-*", "_team-?")
 			if isGlobPattern(name) {
-				globMatches, globErr := resolveByGlob(sourcePath, name)
+				globMatches, globErr := resolveByGlob(sourcePath, name, walk)
 				if globErr != nil {
 					resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, globErr))
 					continue
@@ -292,7 +301,7 @@ func cmdUpdate(args []string) error {
 			}
 
 			if isGroupDir(name, sourcePath, nameStore) {
-				groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath)
+				groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath, walk)
 				if groupErr != nil {
 					resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 					continue
@@ -311,7 +320,7 @@ func cmdUpdate(args []string) error {
 				continue
 			}
 
-			match, err := resolveByBasename(sourcePath, name)
+			match, err := resolveByBasename(sourcePath, name, walk)
 			if err != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, err))
 				continue
@@ -323,7 +332,7 @@ func cmdUpdate(args []string) error {
 		}
 
 		for _, group := range opts.groups {
-			groupMatches, err := resolveGroupUpdatable(group, sourcePath)
+			groupMatches, err := resolveGroupUpdatable(group, sourcePath, walk)
 			if err != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 				continue
@@ -364,7 +373,7 @@ func cmdUpdate(args []string) error {
 	}
 
 	// --- Execute ---
-	uc := &updateContext{sourcePath: sourcePath, registryDir: cfg.RegistryDir, opts: opts, parseOpts: parseOptsFromConfig(cfg)}
+	uc := &updateContext{sourcePath: sourcePath, registryDir: cfg.RegistryDir, opts: opts, parseOpts: parseOptsFromConfig(cfg), follow: walk.Follow}
 
 	if len(targets) == 1 {
 		// Single target: verbose path

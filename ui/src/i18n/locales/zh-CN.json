@@ -822,6 +822,7 @@
   "trash.toast.emptied": "回收站已清空（已删除 {count} 个项目）{s}",
   "trash.toast.restored": "\"{name}\" 已从回收站恢复",
   "trash.summary": "已卸载的项目会在这里保留 7 天，之后永久删除。",
+  "update.linkedRepos.note": "链接指向的检出目录由你管理，不会在此更新。",
   "update.check.behind": "落后 {count} 个提交",
   "update.check.behindFallback": "落后",
   "update.check.checking": "检查中",

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 )
@@ -199,7 +200,7 @@ func runAnalyze(opts *analyzeOptions) error {
 	}
 	if opts.targetName == "" && !opts.json && shouldLaunchTUI(opts.noTUI, cfg) {
 		loadFn := func() analyzeLoadResult {
-			discovered, err := ssync.DiscoverSourceSkillsForAnalyze(cfg.EffectiveSkillsSource())
+			discovered, err := ssync.DiscoverSourceSkillsForAnalyze(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 			if err != nil {
 				return analyzeLoadResult{err: err}
 			}
@@ -211,16 +212,16 @@ func runAnalyze(opts *analyzeOptions) error {
 		}
 		return runAnalyzeTUI(loadFn, "global", opts.filter)
 	}
-	return runAnalyzeCore(cfg.EffectiveSkillsSource(), cfg.Targets, cfg.Mode, cfg.ContextBudget, opts)
+	return runAnalyzeCore(cfg.EffectiveSkillsSource(), cfg.SkillsWalk(), cfg.Targets, cfg.Mode, cfg.ContextBudget, opts)
 }
 
-func runAnalyzeCore(sourcePath string, targets map[string]config.TargetConfig, defaultMode string, budget config.ContextBudgetConfig, opts *analyzeOptions) error {
+func runAnalyzeCore(sourcePath string, walk sourcewalk.Options, targets map[string]config.TargetConfig, defaultMode string, budget config.ContextBudgetConfig, opts *analyzeOptions) error {
 	var sp *ui.Spinner
 	if !opts.json {
 		sp = ui.StartSpinner("Analyzing skills...")
 	}
 
-	discovered, err := ssync.DiscoverSourceSkillsForAnalyze(sourcePath)
+	discovered, err := ssync.DiscoverSourceSkillsForAnalyze(sourcePath, walk)
 	if err != nil {
 		if sp != nil {
 			sp.Fail("Analysis failed")

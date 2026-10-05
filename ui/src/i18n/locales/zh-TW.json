@@ -822,6 +822,7 @@
   "trash.toast.emptied": "已清空垃圾桶（已移除 {count} 個項目）{s}",
   "trash.toast.restored": "已從垃圾桶還原「{name}」",
   "trash.summary": "已解除安裝的項目會在這裡保留 7 天，之後永久刪除。",
+  "update.linkedRepos.note": "連結指向的 checkout 由你管理，不會在此更新。",
   "update.check.behind": "落後 {count} 個 commit",
   "update.check.behindFallback": "已落後",
   "update.check.checking": "檢查中",

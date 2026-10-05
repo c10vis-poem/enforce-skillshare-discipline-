@@ -22,6 +22,7 @@ type discoverOptions struct {
 	collectTracked   bool // collect tracked repo paths (for Lite mode)
 	collectContext   bool // compute DescChars/BodyChars during walk (for analyze)
 	includeIgnored   bool // include ignored skills in results with Disabled=true
+	walk             sourcewalk.Options
 }
 
 var (
@@ -160,7 +161,7 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 		}
 	}
 
-	err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	err := sourcewalk.Walk(walkRoot, opts.walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip inaccessible paths
 		}
@@ -187,8 +188,7 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 
 		// Collect tracked repos: _-prefixed directories that are git repos
 		if info.IsDir() && info.Name() != "." && utils.IsTrackedRepoDir(info.Name()) {
-			gitDir := filepath.Join(path, ".git")
-			if _, statErr := os.Stat(gitDir); statErr == nil {
+			if install.IsGitRepo(path) {
 				if opts.collectTracked {
 					relPath, relErr := filepath.Rel(walkRoot, path)
 					if relErr == nil && relPath != "." {

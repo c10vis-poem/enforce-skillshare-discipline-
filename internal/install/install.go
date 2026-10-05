@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"skillshare/internal/sourcewalk"
 )
 
 // InstallOptions configures the install behavior
@@ -44,6 +46,10 @@ type InstallOptions struct {
 	// skillFileOnly makes a local install copy only SKILL.md. Updates set it
 	// to keep the shape of a collection root installed that way.
 	skillFileOnly bool
+
+	// SourceFollow is the operation's follow policy for SourceDir, so writes
+	// pass through followed first-level links; nil follows none.
+	SourceFollow *sourcewalk.Follow
 }
 
 // auditAcceptTarget returns the (sourceDir, path) pair used to key accepted
@@ -334,14 +340,20 @@ func GetUpdatableSkills(sourceDir string) ([]string, error) {
 	return getUpdatableSkillsImpl(sourceDir)
 }
 
-// GetTrackedRepos returns tracked repositories in the source directory.
-func GetTrackedRepos(sourceDir string) ([]string, error) {
-	return getTrackedReposImpl(sourceDir)
+// GetTrackedRepos returns tracked repositories in the source directory. An
+// optional walk policy follows first-level source links; omitted, none are.
+func GetTrackedRepos(sourceDir string, walk ...sourcewalk.Options) ([]string, error) {
+	var opts sourcewalk.Options
+	if len(walk) > 0 {
+		opts = walk[0]
+	}
+	return getTrackedReposImpl(sourceDir, opts)
 }
 
 // GetMissingTrackedRepos returns tracked metadata entries whose repo clone is absent.
-func GetMissingTrackedRepos(sourceDir string) ([]TrackedRepoMeta, error) {
-	return getMissingTrackedReposImpl(sourceDir)
+// An optional walk policy recognizes existing followed source checkouts.
+func GetMissingTrackedRepos(sourceDir string, walks ...sourcewalk.Options) ([]TrackedRepoMeta, error) {
+	return getMissingTrackedReposImpl(sourceDir, walks...)
 }
 
 // RehydrateMissingTrackedRepos re-clones tracked repos declared in metadata whose

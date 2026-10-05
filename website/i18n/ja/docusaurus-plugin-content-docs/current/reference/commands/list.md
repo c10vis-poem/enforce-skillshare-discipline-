@@ -12,6 +12,8 @@ skillshare list --verbose    # 詳細なプレーンテキスト表示
 skillshare list --json       # CI/スクリプト向けの JSON 出力
 ```
 
+`follow_source_links: true` の場合、利用できない最上位のソースリンクはリンク名付きの警告を表示し、正常なスキルは引き続き一覧に含まれます。`--json` では警告を stderr に出力し、stdout は有効な JSON のままです。
+
 ## こんなときに使う
 
 - どの Skill がインストールされていて、どこから来たかを確認する

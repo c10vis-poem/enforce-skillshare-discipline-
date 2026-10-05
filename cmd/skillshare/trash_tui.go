@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/theme"
 	"skillshare/internal/trash"
 )
@@ -54,6 +55,8 @@ func (trashDelegate) Render(w io.Writer, m list.Model, index int, li list.Item) 
 	meta := formatBytes(item.entry.Size) + " · " + timeAgo(item.entry.Date)
 	if item.entry.Kind == "agent" {
 		meta = "agent · " + meta
+	} else if item.entry.LinkTarget != "" {
+		meta = "link · " + meta
 	}
 	width := m.Width()
 	renderPrefixRow(w, alignRow(mark+" "+item.entry.Name, theme.Dim().Render(meta), width-rowIndent), width, index == m.Index())
@@ -77,6 +80,7 @@ type trashTUIModel struct {
 	destDir        string // skill restore destination
 	agentDestDir   string // agent restore destination
 	cfgPath        string
+	follow         *sourcewalk.Follow
 	quitting       bool
 	termWidth      int
 	termHeight     int
@@ -301,7 +305,7 @@ func (m trashTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "enter":
-			if item, ok := m.list.SelectedItem().(trashItem); ok {
+			if item, ok := m.list.SelectedItem().(trashItem); ok && item.entry.LinkTarget == "" {
 				m.browser = newFileBrowser("trash", item.entry.Name, item.entry.Path, false, m.termWidth, m.termHeight)
 			}
 			return m, nil
@@ -516,6 +520,7 @@ func (m trashTUIModel) startOperation() (tea.Model, tea.Cmd) {
 	// Capture values for goroutine
 	destDir := m.destDir
 	agentDestDir := m.agentDestDir
+	follow := m.follow
 	cfgPath := m.cfgPath
 	skillTrashBase := m.skillTrashBase
 	agentTrashBase := m.agentTrashBase
@@ -533,7 +538,7 @@ func (m trashTUIModel) startOperation() (tea.Model, tea.Cmd) {
 				if e.Kind == "agent" {
 					restoreErr = trash.RestoreAgent(&e, agentDestDir)
 				} else {
-					restoreErr = trash.Restore(&e, destDir)
+					restoreErr = trash.Restore(&e, destDir, follow)
 				}
 				if restoreErr != nil {
 					errMsgs = append(errMsgs, fmt.Sprintf("%s: %s", entry.Name, restoreErr))
@@ -674,7 +679,11 @@ func (m trashTUIModel) renderBottom() string {
 		if m.filterText != "" {
 			filter = keyHint{"esc", "clear filter"}
 		}
-		hints := []keyHint{{"↑↓", "move"}, {"space", "select"}, filter, {"enter", "open files"}, {"r", "restore"}, {"d", "delete"}, {"?", "keys"}}
+		hints := []keyHint{{"↑↓", "move"}, {"space", "select"}, filter}
+		if item, ok := m.list.SelectedItem().(trashItem); ok && item.entry.LinkTarget == "" {
+			hints = append(hints, keyHint{"enter", "open files"})
+		}
+		hints = append(hints, keyHint{"r", "restore"}, keyHint{"d", "delete"}, keyHint{"?", "keys"})
 		if m.showKeys {
 			hints = []keyHint{{"?/esc", "close"}}
 		}
@@ -780,6 +789,10 @@ func (m trashTUIModel) renderTrashDetailPanel(entry trash.TrashEntry, width int)
 	row("Trashed", entry.Date.Format("2006-01-02 15:04")+theme.Dim().Render(" · "+timeAgo(entry.Date)))
 	row("Size", formatBytes(entry.Size))
 	row("Path", shortenPath(entry.Path))
+	if entry.LinkTarget != "" {
+		row("Link", shortenPath(entry.LinkTarget))
+		return b.String() // A trashed link does not contain its target's content.
+	}
 
 	// Content preview — SKILL.md for skills, agent .md file for agents
 	var previewFile, previewTitle string
@@ -819,8 +832,9 @@ func (m trashTUIModel) renderTrashDetailPanel(entry trash.TrashEntry, width int)
 // ---------------------------------------------------------------------------
 
 // runTrashTUI starts the bubbletea TUI for the trash viewer.
-func runTrashTUI(items []trash.TrashEntry, skillTrashBase, agentTrashBase, destDir, agentDestDir, cfgPath, modeLabel string) error {
+func runTrashTUI(items []trash.TrashEntry, skillTrashBase, agentTrashBase, destDir, agentDestDir, cfgPath, modeLabel string, follow *sourcewalk.Follow) error {
 	model := newTrashTUIModel(items, skillTrashBase, agentTrashBase, destDir, agentDestDir, cfgPath, modeLabel)
+	model.follow = follow
 	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err := p.Run()
 	return err

@@ -9,6 +9,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/oplog"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/theme"
 	"skillshare/internal/trash"
 	"skillshare/internal/ui"
@@ -124,7 +125,11 @@ func trashList(mode runMode, cwd string, noTUI bool, kind resourceKindFilter) er
 		if err != nil {
 			return err
 		}
-		return runTrashTUI(items, skillTrashBase, agentTrashBase, destDir, agentDestDir, cfgPath, modeLabel)
+		follow, err := resolveTrashFollow(mode, cwd)
+		if err != nil {
+			return err
+		}
+		return runTrashTUI(items, skillTrashBase, agentTrashBase, destDir, agentDestDir, cfgPath, modeLabel, follow)
 	}
 
 	// Plain text path (unchanged) — list single kind
@@ -143,7 +148,11 @@ func trashList(mode runMode, cwd string, noTUI bool, kind resourceKindFilter) er
 	width := ui.RowWidth(names...)
 	fmt.Println(theme.Primary().Bold(true).Render("Trash"))
 	for _, item := range items {
-		ui.Row(ui.MarkNone, item.Name, formatBytes(item.Size)+ui.DimText(" · "+timeAgo(item.Date)), width)
+		value := formatBytes(item.Size) + ui.DimText(" · "+timeAgo(item.Date))
+		if item.LinkTarget != "" {
+			value = "link → " + utils.FoldHomePath(item.LinkTarget) + ui.DimText(" · "+timeAgo(item.Date))
+		}
+		ui.Row(ui.MarkNone, item.Name, value, width)
 	}
 
 	totalSize := trash.TotalSize(trashBase)
@@ -200,7 +209,12 @@ func trashRestore(mode runMode, cwd string, args []string, kind resourceKindFilt
 			return err
 		}
 	} else {
-		if err := trash.Restore(entry, destDir); err != nil {
+		follow, err := resolveTrashFollow(mode, cwd)
+		if err != nil {
+			logTrashOp(cfgPath, "restore", 0, name, start, err)
+			return err
+		}
+		if err := trash.Restore(entry, destDir, follow); err != nil {
 			logTrashOp(cfgPath, "restore", 0, name, start, err)
 			return err
 		}
@@ -303,6 +317,21 @@ func resolveTrashBase(mode runMode, cwd string, kind resourceKindFilter) string 
 		return trash.ProjectTrashDir(cwd)
 	}
 	return trash.TrashDir()
+}
+
+func resolveTrashFollow(mode runMode, cwd string) (*sourcewalk.Follow, error) {
+	if mode == modeProject {
+		cfg, err := config.LoadProject(cwd)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load project config: %w", err)
+		}
+		return projectSkillsWalk(cwd, cfg).Follow, nil
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	return cfg.SkillsWalk().Follow, nil
 }
 
 func resolveSourceDir(mode runMode, cwd string, kind resourceKindFilter) (string, error) {

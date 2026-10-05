@@ -77,6 +77,9 @@ targets:
 # Source 目錄（你編輯 Skill 的地方）
 source: ~/.config/skillshare/skills
 
+# 跟進 skills source 第一層的目錄連結（需自行啟用）
+# follow_source_links: true
+
 # 新 Target 的預設 Sync 模式
 mode: merge
 
@@ -153,6 +156,109 @@ source: ~/.config/skillshare/skills
 ```
 
 **預設值：** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+自行啟用後，可透過直接放在 skills source 底下的 symlink（Unix）或 junction（Windows）來探索 Skill。
+
+| 欄位 | 型別 | 預設值 | 範圍 |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Global 與 Project 設定 |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+預設為 `false` 時，discovery 會忽略第一層的連結，`skillshare doctor` 會把它們回報為未跟進。設為 `true` 時，第一層指向目錄的連結會以連結名稱視為該目錄。樹狀結構更深處的連結在 discovery 時不會被跟進。這個設定與把 source 根目錄本身做成連結是兩回事，後者原本就支援，不需另外啟用。
+
+舉例來說，把既有的 checkout 連結進 source：
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+如果 `~/code/dev-skills` 內含 `.git` 項目，`_dev-skills` 就會成為一個 tracked-repo 群組，其子目錄會被探索為 Skill。Sync 會像其他 Skill 一樣連結或複製它們。在 symlink 模式下，在真實 checkout 中編輯檔案會立即反映在 Target 上；copy 模式則需要再 sync 一次。
+
+使用 `.git` 檔案的 Git worktree 與 submodule 也是 checkout：`update --all` 會略過它們，dashboard 會拒絕更新它們。
+
+:::warning Update 會改動真實的 checkout
+`skillshare update _dev-skills` 會在 `~/code/dev-skills` 內執行 git，而不是在另一個受管理的 clone 中。`skillshare update _dev-skills --force` 會重設該真實 checkout 並丟棄其本機變更。基於同樣的理由，`skillshare update --all`（即使加上 `--force`） 會略過已跟進的連結並顯示警告；請以名稱逐一更新。`skillshare install <url> --track --update` 會拒絕拉取有未提交變更的連結 checkout，因為阻擋性的 audit 發現可能透過 `git reset --hard` 回滾它；請先 commit 或 stash。dashboard 永遠不會更新連結指向的 Git checkout，包含強制重試；這些 checkout 由你管理。
+:::
+
+#### 安全防護 {#safety-guards}
+
+- 指向 source 根目錄或其任一上層目錄的連結會被略過。
+- 與 sync target 重疊的連結會被略過。這是依連結文字判斷的，所以即使 target 目錄尚不存在也適用。
+- 連結目標不存在或無法讀取時，會略過並顯示警告。走訪目標或其子目錄時讀取失敗，也會將該連結標記為 unavailable，即使已經找到部分 Skill。該次執行**不會進行 prune、不會刪除孤立複本，也不會刪除中繼資料**。未掛載的外接硬碟是安全的：重新掛載後再執行一次 sync 即可。`skillshare doctor` 會把該 source 連結背後的懸空 target 連結列為「等待它」，而非列為需要 prune 的壞連結。 這個分類依據連結儲存的目標路徑，因此也適用於 `target_naming: standard`。
+- 指向檔案的連結（例如共用的 `.skillignore`）不是目錄連結。它仍是一般項目，絕不影響 prune。
+
+#### Discovery 如何判斷 {#how-discovery-decides}
+
+每個會讀取 source 的指令（`list`、`sync`、`update`、`status`、dashboard）都透過同一個共用的 walker 來走訪。對每個第一層項目，它的判斷流程如下：
+
+```mermaid
+flowchart TD
+    A[skills source 底下的第一層項目] --> B{是 symlink 或 junction？}
+    B -- 否 --> C[一般目錄或檔案]
+    B -- 是 --> D{follow_source_links 已啟用？}
+    D -- 否 --> E[忽略；doctor 回報為未跟進]
+    D -- 是 --> H{連結指向 source 根目錄或其上層？}
+    H -- 是 --> I[略過並警告：循環]
+    H -- 否 --> J{連結指向 sync target 內部或包含它？}
+    J -- 是 --> K[略過並警告：與 target 重疊]
+    J -- 否 --> F{目標存在？}
+    F -- 否 --> G[略過並警告；該次執行不刪除任何東西]
+    F -- 是 --> N{目標是目錄？}
+    N -- 否 --> O[一般項目，例如指向共用檔案的連結]
+    N -- 是 --> R{目標可讀取？}
+    R -- 否 --> G
+    R -- 是 --> L[以連結名稱視為目錄，僅限一層]
+    L --> M[Skill 保有邏輯路徑，例如 source/_dev-skills/foo]
+```
+
+#### 外接硬碟上的 Skills {#skills-on-an-external-drive}
+
+把 checkout 放在外接硬碟上，再把它連結進 source：
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+硬碟掛載時，`_dev-skills` 的行為與其他 tracked-repo 群組無異。未掛載時：
+
+- `list`、`sync`、`status`、`update --all`、`audit` 與 dashboard 會略過該連結，並印出一則點名它的警告。`sync --json` 會把它列在 `warnings` 下；`audit --format json` 會把它列在 `warnings` 下並設定 `incomplete: true`，讓自動化流程能分辨部分執行與完整執行。
+- 該次執行**不會刪除任何東西**：來自硬碟的 target 連結與複本會留在原處，孤立複本不會被清理，其 Skill 的安裝中繼資料也會保留，因為連結無法使用代表清單不完整，而不是 Skill 已被移除。
+- 在 symlink 模式下，target 連結指向尚未掛載的路徑，所以在硬碟接回來之前，AI 工具無法讀取那些 Skill。在 copy 模式下，複本仍可正常使用。
+- `skillshare doctor` 會把那些 target 連結顯示為「等待 source 連結」，以警告呈現，且不會建議 prune 它們。
+- 不需要重新註冊任何東西：掛載硬碟後再執行一次 `skillshare sync` 即可。
+
+掛載路徑在不同工作階段之間必須保持一致。macOS 上是 `/Volumes/<name>`，所以請固定磁碟區名稱。Windows 上，若磁碟機代號每次插拔都不同，junction 就會指向錯誤的位置；請在「磁碟管理」中指派固定的代號，或改用掛載資料夾路徑。
+
+#### 透過連結寫入 {#writes-through-the-link}
+
+對連結背後 Skill 的寫入都會落在真實的 checkout：在 dashboard 編輯內容、`skillshare install --into _dev-skills`，以及替換連結目錄內的一般 Skill，都會改動 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 會把該子目錄從真實 checkout 移到垃圾桶。`skillshare uninstall _dev-skills` 只移除連結項目本身，絕不會動到真實 checkout；垃圾桶會列出該連結，`restore` 會重新建立它。`skillshare trash restore _dev-skills/<child>` 會依同樣的原則把子目錄放回真實 checkout；若 checkout 底下有通往其他地方的巢狀連結，還原會失敗並保留垃圾桶項目。會逃出 checkout 的路徑（`..`，或通往外部的巢狀連結）仍會被拒絕。
+
+dashboard 的 Target 分配寫入 frontmatter 時，也遵守這個寫入邊界：巢狀的 `SKILL.md` 連結會被拒絕，不會修改連結目標。批次分配會回報該 Skill 的拒絕原因，並繼續處理一般 Skill。
+
+替換被跟隨連結內的 Skill 時，會保留舊 Skill 直到替換成功；複製失敗會還原舊內容。傳入內容中的連結會複製為實際檔案或目錄，目標不存在的連結會跳過。
+
+跨檔案系統將 Skill 移入 trash 時，內部檔案與目錄連結會保留為連結，並保持原始目標文字；不會複製或刪除連結目標。
+
+`update` 與 `check` 的 `--group` 接受連結名稱（`skillshare update --group _dev-skills`）。位於連結底下的巢狀群組（例如 `_dev-skills/sub`）不被 `--group` 接受；請改為指定其 Skill 名稱。`skillshare uninstall --group _dev-skills` 會被拒絕，因為它會清空真實 checkout：要移除連結請用 `skillshare uninstall _dev-skills`，或指定要丟進垃圾桶的 Skill 名稱。
+
+在 Unix 上，對 source repo 執行 commit 時，暫存的是連結項目本身，也就是它的目標文字（通常是本機專屬的絕對路徑），而不是 checkout 的檔案。請把 `/_dev-skills` 加進 skills 目錄的 `.gitignore`。`skillshare commit`、`push` 與 `init` 在連結即將被暫存時會印出警告。
+
+#### Windows
+
+以 `mklink /J` 建立的目錄 junction 是預期的機制：
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+磁碟機代號必須保持穩定。已在 Windows 11 ARM64 上以 `ai_docs/tests/windows_follow_source_links_runbook.md` 驗證。
 
 ### `mode`
 
@@ -885,6 +991,9 @@ Project 設定使用與 Global 設定不同的格式。
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# 跟進 Project skills source 第一層的目錄連結（需自行啟用）
+# follow_source_links: true
+
 # Targets — 字串或物件形式
 targets:
   - claude                    # 字串：已知的 Target，使用預設值
@@ -909,6 +1018,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links`（Project）
+
+| 欄位 | 型別 | 預設值 | 範圍 |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | Project 設定（`.skillshare/config.yaml`） |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+跟進 Project skills source（通常是 `.skillshare/skills/`）第一層的目錄連結，僅限一層。[Discovery 行為、安全防護與目前的限制](#follow_source_links)與 Global mode 相同。
 
 ### `targets`（Project）
 

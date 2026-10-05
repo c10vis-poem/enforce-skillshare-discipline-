@@ -247,7 +247,7 @@ func ensureIntoDirExists(sourceDir string, opts install.InstallOptions) error {
 	if opts.Into == "" {
 		return nil
 	}
-	return sourcefs.MkdirAllIn(sourceDir, opts.Into)
+	return sourcefs.MkdirAllIn(sourceDir, opts.Into, opts.SourceFollow)
 }
 
 // parseOptsFromConfig builds install.ParseOptions from the global config.
@@ -416,6 +416,8 @@ func cmdInstall(args []string) error {
 	if parsed.opts.AuditThreshold == "" {
 		parsed.opts.AuditThreshold = cfg.Audit.BlockThreshold
 	}
+
+	parsed.opts.SourceFollow = cfg.SkillsWalk().Follow
 
 	// No source argument: install from global config
 	if parsed.sourceArg == "" {

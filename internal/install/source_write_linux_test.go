@@ -30,13 +30,13 @@ func TestSwapStagedIntoSourceCrossDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "plain")); err != nil {
+	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "plain"), nil); err != nil {
 		t.Fatalf("cross-device swap: %v", err)
 	}
 	if data, _ := os.ReadFile(filepath.Join(source, "plain", "SKILL.md")); string(data) != "staged" {
 		t.Fatalf("plain skill = %q, want staged content", data)
 	}
-	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "linked", "child")); err == nil {
+	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "linked", "child"), nil); err == nil {
 		t.Fatal("cross-device swap below a link must be refused")
 	}
 	if entries, _ := os.ReadDir(external); len(entries) != 0 {

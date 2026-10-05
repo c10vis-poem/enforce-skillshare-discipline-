@@ -10,6 +10,7 @@ import (
 	"skillshare/internal/hub"
 	"skillshare/internal/install"
 	"skillshare/internal/search"
+	"skillshare/internal/sourcewalk"
 )
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +38,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
 	case hubParam == "@builtin":
-		results, err = searchBuiltinIndex(source, query, limit)
+		results, err = searchBuiltinIndex(source, query, limit, s.skillsWalk())
 	case hubParam != "":
 		// SSH hub sources trigger a git clone using the host's SSH credentials.
 		// In the web server, restrict that to URLs the user has explicitly saved
@@ -104,8 +105,8 @@ func savedHubURLSet(hub config.HubConfig) map[string]bool {
 }
 
 // searchBuiltinIndex builds the hub index from local skills and searches it in-memory.
-func searchBuiltinIndex(sourcePath, query string, limit int) ([]search.SearchResult, error) {
-	idx, err := hub.BuildIndex(sourcePath, false, false)
+func searchBuiltinIndex(sourcePath, query string, limit int, walk ...sourcewalk.Options) ([]search.SearchResult, error) {
+	idx, err := hub.BuildIndex(sourcePath, false, false, walk...)
 	if err != nil {
 		return nil, err
 	}

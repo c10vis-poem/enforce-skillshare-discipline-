@@ -365,7 +365,7 @@ func cmdDiffGlobal(targetName string, kind resourceKindFilter, opts diffRenderOp
 	if !opts.jsonOutput {
 		spinner = ui.StartSpinner("Discovering skills")
 	}
-	discovered, discoverErr := sync.DiscoverSourceSkills(cfg.EffectiveSkillsSource())
+	discovered, discoverErr := sync.DiscoverSourceSkills(cfg.EffectiveSkillsSource(), cfg.SkillsWalk())
 	if discoverErr != nil {
 		if spinner != nil {
 			spinner.Fail("Discovery failed")

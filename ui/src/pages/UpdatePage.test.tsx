@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { ToastProvider } from '../components/Toast';
-import UpdatePage, { isForceRetryable, stripCliHint } from './UpdatePage';
+import UpdatePage, { countUpdates, isForceRetryable, stripCliHint, updateUnits } from './UpdatePage';
 import { api } from '../api/client';
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -179,6 +179,42 @@ describe('UpdatePage', () => {
     );
   });
 
+  it('shows a followed checkout as information before checking, without update or force retry', async () => {
+    const linked = { name: '_dev-skills', target: '/code/dev-skills' };
+    vi.mocked(api.listSkills).mockResolvedValue({
+      resources: [{ ...nestedSkill, name: 'child', relPath: '_dev-skills/child', isInRepo: true }],
+      linked_repos: [linked],
+    });
+    cacheStatus('child', 'error');
+    renderUpdatePage();
+
+    const row = await findRow('_dev-skills');
+    expect(row.getByText('/code/dev-skills')).toBeInTheDocument();
+    expect(row.getByText('Followed checkouts are managed by you and are not updated here.')).toBeInTheDocument();
+    expect(row.queryByText('tracked')).not.toBeInTheDocument();
+    expect(row.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Force retry' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Needs attention/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /update all/i })).not.toBeInTheDocument();
+  });
+
+  it('moves a checkout returned by check into the informational rows', async () => {
+    vi.mocked(api.listSkills).mockResolvedValue({
+      resources: [{ ...nestedSkill, name: 'child', relPath: '_dev-skills/child', isInRepo: true }],
+    });
+    vi.mocked(api.checkStream).mockImplementation((_a, _b, _c, onDone) => {
+      queueMicrotask(() => onDone({ tracked_repos: [], skills: [], linked_repos: [{ name: '_dev-skills', target: '/code/dev-skills' }] }));
+      return { close: vi.fn() } as unknown as EventSource;
+    });
+    const user = userEvent.setup();
+    renderUpdatePage();
+    await user.click(await screen.findByRole('button', { name: /check for updates/i }));
+    const row = await findRow('_dev-skills');
+    expect(row.getByText('/code/dev-skills')).toBeInTheDocument();
+    expect(row.queryByText('tracked')).not.toBeInTheDocument();
+    expect(row.queryByRole('button')).not.toBeInTheDocument();
+  });
+
   it('updates a tracked repo once for all of its skills', async () => {
     const inRepo = (name: string) => ({
       ...nestedSkill,
@@ -318,6 +354,15 @@ describe('update failure message helpers', () => {
     'security audit failed — findings at/above CRITICAL detected:\n' +
     '  CRITICAL: Prompt injection attempt detected (SKILL.md:28)\n\n' +
     'Use --force to override or --skip-audit to bypass scanning: blocked by security audit';
+
+  it('excludes followed checkouts from the update badge while keeping managed repos', () => {
+    const resources = ['_dev', '_managed'].map((repo) => ({
+      name: repo, kind: 'skill' as const, flatName: `${repo}__child`, relPath: `${repo}/child`, sourcePath: '', isInRepo: true,
+    }));
+    const units = updateUnits(resources, 'skill', [{ name: '_dev', target: '/code/dev' }]);
+    expect(units.map((unit) => unit.name)).toEqual(['_managed']);
+    expect(countUpdates(new Map(resources.map((item) => [item.name, { status: 'behind' as const }])), units)).toBe(1);
+  });
 
   it('offers force retry for failures force can actually resolve', () => {
     expect(isForceRetryable(auditBlocked)).toBe(true);

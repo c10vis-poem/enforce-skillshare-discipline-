@@ -33,6 +33,11 @@
         }
       }
     },
+    "follow_source_links": {
+      "type": "boolean",
+      "description": "When true, a directory link (symlink or Windows junction) directly under the skills source is treated as a directory: its contents are discovered, synced, and updated under the link's name. Links nested deeper are not followed. A link whose directory is missing, that points to the source or a parent of it, or that overlaps a skills target is skipped with a warning.",
+      "default": false
+    },
     "target_naming": {
       "type": "string",
       "description": "Default target entry naming strategy for merge/copy sync in this project. 'flat' preserves flattened parent directory prefixes; 'standard' uses the SKILL.md name and enforces the Agent Skills standard.",

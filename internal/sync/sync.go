@@ -9,6 +9,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/skillignore"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -48,14 +49,24 @@ func isSkillIgnored(parts []string, walkRoot string, ignoreMatchers map[string]*
 	return m.Match(strings.Join(parts[1:], "/"), false)
 }
 
+// walkOptions returns the optional traversal policy passed to a Discover
+// function. Omitted, no source links are followed.
+func walkOptions(walk []sourcewalk.Options) sourcewalk.Options {
+	if len(walk) == 0 {
+		return sourcewalk.Options{}
+	}
+	return walk[0]
+}
+
 // DiscoverSourceSkillsLite recursively scans the source directory for skills
 // without parsing SKILL.md frontmatter. Targets is always nil for each skill.
 // It also collects tracked repo paths (directories starting with _ that contain
 // .git) during the same walk, eliminating the need for a separate GetTrackedRepos call.
 //
 // Use this for commands like list/uninstall that don't need per-skill target filtering.
-func DiscoverSourceSkillsLite(sourcePath string) ([]DiscoveredSkill, []string, error) {
+func DiscoverSourceSkillsLite(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, []string, error) {
 	skills, trackedRepos, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: false,
 		collectIgnored:   false,
 		collectTracked:   true,
@@ -66,8 +77,9 @@ func DiscoverSourceSkillsLite(sourcePath string) ([]DiscoveredSkill, []string, e
 // DiscoverSourceSkills recursively scans the source directory for skills.
 // A skill is identified by the presence of a SKILL.md file.
 // Returns all discovered skills with their metadata for syncing.
-func DiscoverSourceSkills(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkills(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   false,
 		collectTracked:   false,
@@ -80,8 +92,9 @@ func DiscoverSourceSkills(sourcePath string) ([]DiscoveredSkill, error) {
 // SKILL.md files in a separate analysis phase. Skills disabled by .skillignore
 // are kept with Disabled=true, since a symlink-mode target still loads them;
 // TargetSkills drops them for every other mode.
-func DiscoverSourceSkillsForAnalyze(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkillsForAnalyze(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectContext:   true,
 		includeIgnored:   true,
@@ -92,8 +105,9 @@ func DiscoverSourceSkillsForAnalyze(sourcePath string) ([]DiscoveredSkill, error
 // DiscoverSourceSkillsWithStats recursively scans the source directory for skills
 // and collects .skillignore statistics (which files are active, patterns, ignored paths).
 // Use this for commands like doctor/status that need to report on .skillignore state.
-func DiscoverSourceSkillsWithStats(sourcePath string) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
+func DiscoverSourceSkillsWithStats(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
 	skills, _, stats, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   true,
 		collectTracked:   false,
@@ -104,8 +118,9 @@ func DiscoverSourceSkillsWithStats(sourcePath string) ([]DiscoveredSkill, *skill
 // DiscoverSourceSkillsWithStatsAndContext is like DiscoverSourceSkillsWithStats
 // but also computes DescChars/BodyChars for each skill in a single walk pass.
 // Use this for commands (e.g. sync) that need both ignore stats and context cost.
-func DiscoverSourceSkillsWithStatsAndContext(sourcePath string) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
+func DiscoverSourceSkillsWithStatsAndContext(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, *skillignore.IgnoreStats, error) {
 	skills, _, stats, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		collectIgnored:   true,
 		collectContext:   true,
@@ -117,8 +132,9 @@ func DiscoverSourceSkillsWithStatsAndContext(sourcePath string) ([]DiscoveredSki
 // DiscoverSourceSkillsAll scans the source directory and returns ALL skills
 // including those ignored by .skillignore. Ignored skills have Disabled=true.
 // Use this for list/UI commands that need to show disabled skills.
-func DiscoverSourceSkillsAll(sourcePath string) ([]DiscoveredSkill, error) {
+func DiscoverSourceSkillsAll(sourcePath string, walk ...sourcewalk.Options) ([]DiscoveredSkill, error) {
 	skills, _, _, err := discoverSourceSkillsInternal(sourcePath, discoverOptions{
+		walk:             walkOptions(walk),
 		parseFrontmatter: true,
 		includeIgnored:   true,
 	})
@@ -231,6 +247,17 @@ func MigrateToSource(targetPath, sourcePath string) error {
 	return nil
 }
 
+// resolveLinkRoot resolves an operation root like filepath.EvalSymlinks, but a
+// root that is itself a link is first replaced by its physical target: since
+// Go 1.23 EvalSymlinks leaves a Windows junction in place, and walking the
+// junction entry would trip the cycle guard instead of copying its contents.
+func resolveLinkRoot(root string) (string, error) {
+	if info, err := os.Lstat(root); err == nil && utils.IsLinkMode(root, info.Mode()) {
+		root = sourcewalk.Canonical(root)
+	}
+	return filepath.EvalSymlinks(root)
+}
+
 // CreateSymlink creates a symlink (or junction on Windows) from target to source.
 // When projectRoot is non-empty and both paths reside under it, a relative symlink is created.
 func CreateSymlink(targetPath, sourcePath, projectRoot string) error {
@@ -241,7 +268,7 @@ func CreateSymlink(targetPath, sourcePath, projectRoot string) error {
 	}
 
 	// Create link (uses junction on Windows, symlink on Unix)
-	if err := createLink(targetPath, sourcePath, relative); err != nil {
+	if err := createLink(targetPath, sourcePath, relative, sourcePath); err != nil {
 		return fmt.Errorf("failed to create link: %w", err)
 	}
 
@@ -275,7 +302,7 @@ func SyncTarget(name string, target config.TargetConfig, sourcePath string, dryR
 			fmt.Fprintf(DiagOutput, "[dry-run] Would reformat symlink: %s\n", sc.Path)
 			return nil
 		}
-		return reformatLink(sc.Path, sourcePath, relative)
+		return reformatLink(sc.Path, sourcePath, relative, sourcePath)
 
 	case StatusNotExist:
 		if dryRun {
@@ -365,7 +392,7 @@ func copyDirectoryWithIgnore(src, dst string, ignorePatterns []string) error {
 // copyDirectoryWithState copies recursively and dereferences directory symlinks.
 // active tracks real paths in the current recursion stack to prevent cycles.
 func copyDirectoryWithState(src, dst string, active map[string]bool, opts *copyDirectoryOpts) error {
-	resolvedSrc, err := filepath.EvalSymlinks(src)
+	resolvedSrc, err := resolveLinkRoot(src)
 	if err != nil {
 		return fmt.Errorf("failed to resolve source directory %s: %w", src, err)
 	}
@@ -381,6 +408,8 @@ func copyDirectoryWithState(src, dst string, active map[string]bool, opts *copyD
 		ignore = opts.Ignore
 	}
 
+	// Walk the operation root itself as a directory, not as a second link hop.
+	src = resolvedSrc
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -607,7 +636,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					}
 					// Correct target but wrong format (abs↔rel) — recreate
 					if !dryRun {
-						if err := reformatLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+						if err := reformatLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 							return nil, fmt.Errorf("failed to reformat link for %s: %w", activeName, err)
 						}
 					}
@@ -622,7 +651,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					}
 				} else {
 					os.Remove(targetSkillPath)
-					if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+					if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 						return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 					}
 				}
@@ -639,7 +668,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 						if err := os.RemoveAll(targetSkillPath); err != nil {
 							return nil, fmt.Errorf("failed to remove local copy %s: %w", activeName, err)
 						}
-						if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+						if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 							return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 						}
 					}
@@ -656,7 +685,7 @@ func SyncTargetMergeWithSkills(name string, target config.TargetConfig, allSkill
 					fmt.Fprintf(DiagOutput, "[dry-run] Would create link: %s -> %s\n", targetSkillPath, skill.SourcePath)
 				}
 			} else {
-				if err := createLink(targetSkillPath, skill.SourcePath, relative); err != nil {
+				if err := createLink(targetSkillPath, skill.SourcePath, relative, sourcePath); err != nil {
 					return nil, fmt.Errorf("failed to create link for %s: %w", activeName, err)
 				}
 			}

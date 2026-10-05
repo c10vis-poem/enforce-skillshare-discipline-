@@ -206,11 +206,12 @@ func cmdDoctorProject(root string, jsonMode bool) error {
 	}
 
 	cfg := &config.Config{
-		Source:       rt.sourcePath,
-		AgentsSource: rt.agentsSourcePath,
-		Targets:      rt.targets,
-		Mode:         "merge",
-		Audit:        rt.config.Audit,
+		Source:            rt.sourcePath,
+		AgentsSource:      rt.agentsSourcePath,
+		FollowSourceLinks: rt.config.FollowSourceLinks,
+		Targets:           rt.targets,
+		Mode:              "merge",
+		Audit:             rt.config.Audit,
 	}
 
 	runDoctorChecks(cfg, result, true)
@@ -234,33 +235,34 @@ func cmdDoctorProject(root string, jsonMode bool) error {
 func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	// Single discovery pass for all checks (with .skillignore stats)
 	sp := ui.StartSpinner("Discovering skills...")
-	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource())
+	walk := cfg.SkillsWalk()
+	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(cfg.EffectiveSkillsSource(), walk)
 	if discoverErr != nil {
 		discovered = nil
 	}
 	sp.Stop()
 
-	checkSource(cfg, result, discovered, discoverErr)
+	checkSource(cfg, walk, result, discovered, discoverErr)
 	checkAgentsSource(cfg, result)
 	checkSkillignore(result, stats)
-	checkUndeclaredSourceLinks(cfg.EffectiveSkillsSource(), result)
+	checkUndeclaredSourceLinks(cfg.EffectiveSkillsSource(), walk, result)
 	checkSymlinkSupport(result)
 	checkTheme(result)
 
 	if !isProject {
 		checkGitStatus(cfg.EffectiveSkillsSource(), result)
 	}
-	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject)
+	checkMissingTrackedRepos(cfg.EffectiveSkillsSource(), result, isProject, walk)
 
-	checkSkillsValidity(cfg.EffectiveSkillsSource(), result, discovered)
-	checkSkillIntegrity(result, discovered)
+	checkSkillsValidity(cfg.EffectiveSkillsSource(), walk, result, discovered)
+	checkSkillIntegrity(result, discovered, walk.Follow)
 	checkSkillTargetsField(result, discovered, targetNamesFromConfig(cfg.Targets))
 	targetCache := checkTargets(cfg, result, isProject)
 	printSymlinkCompatHint(cfg.Targets, cfg.Mode, isProject)
 	checkSharedTargetPaths(cfg, result, isProject)
 	checkCrossTargetDiscovery(cfg, result, isProject)
 	checkSyncDrift(cfg, result, discovered, targetCache)
-	checkBrokenSymlinks(cfg, result)
+	checkBrokenSymlinks(cfg, walk.Follow, result)
 	checkDuplicateSkills(cfg, result, discovered)
 }
 
@@ -306,12 +308,25 @@ func checkSkillignore(result *doctorResult, stats *skillignore.IgnoreStats) {
 	result.addCheck("skillignore", checkPass, ".skillignore: "+msg, details)
 }
 
-// checkUndeclaredSourceLinks reports first-level links without following them.
-func checkUndeclaredSourceLinks(source string, result *doctorResult) {
+// checkUndeclaredSourceLinks reports first-level links by their raw identity:
+// not followed while follow_source_links is off; followed, or skipped with the
+// reason, while walk follows them.
+func checkUndeclaredSourceLinks(source string, walk sourcewalk.Options, result *doctorResult) {
 	root := utils.ResolveSymlink(source)
 	entries, err := sourcewalk.ReadDir(root, sourcewalk.Options{})
 	if err != nil {
 		return
+	}
+	followed := map[string]bool{}
+	skipped := map[string]sourcewalk.Skipped{}
+	if walk.Follow != nil {
+		view, _ := sourcewalk.ReadDir(root, walk)
+		for _, e := range view {
+			followed[e.Name()] = e.IsDir()
+		}
+		for _, s := range walk.Follow.Skipped() {
+			skipped[s.Name] = s
+		}
 	}
 	for _, entry := range entries {
 		path := filepath.Join(root, entry.Name())
@@ -319,13 +334,29 @@ func checkUndeclaredSourceLinks(source string, result *doctorResult) {
 		if err != nil || !utils.IsLinkMode(path, info.Mode()) {
 			continue
 		}
-		message := entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
+		if s, ok := skipped[entry.Name()]; ok {
+			message := entry.Name() + ": not followed: " + s.Reason
+			ui.Row(ui.MarkWarn, "Source link", message, doctorWidth)
+			result.addWarning()
+			result.addCheck("undeclared_source_links", checkWarning, message, nil)
+			continue
+		}
+		message := entry.Name() + ": followed as a directory (follow_source_links)"
+		if !followed[entry.Name()] {
+			if walk.Follow != nil {
+				continue // a link to a file is an ordinary entry
+			}
+			message = entry.Name() + ": not followed by discovery; its contents are invisible to skillshare"
+			if target, err := os.Stat(path); err != nil || target.IsDir() {
+				message += ". Set follow_source_links: true to follow it"
+			}
+		}
 		ui.Row(ui.MarkNone, "Source link", message, doctorWidth)
 		result.addInfo("undeclared_source_links", message)
 	}
 }
 
-func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
+func checkSource(cfg *config.Config, walk sourcewalk.Options, result *doctorResult, discovered []sync.DiscoveredSkill, discoverErr error) {
 	info, err := os.Stat(cfg.EffectiveSkillsSource())
 	if err != nil {
 		ui.Row(ui.MarkFail, "Source", "not found: "+shortenPath(cfg.EffectiveSkillsSource()), doctorWidth)
@@ -346,7 +377,7 @@ func checkSource(cfg *config.Config, result *doctorResult, discovered []sync.Dis
 	if discoverErr == nil {
 		skillCount = len(discovered)
 	} else {
-		entries, _ := sourcewalk.ReadDir(cfg.EffectiveSkillsSource(), sourcewalk.Options{})
+		entries, _ := sourcewalk.ReadDir(cfg.EffectiveSkillsSource(), walk)
 		for _, e := range entries {
 			if e.IsDir() && !utils.IsHidden(e.Name()) {
 				skillCount++
@@ -795,8 +826,8 @@ func checkGitStatus(source string, result *doctorResult) {
 }
 
 // checkSkillsValidity checks if all skills have valid SKILL.md files
-func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool) {
-	missingRepos, err := install.GetMissingTrackedRepos(source)
+func checkMissingTrackedRepos(source string, result *doctorResult, isProject bool, walks ...sourcewalk.Options) {
+	missingRepos, err := install.GetMissingTrackedRepos(source, walks...)
 	if err != nil || len(missingRepos) == 0 {
 		return
 	}
@@ -825,8 +856,8 @@ func checkMissingTrackedRepos(source string, result *doctorResult, isProject boo
 	)
 }
 
-func checkSkillsValidity(source string, result *doctorResult, discovered []sync.DiscoveredSkill) {
-	entries, err := sourcewalk.ReadDir(source, sourcewalk.Options{})
+func checkSkillsValidity(source string, walk sourcewalk.Options, result *doctorResult, discovered []sync.DiscoveredSkill) {
+	entries, err := sourcewalk.ReadDir(source, walk)
 	if err != nil {
 		return
 	}
@@ -873,7 +904,7 @@ func checkSkillsValidity(source string, result *doctorResult, discovered []sync.
 
 // checkSkillIntegrity verifies installed skills haven't been tampered with by
 // comparing current file hashes against the stored .skillshare-meta.json hashes.
-func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill) {
+func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill, follow ...*sourcewalk.Follow) {
 	if discovered == nil {
 		return
 	}
@@ -928,7 +959,7 @@ func checkSkillIntegrity(result *doctorResult, discovered []sync.DiscoveredSkill
 	verified := 0
 
 	for _, v := range toVerify {
-		current, err := install.ComputeFileHashes(v.path)
+		current, err := install.ComputeFileHashes(v.path, follow...)
 		if err != nil {
 			tampered = append(tampered, fmt.Sprintf("%s: hash error: %v", v.name, err))
 			continue
@@ -1016,9 +1047,12 @@ func checkSkillTargetsField(result *doctorResult, discovered []sync.DiscoveredSk
 	}
 }
 
-// checkBrokenSymlinks finds broken symlinks in targets
-func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
-	var allBroken []string
+// checkBrokenSymlinks finds broken symlinks in targets. Links to skills behind
+// a source link whose target is away (an unmounted drive) are expected to be
+// broken and are kept by sync, so they are reported as waiting, not as errors.
+func checkBrokenSymlinks(cfg *config.Config, follow *sourcewalk.Follow, result *doctorResult) {
+	var allBroken, allWaiting []string
+	unavailable := follow.Unavailable()
 	names := targetNamesFromConfig(cfg.Targets)
 	sort.Strings(names)
 	width := ui.RowWidth(names...)
@@ -1027,7 +1061,14 @@ func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
 		if !target.SkillsConfig().IsEnabled() {
 			continue
 		}
-		broken := findBrokenSymlinks(target.SkillsConfig().Path)
+		var broken, waiting []string
+		for _, b := range findBrokenSymlinks(target.SkillsConfig().Path) {
+			if behindUnavailableLink(filepath.Join(target.SkillsConfig().Path, b), cfg.EffectiveSkillsSource(), unavailable) {
+				waiting = append(waiting, b)
+			} else {
+				broken = append(broken, b)
+			}
+		}
 		if len(broken) > 0 {
 			ui.Row(ui.MarkFail, name, plural(len(broken), "broken symlink")+": "+strings.Join(broken, ", "), width)
 			result.suggest("skillshare sync", "prune the broken links")
@@ -1036,13 +1077,47 @@ func checkBrokenSymlinks(cfg *config.Config, result *doctorResult) {
 				allBroken = append(allBroken, fmt.Sprintf("%s/%s", name, b))
 			}
 		}
+		if len(waiting) > 0 {
+			ui.Row(ui.MarkWarn, name, plural(len(waiting), "link")+" behind an unavailable source link, kept until it is back: "+strings.Join(waiting, ", "), width)
+			result.addWarning()
+			for _, b := range waiting {
+				allWaiting = append(allWaiting, fmt.Sprintf("%s/%s", name, b))
+			}
+		}
 	}
-	if len(allBroken) > 0 {
+	switch {
+	case len(allBroken) > 0:
 		result.addCheck("broken_symlinks", checkError,
 			fmt.Sprintf("%d broken symlink(s) found", len(allBroken)), allBroken)
-	} else {
+	case len(allWaiting) > 0:
+		result.addCheck("broken_symlinks", checkWarning,
+			fmt.Sprintf("%d link(s) behind an unavailable source link", len(allWaiting)), allWaiting)
+	default:
 		result.addCheck("broken_symlinks", checkPass, "No broken symlinks", nil)
 	}
+}
+
+// behindUnavailableLink classifies broken links by their stored destination,
+// so frontmatter-based target names work as well as flattened names.
+func behindUnavailableLink(path, source string, unavailable []string) bool {
+	if destination, err := utils.ResolveLinkTarget(path); err == nil {
+		destination = sourcewalk.Canonical(destination)
+		for _, name := range unavailable {
+			root := sourcewalk.Canonical(filepath.Join(source, name))
+			if utils.PathsEqual(destination, root) || utils.PathHasPrefix(destination, root+string(filepath.Separator)) {
+				return true
+			}
+		}
+		return false
+	}
+	// Some link types cannot expose their target; retain the flattened-name fallback.
+	entry := filepath.Base(path)
+	for _, name := range unavailable {
+		if entry == name || strings.HasPrefix(entry, name+"__") {
+			return true
+		}
+	}
+	return false
 }
 
 func findBrokenSymlinks(dir string) []string {

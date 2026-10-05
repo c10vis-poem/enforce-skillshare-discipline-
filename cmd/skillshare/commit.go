@@ -73,6 +73,7 @@ func cmdCommit(args []string) error {
 	}
 
 	if opts.dryRun {
+		printSourceLinkWarnings(source, cfg.EffectiveSkillsSource(), "commit", spinner)
 		spinner.Stop()
 		files := strings.Split(changes, "\n")
 		ui.Row(ui.MarkNone, "Commit", "would commit "+plural(len(files), "file")+ui.DimText(" · "+opts.message), ui.RowWidth("Commit"))
@@ -84,7 +85,7 @@ func cmdCommit(args []string) error {
 		return nil
 	}
 
-	if err := stageAndCommit(source, opts.message, spinner); err != nil {
+	if err := stageAndCommit(source, cfg.EffectiveSkillsSource(), "commit", opts.message, spinner); err != nil {
 		return err
 	}
 

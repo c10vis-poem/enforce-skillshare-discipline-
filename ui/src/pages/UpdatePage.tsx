@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, Check, CircleAlert, CircleArrowUp, CircleCheck, FolderX, GitBranch, Loader2, Puzzle, RefreshCw, ShieldAlert, Trash2, X } from 'lucide-react';
+import { Bot, Check, CircleAlert, CircleArrowUp, CircleCheck, FolderX, GitBranch, Link, Loader2, Puzzle, RefreshCw, ShieldAlert, Trash2, X } from 'lucide-react';
 import { api } from '../api/client';
-import type { CheckResult, Skill, UpdateResultItem } from '../api/client';
+import type { CheckResult, LinkedRepo, Skill, UpdateResultItem } from '../api/client';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { clearAuditCache } from '../lib/auditCache';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
@@ -79,11 +79,12 @@ export function useCheckStatuses() {
   return [data ?? NO_STATUSES, setStatuses] as const;
 }
 
-export function updateUnits(resources: Skill[], kind: Kind): UpdateUnit[] {
+export function updateUnits(resources: Skill[], kind: Kind, linkedRepos: LinkedRepo[] = []): UpdateUnit[] {
   const repos = new Map<string, UpdateUnit>();
   const units: UpdateUnit[] = [];
   for (const s of resources) {
     if (s.kind !== kind || !(s.isInRepo || s.source)) continue;
+    if (kind === 'skill' && linkedRepos.some((repo) => s.relPath === repo.name || s.relPath.startsWith(`${repo.name}/`))) continue;
     if (!s.isInRepo) {
       units.push({ name: s.relPath, label: s.name, isRepo: false, items: [s], source: s.source });
       continue;
@@ -133,7 +134,8 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
   const resources = useMemo(() => skillsData?.resources ?? [], [skillsData]);
   // A full check covers both kinds, so results are applied to every updatable item.
   const updatable = useMemo(() => resources.filter((s) => s.isInRepo || s.source), [resources]);
-  const units = useMemo(() => updateUnits(resources, kind), [resources, kind]);
+  const linkedRepos = useMemo(() => kind === 'skill' ? skillsData?.linked_repos ?? [] : [], [skillsData, kind]);
+  const units = useMemo(() => updateUnits(resources, kind, linkedRepos), [resources, kind, linkedRepos]);
 
   const [statuses, setStatuses] = useCheckStatuses();
   const [checking, setChecking] = useState(false);
@@ -158,10 +160,18 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
   /* -- Check -- */
 
   const applyCheckResult = useCallback((result: CheckResult) => {
+    queryClient.setQueryData<Awaited<ReturnType<typeof api.listSkills>>>(queryKeys.skills.all, (prev) =>
+      prev ? { ...prev, linked_repos: result.linked_repos ?? prev.linked_repos } : prev);
     setStatuses((prev) => {
       const next = new Map(prev);
       const pending = new Set(updatable.map((item) => item.name));
       const checkedAt = new Date().toISOString();
+      for (const item of updatable) {
+        if (item.kind === 'skill' && result.linked_repos?.some((repo) => item.relPath === repo.name || item.relPath.startsWith(`${repo.name}/`))) {
+          next.delete(item.name);
+          pending.delete(item.name);
+        }
+      }
 
       // The backend returns one entry per repo directory (e.g. `_awesome-claude-agents`);
       // copy it to every item in that repo.
@@ -198,7 +208,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
       }
       return next;
     });
-  }, [updatable, setStatuses]);
+  }, [updatable, setStatuses, queryClient]);
 
   const runCheck = useCallback(() => {
     esRef.current?.close();
@@ -560,8 +570,23 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
         </section>
       )}
 
+      {linkedRepos.length > 0 && (
+        <div className="ss-list">
+          {linkedRepos.map((repo) => (
+            <div key={repo.name} className="ss-r text-ink-3">
+              <span className="w-[26px] grid place-items-center"><Link size={15} /></span>
+              <div className="flex flex-col min-w-0 gap-1">
+                <span className="nm m">{repo.name}</span>
+                <span className="font-mono text-xs break-all">{repo.target}</span>
+                <span className="text-[13px]">{t('update.linkedRepos.note')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {units.length === 0 ? (
-        missingRepos.length === 0 && (
+        missingRepos.length === 0 && linkedRepos.length === 0 && (
           <EmptyState
             icon={CircleCheck}
             title={t(kind === 'agent' ? 'update.empty.agentsTitle' : 'update.empty.title')}

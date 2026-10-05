@@ -118,11 +118,11 @@ Version
 | Source | Source directory exists and is readable |
 | Agents | Agents source directory exists (if configured) |
 | Skillignore | `.skillignore` (and `.skillignore.local`) active patterns and ignored skill count |
-| Source link | Info for each first-level symlink or Windows junction in the skills source: discovery does not follow it, so its contents are invisible to skillshare |
+| Source link | One line per first-level symlink or Windows junction in the skills source. With [`follow_source_links`](../targets/configuration.md#follow_source_links) off (the default): info, `not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it`. With it on: info `followed as a directory (follow_source_links)`, or a warning `not followed: <reason>` (target missing, the source root or a parent, or a sync target overlap) |
 | Links | System can create symlinks |
 | Git | Repository status and remote configuration |
 
-Source-link checks apply in both global and project mode. The source root is resolved as in discovery; only its first-level entries are checked, without following links or reading their contents. No source-link output is added when there are none. Each link also appears as an `undeclared_source_links` check with status `info` in `doctor --json`.
+Source-link checks apply in both global and project mode. The source root is resolved as in discovery; only its first-level entries are checked. No source-link output is added when there are none. Each link also appears as an `undeclared_source_links` check in `doctor --json`, with status `info`, or `warning` for a link the policy skipped.
 
 ### Targets
 
@@ -230,7 +230,7 @@ Previews `skillshare sync plugins` without fetching any source. Doctor only asks
 - Skill-level `targets:` field validation (warns on unknown target names)
 - Last backup timestamp (global mode)
 - Trash status (item count, total size, oldest item age)
-- Broken symlinks in targets
+- Broken symlinks in targets. Target links behind a source link whose target is unavailable (an unmounted drive) are reported separately as a warning, `N links behind an unavailable source link, kept until it is back`, with no prune suggestion: `sync` keeps them on purpose, and the `broken_symlinks` check is `warning` instead of `error` in `doctor --json`.
 
 :::note Project Mode
 When a project has `.skillshare/config.yaml`, `skillshare doctor` auto-runs in project mode.
@@ -276,6 +276,8 @@ A skill was removed from source but symlink remains:
 ```bash
 skillshare sync  # Will prune orphaned symlinks
 ```
+
+If the line says `behind an unavailable source link, kept until it is back` instead, the skill lives behind a [followed source link](../targets/configuration.md#follow_source_links) whose target is away. Nothing to prune: mount the drive or restore the checkout and run `skillshare sync`.
 
 ### "Skills without SKILL.md"
 

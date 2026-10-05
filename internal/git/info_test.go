@@ -180,7 +180,7 @@ func TestStageAndCommit(t *testing.T) {
 	os.WriteFile(filepath.Join(repo, "new.txt"), []byte("hello"), 0644)
 
 	// Stage all
-	if err := StageAll(repo); err != nil {
+	if err := StageAll(repo, repo, "commit", func(string) {}); err != nil {
 		t.Fatalf("StageAll failed: %v", err)
 	}
 

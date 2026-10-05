@@ -11,13 +11,13 @@ import (
 // createLink creates a symlink on Unix systems.
 // If relative is true, the symlink stores a relative path from linkPath's
 // directory to sourcePath. Falls back to absolute if filepath.Rel fails.
-func createLink(linkPath, sourcePath string, relative bool) error {
+func createLink(linkPath, sourcePath string, relative bool, sourceRoot ...string) error {
 	target := sourcePath
 	if relative {
 		// Resolve real paths: the OS resolves relative symlinks from
 		// the real parent directory, not the lexical one.
 		linkDir := evalOrClean(filepath.Dir(linkPath))
-		src := evalOrClean(sourcePath)
+		src := linkSourcePath(sourcePath, sourceRoot)
 		if rel, err := filepath.Rel(linkDir, src); err == nil {
 			target = rel
 		}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,16 +16,19 @@ import (
 type reconcileResult struct {
 	live    map[string]bool
 	changed bool
+	// incomplete means a followed source link could not be read, so entries
+	// absent from live may still exist and must not be removed.
+	incomplete bool
 }
 
 // reconcileSkillsWalk walks sourcePath for installed skills (those with metadata
 // or tracked repos) and ensures they are present in the MetadataStore.
 // onFound is called for each discovered installed skill; pass nil to skip.
-func reconcileSkillsWalk(sourcePath string, store *install.MetadataStore, onFound func(fullPath string)) (reconcileResult, error) {
+func reconcileSkillsWalk(sourcePath string, walk sourcewalk.Options, store *install.MetadataStore, onFound func(fullPath string)) (reconcileResult, error) {
 	result := reconcileResult{live: map[string]bool{}}
 
 	walkRoot := utils.ResolveSymlink(sourcePath)
-	err := sourcewalk.WalkDir(walkRoot, sourcewalk.Options{}, func(path string, d os.DirEntry, walkErr error) error {
+	err := sourcewalk.WalkDir(walkRoot, walk, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return nil
 		}
@@ -54,7 +58,7 @@ func reconcileSkillsWalk(sourcePath string, store *install.MetadataStore, onFoun
 		}
 
 		var source string
-		tracked := isGitRepo(path)
+		tracked := install.IsGitRepo(path)
 
 		existing := store.GetByPath(fullPath)
 		if existing != nil && existing.Source != "" {
@@ -107,7 +111,7 @@ func reconcileSkillsWalk(sourcePath string, store *install.MetadataStore, onFoun
 		}
 
 		if tracked {
-			if changed, hashErr := store.RefreshTrackedRootSkillHashes(fullPath, path); hashErr == nil && changed {
+			if changed, hashErr := store.RefreshTrackedRootSkillHashes(fullPath, path, walk.Follow); hashErr == nil && changed {
 				result.changed = true
 			}
 		}
@@ -126,6 +130,11 @@ func reconcileSkillsWalk(sourcePath string, store *install.MetadataStore, onFoun
 		return nil
 	})
 
+	if names := walk.Follow.Unavailable(); len(names) > 0 {
+		// The walk missed whatever those links hold; that is not a removal.
+		result.incomplete = true
+		fmt.Fprintf(os.Stderr, "Warning: source link %s is unavailable; kept its install metadata\n", strings.Join(names, ", "))
+	}
 	return result, err
 }
 
@@ -139,12 +148,6 @@ func pruneStaleEntries(store *install.MetadataStore, live map[string]bool) bool 
 		}
 	}
 	return changed
-}
-
-// isGitRepo checks if the given path is a git repository (has .git/ directory or file).
-func isGitRepo(path string) bool {
-	_, err := os.Stat(filepath.Join(path, ".git"))
-	return err == nil
 }
 
 // gitCurrentBranch returns the current branch name for a git repo, or "" on failure.

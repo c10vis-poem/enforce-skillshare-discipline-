@@ -103,6 +103,8 @@ skillshare hub default --reset      # 清除默认值 → 社区 hub
 
 从已安装的 skills 构建一个 `skillshare-hub.json` 索引文件。生成的索引可以被 [`search --hub`](./search.md#private-index-search) 消费，用于私有、离线的 skill 发现。
 
+在当前配置中设置 [`follow_source_links: true`](../targets/configuration.md#follow_source_links) 后，索引会包含第一层 source 链接背后的 skill，包括使用 `--source` 时。dashboard 的内置搜索和 Hub 草稿候选项也使用相同的发现策略。
+
 ### 用法
 
 ```bash

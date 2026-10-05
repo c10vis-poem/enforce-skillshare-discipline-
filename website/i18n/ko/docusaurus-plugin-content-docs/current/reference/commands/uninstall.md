@@ -103,6 +103,8 @@ Glob 매칭은 대소문자를 구분하지 않습니다: `"Core-*"`는 `core-au
 Glob 패턴은 source 폴더 내의 **최상위 디렉터리 이름**에만 매칭됩니다. 중첩된 skill(예: `frontend/react-hooks`)은 `"react-*"`로 매칭되지 않습니다 — 하위 디렉터리 내의 skill을 대상으로 하려면 `--group frontend`를 사용하세요.
 :::
 
+`--group`은 `_dev-skills` 같은 [따라간 source 링크](../targets/configuration.md#follow_source_links)를 거부합니다. 실제 checkout에서 모든 skill을 옮겨 버리기 때문입니다. 링크 항목을 제거하려면 `skillshare uninstall _dev-skills`를 사용하고, checkout에서 휴지통으로 보내려면 skill 이름을 지정하세요(`skillshare uninstall _dev-skills/foo`).
+
 ## Remove All
 
 `--all`을 사용하면 source 디렉터리의 모든 skill을 한 번에 제거합니다.

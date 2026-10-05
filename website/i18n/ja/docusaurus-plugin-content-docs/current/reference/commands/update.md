@@ -65,7 +65,7 @@ flowchart TD
 
 | フラグ | 説明 |
 |------|-------------|
-| `--all, -a` | すべての tracked repos/skills を更新、または `update agents --all` として使う場合はすべての agents を更新 |
+| `--all, -a` | すべての tracked repos/skills を更新、または `update agents --all` として使う場合はすべての agents を更新。[たどられた source リンク](../targets/configuration.md#follow_source_links)の背後にある tracked repo は、あなた自身のチェックアウトであるため警告付きでスキップされます。名前を指定して更新してください |
 | `--group, -G <name>` | グループ内の更新可能なすべての skill、または agent サブディレクトリ内のすべての agent を更新 |
 | `--force, -f` | ローカルの変更を破棄し、audit の検出結果があっても続行 |
 | `--dry-run, -n` | 変更を加えずにプレビュー |

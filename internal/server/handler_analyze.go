@@ -43,7 +43,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	defaultMode := s.cfg.Mode
 	s.mu.RUnlock()
 
-	discovered, err := ssync.DiscoverSourceSkillsForAnalyze(source)
+	discovered, err := ssync.DiscoverSourceSkillsForAnalyze(source, s.skillsWalk())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

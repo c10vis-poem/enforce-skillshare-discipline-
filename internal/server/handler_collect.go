@@ -192,6 +192,7 @@ func (s *Server) handleCollect(w http.ResponseWriter, r *http.Request) {
 
 	// Merged results across skills and agents.
 	var allPulled, allSkipped []string
+	warnings := make(map[string]string)
 	allFailed := make(map[string]error)
 	var skillsPulled, agentsPulled int
 
@@ -227,12 +228,16 @@ func (s *Server) handleCollect(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
+		opts.Walk = s.skillsWalk()
 		result, err := ssync.PullSkills(resolved, s.cfg.EffectiveSkillsSource(), opts)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "collect failed: "+err.Error())
 			return
 		}
 		skillsPulled = len(result.Pulled)
+		for name, warning := range result.Warnings {
+			warnings[name] = warning
+		}
 		allPulled = append(allPulled, result.Pulled...)
 		allSkipped = append(allSkipped, result.Skipped...)
 		maps.Copy(allFailed, result.Failed)
@@ -311,8 +316,9 @@ func (s *Server) handleCollect(w http.ResponseWriter, r *http.Request) {
 	}, msg)
 
 	writeJSON(w, map[string]any{
-		"pulled":  allPulled,
-		"skipped": allSkipped,
-		"failed":  failed,
+		"pulled":   allPulled,
+		"skipped":  allSkipped,
+		"warnings": warnings,
+		"failed":   failed,
 	})
 }

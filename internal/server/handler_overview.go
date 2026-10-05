@@ -24,6 +24,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	// Snapshot config under RLock, then release before I/O.
 	s.mu.RLock()
 	source := s.cfg.EffectiveSkillsSource()
+	walk := s.skillsWalk()
 	agentsSource := s.agentsSource()
 	extrasSource := s.cfg.EffectiveExtrasSource()
 	if s.IsProjectMode() {
@@ -38,7 +39,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	isProjectMode := projectRoot != ""
 
 	// Count skills
-	skills, err := sync.DiscoverSourceSkills(source)
+	skills, err := sync.DiscoverSourceSkills(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -46,7 +47,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 
 	// Count top-level source entries (for display)
 	topLevelCount := 0
-	entries, _ := sourcewalk.ReadDir(source, sourcewalk.Options{})
+	entries, _ := sourcewalk.ReadDir(source, walk)
 	for _, e := range entries {
 		if e.IsDir() && !utils.IsHidden(e.Name()) {
 			topLevelCount++
@@ -59,7 +60,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Tracked repos
-	trackedRepos := buildTrackedRepos(source, skills)
+	trackedRepos := buildTrackedRepos(source, skills, walk)
 
 	// Count agents
 	agentCount := 0
@@ -94,8 +95,8 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
-func buildTrackedRepos(sourceDir string, skills []sync.DiscoveredSkill) []trackedRepoItem {
-	repoNames, err := install.GetTrackedRepos(sourceDir)
+func buildTrackedRepos(sourceDir string, skills []sync.DiscoveredSkill, walk sourcewalk.Options) []trackedRepoItem {
+	repoNames, err := install.GetTrackedRepos(sourceDir, walk)
 	if err != nil || len(repoNames) == 0 {
 		return []trackedRepoItem{}
 	}

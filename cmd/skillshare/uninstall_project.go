@@ -54,6 +54,7 @@ func cmdUninstallProject(args []string, root string) error {
 	sort.Strings(targetNames)
 	mode := &uninstallMode{
 		sourceDir:           sourceDir,
+		walk:                projectSkillsWalk(root, projectCfg),
 		sourceLabel:         ".skillshare/skills",
 		trashDir:            trash.ProjectTrashDir(root),
 		configPath:          config.ProjectConfigPath(root),

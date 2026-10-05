@@ -369,6 +369,8 @@ skillshare install anthropics/skills/skills/pdf
 
 Use `--update` to refresh, or `--force` to overwrite.
 
+`--update` on a tracked repo behind a [followed source link](../targets/configuration.md#follow_source_links) refuses to pull while that checkout has uncommitted changes, because a blocking audit finding would roll it back with `git reset --hard`. Commit or stash first.
+
 ### Cross-path duplicate
 
 If a repo is already installed at one location and you try to install it at a **different** location, skillshare blocks the operation:

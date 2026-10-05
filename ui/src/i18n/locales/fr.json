@@ -822,6 +822,7 @@
   "trash.toast.emptied": "Corbeille vidée ({count} élément{s} supprimé{s})",
   "trash.toast.restored": "« {name} » restauré depuis la corbeille",
   "trash.summary": "Les éléments désinstallés restent ici 7 jours, puis sont supprimés définitivement.",
+  "update.linkedRepos.note": "Vous gérez les dépôts liés ; ils ne sont pas mis à jour ici.",
   "update.check.behind": "{count} commits en retard",
   "update.check.behindFallback": "En retard",
   "update.check.checking": "Vérification",

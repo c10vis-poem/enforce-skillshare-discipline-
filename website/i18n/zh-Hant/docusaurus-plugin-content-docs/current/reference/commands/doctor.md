@@ -118,11 +118,11 @@ Version
 | Source | Source 目錄存在且可讀取 |
 | Agents | Agents source 目錄存在（若有設定） |
 | Skillignore | `.skillignore`（及 `.skillignore.local`）目前生效的 patterns 與被忽略的 skill 數量 |
-| Source link | skills source 第一層的每個 symlink 或 Windows junction 各一條 info：discovery 不會跟進去，所以其內容對 skillshare 不可見 |
+| Source link | skills source 第一層的每個 symlink 或 Windows junction 各一行。[`follow_source_links`](../targets/configuration.md#follow_source_links) 關閉時（預設）：info，`not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it`。開啟時：info `followed as a directory (follow_source_links)`，或警告 `not followed: <reason>`（目標不存在、指向 source 根目錄或其上層，或與 sync target 重疊） |
 | Links | 系統可以建立 symlinks |
 | Git | Repository 狀態與 remote 設定 |
 
-Source link 檢查在 global 與 project mode 都會執行。source 根目錄依 discovery 的方式解析，只檢查第一層項目，不跟隨連結、不讀取其內容。沒有這類連結時不會增加輸出。每個連結在 `doctor --json` 中也會以 status 為 `info` 的 `undeclared_source_links` 檢查出現。
+Source link 檢查在 global 與 project mode 都會執行。source 根目錄依 discovery 的方式解析，只檢查第一層項目。沒有這類連結時不會增加輸出。每個連結在 `doctor --json` 中也會以 `undeclared_source_links` 檢查出現，status 為 `info`；被原則略過的連結則為 `warning`。
 
 ### Targets
 
@@ -230,7 +230,7 @@ Doctor 會在兩類重複 skill 風險到達 runtime picker 之前先標示出�
 - Skill 層級的 `targets:` 欄位驗證（對未知的 target 名稱發出警告）
 - 上次備份時間戳（global mode）
 - Trash 狀態（項目數量、總大小、最舊項目的存放時間）
-- Targets 中損壞的 symlinks
+- Targets 中損壞的 symlinks。若 source 連結的目標無法使用（例如未掛載的硬碟），其背後的 target 連結會另外以警告回報：`N links behind an unavailable source link, kept until it is back`，且不會建議 prune：`sync` 是刻意保留它們的，而 `doctor --json` 中的 `broken_symlinks` 檢查會是 `warning` 而非 `error`。
 
 :::note Project Mode
 當一個 project 有 `.skillshare/config.yaml` 時，`skillshare doctor` 會自動以 project mode 執行。
@@ -276,6 +276,8 @@ git status
 ```bash
 skillshare sync  # Will prune orphaned symlinks
 ```
+
+如果該行顯示的是 `behind an unavailable source link, kept until it is back`，代表這個 skill 位於某個[已跟進的 source 連結](../targets/configuration.md#follow_source_links)背後，而其目標目前不在。沒有東西需要 prune：掛載硬碟或還原 checkout 後，執行 `skillshare sync` 即可。
 
 ### "Skills without SKILL.md"
 

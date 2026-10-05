@@ -10,6 +10,7 @@ import (
 
 	"skillshare/internal/audit"
 	"skillshare/internal/resource"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 )
 
@@ -93,7 +94,7 @@ func discoverAuditAgents(source string) ([]skillEntry, error) {
 }
 
 // discoverAuditSkills discovers and deduplicates skills for audit scanning.
-func discoverAuditSkills(source string) ([]skillEntry, error) {
+func discoverAuditSkills(source string, walk sourcewalk.Options) ([]skillEntry, error) {
 	if source == "" {
 		return []skillEntry{}, nil
 	}
@@ -104,7 +105,7 @@ func discoverAuditSkills(source string) ([]skillEntry, error) {
 		return nil, err
 	}
 
-	discovered, err := sync.DiscoverSourceSkills(source)
+	discovered, err := sync.DiscoverSourceSkills(source, walk)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []skillEntry{}, nil
@@ -303,12 +304,13 @@ func (s *Server) handleAuditAll(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
+	walk := s.skillsWalk()
 	var skills []skillEntry
 	var err error
 	if isAgents {
 		skills, err = discoverAuditAgents(source)
 	} else {
-		skills, err = discoverAuditSkills(source)
+		skills, err = discoverAuditSkills(source, walk)
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -328,7 +330,7 @@ func (s *Server) handleAuditAll(w http.ResponseWriter, r *http.Request) {
 	} else {
 		inputs = skillsToAuditInputs(skills)
 	}
-	scanned := audit.ParallelScan(inputs, auditProjectRoot, nil, nil)
+	scanned := audit.ParallelScan(inputs, auditProjectRoot, nil, nil, walk.Follow)
 
 	agg := processAuditResults(skills, scanned, policy, auditProjectRoot)
 	for i := range agg.Results {
@@ -396,9 +398,9 @@ func (s *Server) handleAuditSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if isProjectMode {
-			result, err = audit.ScanSkillForProject(skillPath, projectRoot)
+			result, err = audit.ScanSkillForProject(skillPath, projectRoot, s.skillsWalk().Follow)
 		} else {
-			result, err = audit.ScanSkill(skillPath)
+			result, err = audit.ScanSkillWithFollow(skillPath, s.skillsWalk().Follow)
 		}
 	}
 	if err != nil {

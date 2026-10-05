@@ -300,9 +300,12 @@ func handleExistingInit(opts *initOptions) (bool, error) {
 			ui.Row(ui.MarkNone, "Git", "skipped"+ui.DimText(" · --no-git"), gitRowWidth)
 		} else {
 			doGitInitIfAbsent(gitRoot, scope, opts.dryRun)
+			if opts.dryRun {
+				printSourceLinkWarnings(gitRoot, cfg.EffectiveSkillsSource(), "init", nil)
+			}
 			// Commit any uncommitted source files so push/pull work cleanly
 			if !opts.dryRun {
-				if err := commitSourceFiles(gitRoot); err != nil {
+				if err := commitSourceFiles(gitRoot, cfg.EffectiveSkillsSource()); err != nil {
 					ui.Warning("Failed to commit source files: %v", err)
 				}
 			}
@@ -383,6 +386,9 @@ func performFreshInit(opts *initOptions, home string) (*initResult, error) {
 	}
 
 	if p.dryRun {
+		if p.git {
+			printSourceLinkWarnings(gitRootFor(p, buildInitConfig(p)), p.source(), "init", nil)
+		}
 		fmt.Println(strings.Join(summaryLines(p, "Dry run — nothing was written", ""), "\n"))
 		ui.Note("Run without --dry-run to set it up")
 		return nil, nil
@@ -564,12 +570,13 @@ func printGitIdentityNote(dir string) {
 
 // commitSourceFiles creates a single commit with all source files
 // (.gitignore, copied skills, installed skills).
-func commitSourceFiles(sourcePath string) error {
+func commitSourceFiles(sourcePath, skills string) error {
 	gitDir := filepath.Join(sourcePath, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return nil
 	}
 
+	printSourceLinkWarnings(sourcePath, skills, "init", nil)
 	addCmd := exec.Command("git", "add", ".")
 	addCmd.Dir = sourcePath
 	if out, err := addCmd.CombinedOutput(); err != nil {

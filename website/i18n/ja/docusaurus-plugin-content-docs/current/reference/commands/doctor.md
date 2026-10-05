@@ -118,11 +118,11 @@ Version
 | Source | Source ディレクトリが存在し、読み取り可能であること |
 | Agents | Agents source ディレクトリが存在すること（設定されている場合） |
 | Skillignore | `.skillignore`（および `.skillignore.local`）の有効なパターンと、無視されている Skill 数 |
-| Source link | skills source 直下にあるシンボリックリンクまたは Windows ジャンクションごとの情報。discovery はこれらを辿らないため、その中身は skillshare から見えません |
+| Source link | skills source 直下にあるシンボリックリンクまたは Windows ジャンクションごとに 1 行。[`follow_source_links`](../targets/configuration.md#follow_source_links) がオフ（デフォルト）の場合: info として `not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it`。オンの場合: info として `followed as a directory (follow_source_links)`、または警告として `not followed: <reason>`（リンク先がない、source のルートまたはその親、sync target との重なり） |
 | Links | システムがシンボリックリンクを作成できること |
 | Git | リポジトリの状態と remote の設定 |
 
-Source link の確認はグローバルモードとプロジェクトモードの両方で行われます。source のルートは discovery と同じ方法で解決され、直下のエントリだけを確認します。リンクは辿らず、中身も読みません。該当するリンクがなければ出力は追加されません。各リンクは `doctor --json` では status `info` の `undeclared_source_links` チェックとしても現れます。
+Source link の確認はグローバルモードとプロジェクトモードの両方で行われます。source のルートは discovery と同じ方法で解決され、直下のエントリだけを確認します。該当するリンクがなければ出力は追加されません。各リンクは `doctor --json` では `undeclared_source_links` チェックとしても現れ、status は `info`、ポリシーによってスキップされたリンクでは `warning` になります。
 
 ### Targets
 
@@ -230,7 +230,7 @@ Extras が設定されている場合、以下を検証します。
 - Skill レベルの `targets:` フィールド検証（未知の Target 名について警告）
 - 最後のバックアップのタイムスタンプ（グローバルモード）
 - Trash の状態（アイテム数、合計サイズ、最も古いアイテムの経過日数）
-- Target 内の壊れたシンボリックリンク
+- Target 内の壊れたシンボリックリンク。リンク先が利用できない source リンク（マウントされていないドライブ）の背後にある Target リンクは、警告 `N links behind an unavailable source link, kept until it is back` として別に報告され、prune の提案はありません。`sync` は意図的にそれらを保持し、`doctor --json` の `broken_symlinks` チェックは `error` ではなく `warning` になります。
 
 :::note Project mode
 プロジェクトに `.skillshare/config.yaml` がある場合、`skillshare doctor` は自動的に Project mode で実行されます。
@@ -276,6 +276,8 @@ Skill が Source から削除されたのに、シンボリックリンクが残
 ```bash
 skillshare sync  # 孤立したシンボリックリンクを削除します
 ```
+
+代わりに行に `behind an unavailable source link, kept until it is back` と表示される場合、その Skill はリンク先が利用できない[たどられた source リンク](../targets/configuration.md#follow_source_links)の背後にあります。prune するものはありません。ドライブをマウントするかチェックアウトを復元して、`skillshare sync` を実行してください。
 
 ### "Skills without SKILL.md"
 

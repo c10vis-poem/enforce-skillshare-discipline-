@@ -822,6 +822,7 @@
   "trash.toast.emptied": "Papelera vaciada ({count} elemento{s} eliminados)",
   "trash.toast.restored": "\"{name}\" restaurado desde la papelera",
   "trash.summary": "Los elementos desinstalados permanecen aquí 7 días y luego se eliminan definitivamente.",
+  "update.linkedRepos.note": "Tú administras los repositorios enlazados; no se actualizan aquí.",
   "update.check.behind": "{count} commits detrás",
   "update.check.behindFallback": "Detrás",
   "update.check.checking": "Comprobando",

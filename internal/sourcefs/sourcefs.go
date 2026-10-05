@@ -5,6 +5,11 @@
 // refuses when one is a link: os.Root alone still acts on a link that is the
 // last component, and it allows a relative link that stays inside the root.
 //
+// With a sourcewalk.Follow policy, a name below a followed first-level link
+// (<link>/<rest>) is written through a second *os.Root opened at the link's
+// target, with the same checks on <rest>. The link itself is still a link:
+// it is never written through, removed through, or replaced.
+//
 // The package takes plain inputs and must not import internal/config or
 // internal/sync.
 package sourcefs
@@ -16,10 +21,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
@@ -44,32 +51,39 @@ type Root struct {
 	dir      string
 	resolved string
 	root     *os.Root
+	follow   *sourcewalk.Follow
+	linked   map[string]*Root // followed link name → root at its target
 }
 
 // Open opens the skills source at dir, which must exist. The root itself may
-// be a link.
-func Open(dir string) (*Root, error) {
+// be a link. An optional follow policy, the one the operation discovered
+// with, lets writes pass through followed first-level links.
+func Open(dir string, follow ...*sourcewalk.Follow) (*Root, error) {
 	dir = filepath.Clean(dir)
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, err
 	}
-	return &Root{dir: dir, resolved: utils.ResolveSymlink(dir), root: root}, nil
+	r := &Root{dir: dir, resolved: utils.ResolveSymlink(dir), root: root}
+	if len(follow) > 0 {
+		r.follow = follow[0]
+	}
+	return r, nil
 }
 
 // Create creates the skills source directory at dir when it is missing, then
 // opens it.
-func Create(dir string) (*Root, error) {
+func Create(dir string, follow ...*sourcewalk.Follow) (*Root, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return Open(dir)
+	return Open(dir, follow...)
 }
 
 // MkdirAllIn creates name below the source root dir, creating the root when
 // it is missing. It is for callers that write nothing else.
-func MkdirAllIn(dir, name string) error {
-	r, err := Create(dir)
+func MkdirAllIn(dir, name string, follow ...*sourcewalk.Follow) error {
+	r, err := Create(dir, follow...)
 	if err != nil {
 		return err
 	}
@@ -82,8 +96,8 @@ func MkdirAllIn(dir, name string) error {
 // Root.Rename, so it is checked through the root first: a link above path is
 // refused. Path itself may be a link; a rename moves the link, never its
 // target.
-func CheckMoveOut(dir, path string) error {
-	r, err := Open(dir)
+func CheckMoveOut(dir, path string, follow ...*sourcewalk.Follow) error {
+	r, err := Open(dir, follow...)
 	if err != nil {
 		return err
 	}
@@ -95,8 +109,44 @@ func CheckMoveOut(dir, path string) error {
 	return r.CheckParent(rel)
 }
 
-// Close releases the root.
-func (r *Root) Close() error { return r.root.Close() }
+// Close releases the root and the roots opened at followed link targets.
+func (r *Root) Close() error {
+	for _, l := range r.linked {
+		l.Close()
+	}
+	return r.root.Close()
+}
+
+// through returns the root at a followed link's target and the rest of name
+// below the link, when name is <link>/<rest> and the policy follows <link>.
+// Only clean names without ".." qualify; every other name keeps the source
+// root, which refuses a path through a link.
+func (r *Root) through(name string) (*Root, string, bool, error) {
+	if r.follow == nil || name != filepath.Clean(name) || filepath.IsAbs(name) {
+		return nil, "", false, nil
+	}
+	parts := strings.Split(name, string(filepath.Separator))
+	if len(parts) < 2 || slices.Contains(parts, "..") {
+		return nil, "", false, nil
+	}
+	rest := filepath.Join(parts[1:]...)
+	if l, ok := r.linked[parts[0]]; ok {
+		return l, rest, true, nil
+	}
+	target, ok := r.follow.Resolve(filepath.Join(r.dir, parts[0]))
+	if !ok {
+		return nil, "", false, nil
+	}
+	l, err := Open(target)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if r.linked == nil {
+		r.linked = map[string]*Root{}
+	}
+	r.linked[parts[0]] = l
+	return l, rest, true, nil
+}
 
 // Dir returns the source root as it was opened.
 func (r *Root) Dir() string { return r.dir }
@@ -119,6 +169,12 @@ func (r *Root) Rel(p string) (string, error) {
 // last, is a link. Components after the first missing one cannot exist, so
 // the check stops there.
 func (r *Root) CheckNoLink(name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.CheckNoLink(rest)
+	}
 	return r.checkComponents(name, true)
 }
 
@@ -127,6 +183,12 @@ func (r *Root) CheckNoLink(name string) error {
 // component never follows it, but a link above it would move content that
 // lives outside the source.
 func (r *Root) CheckParent(name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.CheckParent(rest)
+	}
 	return r.checkComponents(name, false)
 }
 
@@ -159,13 +221,35 @@ func (r *Root) checkComponents(name string, includeLast bool) error {
 
 // Stat returns the file info of name, following a final link only when it
 // stays inside the root.
-func (r *Root) Stat(name string) (fs.FileInfo, error) { return r.root.Stat(name) }
+func (r *Root) Stat(name string) (fs.FileInfo, error) {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return l.Stat(rest)
+	}
+	return r.root.Stat(name)
+}
 
 // Lstat returns the file info of name without following a final link.
-func (r *Root) Lstat(name string) (fs.FileInfo, error) { return r.root.Lstat(name) }
+func (r *Root) Lstat(name string) (fs.FileInfo, error) {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return l.Lstat(rest)
+	}
+	return r.root.Lstat(name)
+}
 
 // WriteFile writes data to name, creating or truncating it.
 func (r *Root) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.WriteFile(rest, data, perm)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
@@ -175,6 +259,12 @@ func (r *Root) WriteFile(name string, data []byte, perm fs.FileMode) error {
 // OpenFile opens name with the given flags. Any flag that can change the
 // file runs the link check first.
 func (r *Root) OpenFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return l.OpenFile(rest, flag, perm)
+	}
 	if flag&(os.O_WRONLY|os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_APPEND) != 0 {
 		if err := r.CheckNoLink(name); err != nil {
 			return nil, err
@@ -183,8 +273,20 @@ func (r *Root) OpenFile(name string, flag int, perm fs.FileMode) (*os.File, erro
 	return r.root.OpenFile(name, flag, perm)
 }
 
-// MkdirAll creates name and any missing parents.
+// MkdirAll creates name and any missing parents. A followed first-level
+// link already is that directory, so naming one is a no-op.
 func (r *Root) MkdirAll(name string, perm fs.FileMode) error {
+	if r.follow != nil && name == filepath.Base(name) {
+		if _, ok := r.follow.Resolve(filepath.Join(r.dir, name)); ok {
+			return nil
+		}
+	}
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.MkdirAll(rest, perm)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
@@ -193,6 +295,12 @@ func (r *Root) MkdirAll(name string, perm fs.FileMode) error {
 
 // Remove removes the file or empty directory name.
 func (r *Root) Remove(name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.Remove(rest)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
@@ -202,14 +310,35 @@ func (r *Root) Remove(name string) error {
 // RemoveAll removes name and everything below it. Links below name are
 // removed, never followed.
 func (r *Root) RemoveAll(name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.RemoveAll(rest)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
 	return r.root.RemoveAll(name)
 }
 
-// Rename renames oldname to newname, both inside the root.
+// Rename renames oldname to newname, both inside the root, or both below the
+// same followed link.
 func (r *Root) Rename(oldname, newname string) error {
+	lo, oldRest, oldOK, err := r.through(oldname)
+	if err != nil {
+		return err
+	}
+	ln, newRest, newOK, err := r.through(newname)
+	if err != nil {
+		return err
+	}
+	if oldOK || newOK {
+		if lo != ln {
+			return fmt.Errorf("cannot rename %s to %s across a followed link", oldname, newname)
+		}
+		return lo.Rename(oldRest, newRest)
+	}
 	if err := r.CheckNoLink(oldname); err != nil {
 		return err
 	}
@@ -223,6 +352,12 @@ func (r *Root) Rename(oldname, newname string) error {
 // The temporary file is created and renamed inside the root, so the first
 // filesystem change is already constrained by it.
 func (r *Root) WriteFileAtomic(name string, data []byte, perm fs.FileMode) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.WriteFileAtomic(rest, data, perm)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
@@ -254,6 +389,12 @@ func (r *Root) WriteFileAtomic(name string, data []byte, perm fs.FileMode) error
 // crosses the root's edge, so it cannot use Root.Rename: the in-source side
 // is checked through the root first, and name must not exist yet.
 func (r *Root) MoveIn(src, name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.moveInAnchored(src, rest)
+	}
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
@@ -266,19 +407,64 @@ func (r *Root) MoveIn(src, name string) error {
 	return os.Rename(src, filepath.Join(r.dir, name))
 }
 
-// CopyIn copies the directory tree src, which lives outside the root, to
-// name. It is the fallback for MoveIn when the rename crosses filesystems
-// (see IsCrossDevice) and keeps its contract: name must not exist yet, and
-// every directory and file is created through the root, so a link that
-// appears at or above name after the check is still refused by the handle.
-// Links inside src are copied as the content they point at.
-func (r *Root) CopyIn(src, name string) error {
+// moveInAnchored is MoveIn for a root opened at a followed link's target.
+// That target's pathname can be rebound to another directory after the root
+// was opened, so a pathname rename could land outside the opened checkout.
+// Instead src is copied through the handle to a temporary name beside name,
+// renamed into place through the handle, and only then removed.
+func (r *Root) moveInAnchored(src, name string) error {
 	if err := r.CheckNoLink(name); err != nil {
 		return err
 	}
 	if _, err := r.root.Lstat(name); err == nil {
 		return fmt.Errorf("%s already exists", filepath.Join(r.dir, name))
 	}
+	temp := filepath.Join(filepath.Dir(name), ".skillshare-"+filepath.Base(name)+"."+strconv.FormatInt(time.Now().UnixNano(), 36))
+	if err := r.CopyIn(src, temp); err != nil {
+		_ = r.root.RemoveAll(temp)
+		return err
+	}
+	if err := r.root.Rename(temp, name); err != nil {
+		_ = r.root.RemoveAll(temp)
+		return err
+	}
+	return os.RemoveAll(src)
+}
+
+// CopyIn copies the directory tree src, which lives outside the root, to
+// name. It is the fallback for MoveIn when the rename crosses filesystems
+// (see IsCrossDevice) and keeps its contract: name must not exist yet, and
+// every directory and file is created through the root, so a link that
+// appears at or above name after the check is still refused by the handle.
+// Links inside src are copied as the content they point at. Dangling links
+// are skipped; other resolution errors fail the copy. Directory cycles fail.
+func (r *Root) CopyIn(src, name string) error {
+	if l, rest, ok, err := r.through(name); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		return l.CopyIn(src, rest)
+	}
+	if err := r.CheckNoLink(name); err != nil {
+		return err
+	}
+	if _, err := r.root.Lstat(name); err == nil {
+		return fmt.Errorf("%s already exists", filepath.Join(r.dir, name))
+	}
+	return r.copyTreeIn(src, name, make(map[string]bool))
+}
+
+func (r *Root) copyTreeIn(src, name string, active map[string]bool) error {
+	resolved, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+	if active[resolved] {
+		return fmt.Errorf("directory link cycle while copying %s", src)
+	}
+	active[resolved] = true
+	defer delete(active, resolved)
+	src = resolved
 	return filepath.Walk(src, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -288,6 +474,18 @@ func (r *Root) CopyIn(src, name string) error {
 			return err
 		}
 		dst := filepath.Join(name, rel)
+		if utils.IsLinkMode(path, info.Mode()) {
+			targetInfo, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				return nil // A dangling staged link has no content to copy.
+			}
+			if err != nil {
+				return err
+			}
+			if targetInfo.IsDir() {
+				return r.copyTreeIn(path, dst, active)
+			}
+		}
 		if info.IsDir() {
 			return r.root.Mkdir(dst, info.Mode().Perm())
 		}

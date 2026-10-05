@@ -707,9 +707,9 @@
     "file": "internal/server/handler_skills.go",
     "function": "(*Server).handleGetSkill",
     "callee": "filepath.Walk",
-    "root": "d.SourcePath",
+    "root": "walkRoot",
     "reason": "skill-dir",
-    "note": "Read individual skill contents; followed single skills deferred to step 4"
+    "note": "Read individual skill contents after resolving a followed root"
   },
   {
     "file": "internal/server/handler_targets.go",
@@ -729,7 +729,7 @@
   },
   {
     "file": "internal/sourcefs/sourcefs.go",
-    "function": "(*Root).CopyIn",
+    "function": "(*Root).copyTreeIn",
     "callee": "filepath.Walk",
     "root": "src",
     "reason": "skill-dir",
@@ -747,17 +747,49 @@
     "file": "internal/sourcewalk/walk.go",
     "function": "Walk",
     "callee": "filepath.Walk",
-    "root": "utils.ResolveSymlink(root)",
+    "root": "resolved",
     "reason": "sourcewalk",
-    "note": "Shared source Walk implementation"
+    "note": "Shared source Walk implementation, without a follow policy"
+  },
+  {
+    "file": "internal/sourcewalk/walk.go",
+    "function": "Walk",
+    "callee": "filepath.Walk",
+    "root": "resolved",
+    "reason": "sourcewalk",
+    "note": "Shared source Walk implementation with a follow policy"
+  },
+  {
+    "file": "internal/sourcewalk/walk.go",
+    "function": "Walk",
+    "callee": "filepath.Walk",
+    "root": "target",
+    "reason": "sourcewalk",
+    "note": "Contents of a first-level link the follow policy validated; paths are remapped to the logical link path"
   },
   {
     "file": "internal/sourcewalk/walk.go",
     "function": "WalkDir",
     "callee": "filepath.WalkDir",
-    "root": "utils.ResolveSymlink(root)",
+    "root": "resolved",
     "reason": "sourcewalk",
-    "note": "Shared source WalkDir implementation"
+    "note": "Shared source WalkDir implementation, without a follow policy"
+  },
+  {
+    "file": "internal/sourcewalk/walk.go",
+    "function": "WalkDir",
+    "callee": "filepath.WalkDir",
+    "root": "resolved",
+    "reason": "sourcewalk",
+    "note": "Shared source WalkDir implementation with a follow policy"
+  },
+  {
+    "file": "internal/sourcewalk/walk.go",
+    "function": "WalkDir",
+    "callee": "filepath.WalkDir",
+    "root": "target",
+    "reason": "sourcewalk",
+    "note": "Contents of a first-level link the follow policy validated; paths are remapped to the logical link path"
   },
   {
     "file": "internal/sync/agent_sync.go",

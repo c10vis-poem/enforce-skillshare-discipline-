@@ -7,7 +7,25 @@ import (
 	"strings"
 
 	"skillshare/internal/audit"
+	"skillshare/internal/sourcewalk"
 )
+
+// Audit rollback resets the whole checkout, so followed user repositories
+// must be clean before pulling even when their edits do not conflict upstream.
+func checkFollowedCheckoutClean(repoPath string, opts InstallOptions) error {
+	checkout, followed := opts.SourceFollow.Resolve(repoPath)
+	if !followed {
+		return nil
+	}
+	status, err := gitOutput(checkout, "status", "--porcelain")
+	if err != nil {
+		return fmt.Errorf("cannot check Git status of followed checkout %s; resolve the status error and commit or stash changes before updating: %w", checkout, err)
+	}
+	if status != "" {
+		return fmt.Errorf("uncommitted changes in followed checkout %s: commit or stash them before updating", checkout)
+	}
+	return nil
+}
 
 // auditInstalledResource runs the audit gate shared by skill and agent installs.
 // scan performs the actual scan; cleanupOnBlock removes the installed artifact
@@ -98,9 +116,9 @@ func auditInstalledResource(
 func auditInstalledSkill(destPath string, result *InstallResult, opts InstallOptions) error {
 	scan := func() (*audit.Result, error) {
 		if opts.AuditProjectRoot != "" {
-			return audit.ScanSkillForProject(destPath, opts.AuditProjectRoot)
+			return audit.ScanSkillForProject(destPath, opts.AuditProjectRoot, opts.SourceFollow)
 		}
-		return audit.ScanSkill(destPath)
+		return audit.ScanSkillWithFollow(destPath, opts.SourceFollow)
 	}
 	cleanup := func() error { return removeAll(destPath) }
 	return auditInstalledResource(destPath, result, opts, scan, cleanup)
@@ -158,9 +176,9 @@ func auditTrackedRepo(repoPath string, result *TrackedRepoResult, opts InstallOp
 
 	var scanResult *audit.Result
 	if opts.AuditProjectRoot != "" {
-		scanResult, err = audit.ScanSkillForProject(repoPath, opts.AuditProjectRoot)
+		scanResult, err = audit.ScanSkillForProject(repoPath, opts.AuditProjectRoot, opts.SourceFollow)
 	} else {
-		scanResult, err = audit.ScanSkill(repoPath)
+		scanResult, err = audit.ScanSkillWithFollow(repoPath, opts.SourceFollow)
 	}
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("audit scan error: %v", err))
@@ -226,7 +244,7 @@ func auditTrackedRepo(repoPath string, result *TrackedRepoResult, opts InstallOp
 // auditGateFailClosed scans a repo after git pull and rolls back on scan
 // error or findings at/above threshold. Used by handleUpdate for non-tracked
 // skill updates where fail-closed is the only behaviour.
-func auditGateFailClosed(sourceDir, repoPath, beforeHash, threshold, projectRoot string, auditOverride bool) (*audit.Result, error) {
+func auditGateFailClosed(sourceDir, repoPath, beforeHash, threshold, projectRoot string, auditOverride bool, follow ...*sourcewalk.Follow) (*audit.Result, error) {
 	if beforeHash == "" {
 		return nil, fmt.Errorf(
 			"post-update audit failed — rollback commit unavailable, update aborted and repository state is unknown: %w",
@@ -239,12 +257,16 @@ func auditGateFailClosed(sourceDir, repoPath, beforeHash, threshold, projectRoot
 		normalizedThreshold = audit.DefaultThreshold()
 	}
 
+	var policy *sourcewalk.Follow
+	if len(follow) > 0 {
+		policy = follow[0]
+	}
 	var scanResult *audit.Result
 	var scanErr error
 	if projectRoot != "" {
-		scanResult, scanErr = audit.ScanSkillForProject(repoPath, projectRoot)
+		scanResult, scanErr = audit.ScanSkillForProject(repoPath, projectRoot, policy)
 	} else {
-		scanResult, scanErr = audit.ScanSkill(repoPath)
+		scanResult, scanErr = audit.ScanSkillWithFollow(repoPath, policy)
 	}
 	if scanErr != nil {
 		if resetErr := gitResetHard(repoPath, beforeHash); resetErr != nil {
@@ -290,9 +312,9 @@ func auditTrackedRepoUpdate(repoPath, beforeHash string, result *TrackedRepoResu
 
 	var scanResult *audit.Result
 	if opts.AuditProjectRoot != "" {
-		scanResult, err = audit.ScanSkillForProject(repoPath, opts.AuditProjectRoot)
+		scanResult, err = audit.ScanSkillForProject(repoPath, opts.AuditProjectRoot, opts.SourceFollow)
 	} else {
-		scanResult, err = audit.ScanSkill(repoPath)
+		scanResult, err = audit.ScanSkillWithFollow(repoPath, opts.SourceFollow)
 	}
 	if err != nil {
 		if beforeHash == "" {

@@ -448,7 +448,7 @@ type checksumEntry struct {
 // collectChecksumEntries recursively collects file entries for checksumming.
 // Directory symlinks are dereferenced to hash effective copied content.
 func collectChecksumEntries(root, relPrefix string, entries *[]checksumEntry, active map[string]bool, ignore *skillignore.Matcher) error {
-	resolvedRoot, err := filepath.EvalSymlinks(root)
+	resolvedRoot, err := resolveLinkRoot(root)
 	if err != nil {
 		return fmt.Errorf("failed to resolve checksum root %s: %w", root, err)
 	}
@@ -458,6 +458,8 @@ func collectChecksumEntries(root, relPrefix string, entries *[]checksumEntry, ac
 	active[resolvedRoot] = true
 	defer delete(active, resolvedRoot)
 
+	// The root link has already been resolved and entered in the cycle set.
+	root = resolvedRoot
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

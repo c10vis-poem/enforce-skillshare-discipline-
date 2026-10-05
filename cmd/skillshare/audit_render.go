@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"skillshare/internal/audit"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/theme"
 	"skillshare/internal/ui"
 	"skillshare/internal/utils"
@@ -25,6 +26,7 @@ func riskColor(label string) string {
 type auditTUIContext struct {
 	kind             resourceKindFilter
 	sourcePath       string // skills source (always)
+	skillsWalk       sourcewalk.Options
 	agentsSourcePath string // agents source (always)
 	projectRoot      string
 	threshold        string
@@ -119,10 +121,10 @@ func launchAuditTUIWithTabs(results []*audit.Result, scanOutputs []audit.ScanOut
 	}
 
 	if otherSource != "" {
-		otherPaths, err := discoverForKind(otherKindFilter, otherSource)
+		otherPaths, err := discoverForKind(otherKindFilter, otherSource, ctx.skillsWalk)
 		otherInputs := toInputsForKind(otherKindFilter, otherPaths)
 		if err == nil && len(otherPaths) > 0 {
-			otherScanResults := audit.ParallelScan(otherInputs, ctx.projectRoot, nil, ctx.registry)
+			otherScanResults := audit.ParallelScan(otherInputs, ctx.projectRoot, nil, ctx.registry, ctx.skillsWalk.Follow)
 			for i := range otherPaths {
 				if i < len(otherScanResults) {
 					sr := otherScanResults[i]

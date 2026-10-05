@@ -9,11 +9,13 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"skillshare/internal/config"
 	"skillshare/internal/install"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/version"
 )
 
@@ -28,6 +30,9 @@ type Server struct {
 	mu          sync.RWMutex // protects config: Lock for writes/reloads, RLock for reads
 
 	startTime time.Time // for uptime reporting in health check
+
+	// follow is nil while follow_source_links is off; see snapshotFollow.
+	follow atomic.Pointer[followConfig]
 
 	// Project mode fields (empty/nil for global mode)
 	projectRoot string
@@ -103,6 +108,7 @@ func New(cfg *config.Config, addr, basePath, uiDistDir string) *Server {
 		basePath:    NormalizeBasePath(basePath),
 		uiDistDir:   uiDistDir,
 	}
+	s.snapshotFollow()
 	s.registerRoutes()
 	s.handler = s.withConfigAutoReload(s.mux)
 	s.wrapBasePath()
@@ -134,6 +140,7 @@ func NewProject(cfg *config.Config, projectCfg *config.ProjectConfig, projectRoo
 		uiDistDir:   uiDistDir,
 	}
 	_, s.unresolvedTargets = config.ResolveValidProjectTargets(projectRoot, projectCfg)
+	s.snapshotFollow()
 	s.registerRoutes()
 	s.handler = s.withConfigAutoReload(s.mux)
 	s.wrapBasePath()
@@ -178,6 +185,37 @@ func (s *Server) skillsSource() string {
 		return s.projectCfg.EffectiveSkillsSource(s.projectRoot)
 	}
 	return s.cfg.EffectiveSkillsSource()
+}
+
+// followConfig is the config skillsWalk reads, copied whenever the config is
+// loaded, reloaded, or saved, so handlers can build a policy without s.mu.
+type followConfig struct {
+	source  string
+	targets map[string]config.TargetConfig
+}
+
+// snapshotFollow records the current mode's follow_source_links setting.
+// Caller must hold s.mu or own s exclusively.
+func (s *Server) snapshotFollow() {
+	enabled := s.cfg.FollowSourceLinks
+	if s.IsProjectMode() {
+		enabled = s.projectCfg.FollowSourceLinks
+	}
+	if !enabled {
+		s.follow.Store(nil)
+		return
+	}
+	s.follow.Store(&followConfig{source: s.skillsSource(), targets: s.cloneTargets()})
+}
+
+// skillsWalk returns a fresh skills source traversal policy for one request,
+// following first-level source links when the current mode's config enables it.
+func (s *Server) skillsWalk() sourcewalk.Options {
+	f := s.follow.Load()
+	if f == nil {
+		return sourcewalk.Options{}
+	}
+	return config.SkillsWalk(true, f.source, f.targets)
 }
 
 // agentsSource returns the agents source directory for the current mode.
@@ -244,6 +282,7 @@ func (s *Server) configPath() string {
 
 // saveConfig persists the config for the current mode
 func (s *Server) saveConfig() error {
+	s.snapshotFollow()
 	if s.IsProjectMode() {
 		return s.projectCfg.Save(s.projectRoot)
 	}
@@ -281,6 +320,7 @@ func (s *Server) reloadConfig() error {
 		if st, err := install.LoadMetadata(agentsDir); err == nil {
 			s.agentsStore = st
 		}
+		s.snapshotFollow()
 		return nil
 	}
 	newCfg, err := config.Load()
@@ -294,6 +334,7 @@ func (s *Server) reloadConfig() error {
 	if st, err := install.LoadMetadata(newCfg.EffectiveAgentsSource()); err == nil {
 		s.agentsStore = st
 	}
+	s.snapshotFollow()
 	return nil
 }
 

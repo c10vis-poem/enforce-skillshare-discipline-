@@ -12,6 +12,8 @@ skillshare list --verbose    # Detailed plain text view
 skillshare list --json       # JSON output for CI/scripts
 ```
 
+With `follow_source_links: true`, unavailable first-level source links produce a warning naming the link while healthy skills remain listed. With `--json`, these warnings go to stderr and stdout remains valid JSON.
+
 ## When to Use
 
 - See what skills are installed and where they came from

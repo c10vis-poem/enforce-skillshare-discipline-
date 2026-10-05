@@ -2,13 +2,17 @@ package server
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"skillshare/internal/install"
 	"skillshare/internal/resource"
+	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 	"skillshare/internal/utils"
 )
@@ -67,7 +71,8 @@ func (s *Server) handleBatchSetTargets(w http.ResponseWriter, r *http.Request) {
 	source := s.cfg.EffectiveSkillsSource()
 	s.mu.RUnlock()
 
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	walk := s.skillsWalk()
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 		return
@@ -113,7 +118,7 @@ func (s *Server) handleBatchSetTargets(w http.ResponseWriter, r *http.Request) {
 		}
 
 		skillMDPath := filepath.Join(d.SourcePath, "SKILL.md")
-		if err := utils.SetFrontmatterList(skillMDPath, "metadata.targets", values); err != nil {
+		if err := setSourceFrontmatterList(source, skillMDPath, "metadata.targets", values, walk.Follow); err != nil {
 			errors = append(errors, d.FlatName+": "+err.Error())
 			continue
 		}
@@ -138,7 +143,7 @@ func (s *Server) handleBatchSetTargets(w http.ResponseWriter, r *http.Request) {
 	// store itself is only touched under the lock.
 	hashes := make(map[string]map[string]string, len(updatedSkills))
 	for _, sk := range updatedSkills {
-		if h, err := install.ComputeFileHashes(sk.path); err == nil {
+		if h, err := install.ComputeFileHashes(sk.path, walk.Follow); err == nil {
 			hashes[sk.name] = h
 		}
 	}
@@ -196,7 +201,8 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 	source := s.cfg.EffectiveSkillsSource()
 	s.mu.RUnlock()
 
-	discovered, err := ssync.DiscoverSourceSkillsAll(source)
+	walk := s.skillsWalk()
+	discovered, err := ssync.DiscoverSourceSkillsAll(source, walk)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to discover skills: "+err.Error())
 		return
@@ -229,11 +235,15 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 			skillMDPath := filepath.Join(d.SourcePath, "SKILL.md")
 
 			s.mu.Lock()
-			err := utils.SetFrontmatterList(skillMDPath, "metadata.targets", values)
+			err := setSourceFrontmatterList(source, skillMDPath, "metadata.targets", values, walk.Follow)
 			s.mu.Unlock()
 
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, "failed to update skill: "+err.Error())
+				status := http.StatusInternalServerError
+				if errors.Is(err, sourcefs.ErrLink) {
+					status = http.StatusBadRequest
+				}
+				writeError(w, status, "failed to update skill: "+err.Error())
 				return
 			}
 
@@ -241,7 +251,7 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 			refresh := s.skillsStore.HasFileHashes(d.RelPath)
 			s.mu.RUnlock()
 			if refresh {
-				if hashes, err := install.ComputeFileHashes(d.SourcePath); err == nil {
+				if hashes, err := install.ComputeFileHashes(d.SourcePath, walk.Follow); err == nil {
 					s.mu.Lock()
 					s.skillsStore.SetFileHashes(d.RelPath, hashes)
 					err := s.skillsStore.Save(s.cfg.EffectiveSkillsSource())
@@ -283,7 +293,7 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 			}
 
 			s.mu.Lock()
-			err := utils.SetFrontmatterList(d.SourcePath, "targets", values)
+			err := setSourceFrontmatterList(agentsSource, d.SourcePath, "targets", values, nil)
 			s.mu.Unlock()
 
 			if err != nil {
@@ -303,4 +313,34 @@ func (s *Server) handleSetSkillTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeError(w, http.StatusNotFound, "resource not found: "+name)
+}
+
+// setSourceFrontmatterList keeps target assignment inside the source write boundary.
+func setSourceFrontmatterList(source, path, field string, values []string, follow *sourcewalk.Follow) error {
+	root, err := sourcefs.Open(source, follow)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	rel, err := root.Rel(path)
+	if err != nil {
+		return err
+	}
+	if err := root.CheckNoLink(rel); err != nil {
+		return err
+	}
+	file, err := root.OpenFile(rel, os.O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	data, err := io.ReadAll(file)
+	file.Close()
+	if err != nil {
+		return err
+	}
+	data, err = utils.RewriteFrontmatterList(data, field, values)
+	if err != nil {
+		return err
+	}
+	return root.WriteFileAtomic(rel, data, 0644)
 }

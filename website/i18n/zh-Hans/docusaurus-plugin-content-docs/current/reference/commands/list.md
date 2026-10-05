@@ -12,6 +12,8 @@ skillshare list --verbose    # Detailed plain text view
 skillshare list --json       # JSON output for CI/scripts
 ```
 
+启用 `follow_source_links: true` 时，不可用的第一层来源链接会显示包含链接名称的警告，正常技能仍会列出。使用 `--json` 时，警告写入 stderr，stdout 保持有效的 JSON。
+
 ## 何时使用
 
 - 查看已安装了哪些 skills 以及它们的来源

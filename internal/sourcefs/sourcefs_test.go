@@ -330,3 +330,32 @@ func TestCopyInCopiesTreeThroughRoot(t *testing.T) {
 	}
 	assertUnchanged(t, before, ext)
 }
+
+func TestCopyInDereferencesNestedLinks(t *testing.T) {
+	r, _ := fixture(t)
+	staged := t.TempDir()
+	external := t.TempDir()
+	mustWrite(t, filepath.Join(external, "assets", "note.txt"), "attachment")
+	for name, target := range map[string]string{"directory": filepath.Join(external, "assets"), "file": filepath.Join(external, "assets", "note.txt"), "z-dangling": filepath.Join(external, "missing")} {
+		if err := os.Symlink(target, filepath.Join(staged, name)); err != nil {
+			t.Skip(err)
+		}
+	}
+	if err := r.CopyIn(staged, "copied"); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"file", "directory/note.txt"} {
+		path := filepath.Join(r.Dir(), "copied", name)
+		if got, err := os.ReadFile(path); err != nil || string(got) != "attachment" {
+			t.Fatalf("%s = %q, %v", name, got, err)
+		}
+	}
+	for _, name := range []string{"directory", "file"} {
+		if info, err := os.Lstat(filepath.Join(r.Dir(), "copied", name)); err != nil || info.Mode()&os.ModeSymlink != 0 {
+			t.Fatalf("%s is still a link: %v", name, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(r.Dir(), "copied", "z-dangling")); !os.IsNotExist(err) {
+		t.Fatalf("dangling link copied: %v", err)
+	}
+}

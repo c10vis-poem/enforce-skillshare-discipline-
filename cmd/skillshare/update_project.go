@@ -8,6 +8,7 @@ import (
 
 	"skillshare/internal/install"
 	"skillshare/internal/sourcewalk"
+	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 	"skillshare/internal/utils"
 )
@@ -47,14 +48,14 @@ func cmdUpdateProject(args []string, root string) (*updateResult, error) {
 	}
 
 	if opts.all {
-		uc := &updateContext{sourcePath: sourcePath, projectRoot: root, opts: opts, parseOpts: parseOptsFromProjectConfig(runtime.config)}
-		return updateAllProjectSkills(uc)
+		uc := &updateContext{sourcePath: sourcePath, projectRoot: root, opts: opts, parseOpts: parseOptsFromProjectConfig(runtime.config), follow: runtime.skillsWalk().Follow}
+		return updateAllProjectSkills(uc, runtime.skillsWalk())
 	}
 
-	return cmdUpdateProjectBatch(sourcePath, opts, root, parseOptsFromProjectConfig(runtime.config))
+	return cmdUpdateProjectBatch(sourcePath, opts, root, parseOptsFromProjectConfig(runtime.config), runtime.skillsWalk().Follow)
 }
 
-func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot string, pOpts install.ParseOptions) (*updateResult, error) {
+func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot string, pOpts install.ParseOptions, follow *sourcewalk.Follow) (*updateResult, error) {
 	// --- Resolve targets ---
 	var targets []updateTarget
 	seen := map[string]bool{}
@@ -67,7 +68,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 		// so "feature-radar" expands to all skills rather than
 		// matching a single nested "feature-radar/feature-radar").
 		if isGroupDir(name, sourcePath, metaStore) {
-			groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath)
+			groupMatches, groupErr := resolveGroupUpdatable(name, sourcePath, sourcewalk.Options{Follow: follow})
 			if groupErr != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 				continue
@@ -123,7 +124,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	}
 
 	for _, group := range opts.groups {
-		groupMatches, err := resolveGroupUpdatable(group, sourcePath)
+		groupMatches, err := resolveGroupUpdatable(group, sourcePath, sourcewalk.Options{Follow: follow})
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 			continue
@@ -152,7 +153,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	}
 
 	// --- Execute ---
-	uc := &updateContext{sourcePath: sourcePath, projectRoot: projectRoot, opts: opts, parseOpts: pOpts}
+	uc := &updateContext{sourcePath: sourcePath, projectRoot: projectRoot, opts: opts, parseOpts: pOpts, follow: follow}
 
 	if len(targets) == 1 {
 		t := targets[0]
@@ -171,13 +172,13 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	return &batchResult, batchErr
 }
 
-func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
+func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*updateResult, error) {
 	var targets []updateTarget
 
 	scanSpinner := ui.StartSpinner("Scanning skills...")
 	walkRoot := uc.sourcePath
 	metaStore, _ := install.LoadMetadataWithMigration(uc.sourcePath, "")
-	err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	err := sourcewalk.Walk(walkRoot, walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -193,6 +194,12 @@ func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
 
 		// Tracked repo (_-prefixed)
 		if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+			if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
+				if warning != "" {
+					ui.Warning("%s", warning)
+				}
+				return filepath.SkipDir
+			}
 			if install.IsGitRepo(path) {
 				rel, _ := filepath.Rel(walkRoot, path)
 				targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
@@ -216,6 +223,9 @@ func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan skills: %w", err)
 	}
+	for _, w := range ssync.SourceLinkWarnings(walk, false) {
+		ui.Warning("%s", w)
+	}
 
 	// Tracked repos declared in metadata but absent on disk (issue #212):
 	// surface them instead of silently ignoring (mirrors global --all).
@@ -223,7 +233,7 @@ func updateAllProjectSkills(uc *updateContext) (*updateResult, error) {
 	for _, t := range targets {
 		existing[t.name] = true
 	}
-	missingRepos, _ := install.GetMissingTrackedRepos(uc.sourcePath)
+	missingRepos, _ := install.GetMissingTrackedRepos(uc.sourcePath, walk)
 	for _, repo := range missingRepos {
 		if !existing[repo.Name] {
 			existing[repo.Name] = true

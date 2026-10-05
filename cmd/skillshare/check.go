@@ -12,6 +12,7 @@ import (
 	"skillshare/internal/config"
 	"skillshare/internal/install"
 	"skillshare/internal/oplog"
+	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
 	"skillshare/internal/ui"
 )
@@ -222,13 +223,13 @@ func cmdCheck(args []string) error {
 
 	// No names and no groups → check all (existing behavior)
 	if len(opts.names) == 0 && len(opts.groups) == 0 {
-		cmdErr := runCheck(cfg.EffectiveSkillsSource(), "", opts.json, targetNamesFromConfig(cfg.Targets))
+		cmdErr := runCheck(cfg.EffectiveSkillsSource(), "", opts.json, targetNamesFromConfig(cfg.Targets), cfg.SkillsWalk())
 		logCheckOp(cfgPath, 0, 0, 0, 0, scope, start, cmdErr)
 		return cmdErr
 	}
 
 	// Filtered check: resolve targets then check only those
-	cmdErr := runCheckFiltered(cfg.EffectiveSkillsSource(), "", opts)
+	cmdErr := runCheckFiltered(cfg.EffectiveSkillsSource(), "", opts, cfg.SkillsWalk())
 	logCheckOp(cfgPath, 0, 0, 0, 0, scope, start, cmdErr)
 	return cmdErr
 }
@@ -248,7 +249,7 @@ func logCheckOp(cfgPath string, repos, skills, updatesAvailable, errors int, sco
 	oplog.WriteWithLimit(cfgPath, oplog.OpsFile, e, logMaxEntries()) //nolint:errcheck
 }
 
-func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames []string) error {
+func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames []string, walk sourcewalk.Options) error {
 	start := time.Now()
 
 	var scanSpinner *ui.Spinner
@@ -256,11 +257,11 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 		scanSpinner = ui.StartSpinner("Scanning skills...")
 	}
 
-	repos, err := install.GetTrackedRepos(sourceDir)
+	repos, err := install.GetTrackedRepos(sourceDir, walk)
 	if err != nil {
 		repos = nil
 	}
-	missingRepos, err := install.GetMissingTrackedRepos(sourceDir)
+	missingRepos, err := install.GetMissingTrackedRepos(sourceDir, walk)
 	if err != nil {
 		missingRepos = nil
 	}
@@ -372,7 +373,7 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 
 	// Display results + summary, with unknown target names in skill-level
 	// targets fields among the warnings
-	warnings := unknownSkillTargetWarnings(sourceDir, extraTargetNames)
+	warnings := unknownSkillTargetWarnings(sourceDir, extraTargetNames, walk)
 	renderCheckResults(repoResults, skillResults, false, warnings, start)
 
 	return nil
@@ -633,7 +634,7 @@ func resolveSkillStatuses(
 // runCheckFiltered checks only the specified targets (resolved from names/groups).
 // Note: unlike runCheck, this intentionally skips warnUnknownSkillTargets because
 // filtered checks only verify update status for explicitly named skills/groups.
-func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
+func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks ...sourcewalk.Options) error {
 	start := time.Now()
 
 	// --- Resolve targets ---
@@ -650,7 +651,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
 	for _, name := range opts.names {
 		// Check group directory first (same logic as update)
 		if isGroupDir(name, sourceDir, checkStore) {
-			groupMatches, groupErr := resolveGroupUpdatable(name, sourceDir)
+			groupMatches, groupErr := resolveGroupUpdatable(name, sourceDir, walks...)
 			if groupErr != nil {
 				resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, groupErr))
 				continue
@@ -669,7 +670,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
 			continue
 		}
 
-		match, err := resolveByBasename(sourceDir, name)
+		match, err := resolveByBasename(sourceDir, name, walks...)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, err))
 			continue
@@ -681,7 +682,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions) error {
 	}
 
 	for _, group := range opts.groups {
-		groupMatches, err := resolveGroupUpdatable(group, sourceDir)
+		groupMatches, err := resolveGroupUpdatable(group, sourceDir, walks...)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("--group %s: %v", group, err))
 			continue
@@ -874,10 +875,10 @@ func singleCheckStatus(repos []checkRepoResult, skills []checkSkillResult) singl
 
 // unknownSkillTargetWarnings names skill-level targets that match no
 // configured or known target.
-func unknownSkillTargetWarnings(sourceDir string, extraTargetNames []string) []string {
+func unknownSkillTargetWarnings(sourceDir string, extraTargetNames []string, walk sourcewalk.Options) []string {
 	sp := ui.StartSpinner("Validating skill targets...")
 	defer sp.Stop()
-	discovered, err := ssync.DiscoverSourceSkills(sourceDir)
+	discovered, err := ssync.DiscoverSourceSkills(sourceDir, walk)
 	if err != nil {
 		return nil
 	}

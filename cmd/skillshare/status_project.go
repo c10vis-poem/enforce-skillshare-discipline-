@@ -23,13 +23,15 @@ func cmdStatusProject(root string) error {
 		return err
 	}
 
+	walk := runtime.skillsWalk()
 	sp := ui.StartSpinner("Discovering skills...")
-	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath)
+	discovered, stats, discoverErr := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, walk)
 	if discoverErr != nil {
 		discovered = nil
 	}
-	trackedRepos := extractTrackedRepos(runtime.sourcePath)
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, walk)
 	sp.Stop()
+	printSkippedSourceLinkWarnings(walk, false)
 
 	agentCount := -1
 	if agents, err := (resource.AgentKind{}).Discover(runtime.agentsSourcePath); err == nil && dirExists(runtime.agentsSourcePath) {
@@ -63,20 +65,22 @@ func cmdStatusProjectJSON(root string) error {
 		return writeJSONError(err)
 	}
 
+	walk := runtime.skillsWalk()
 	output := statusJSONOutput{
 		Version: version,
 	}
 
-	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath)
-	trackedRepos := extractTrackedRepos(runtime.sourcePath)
+	discovered, stats, _ := sync.DiscoverSourceSkillsWithStats(runtime.sourcePath, walk)
+	trackedRepos := extractTrackedRepos(runtime.sourcePath, walk)
 
+	printSkippedSourceLinkWarnings(walk, true)
 	output.Source = statusJSONSource{
 		Path:        runtime.sourcePath,
 		Exists:      dirExists(runtime.sourcePath),
 		Skillignore: buildSkillignoreJSON(stats),
 	}
 	output.SkillCount = len(discovered)
-	output.TrackedRepos = buildTrackedRepoJSON(runtime.sourcePath, trackedRepos, discovered)
+	output.TrackedRepos = buildTrackedRepoJSON(runtime.sourcePath, trackedRepos, discovered, walk)
 
 	for _, entry := range runtime.config.Targets {
 		target, ok := runtime.targets[entry.Name]

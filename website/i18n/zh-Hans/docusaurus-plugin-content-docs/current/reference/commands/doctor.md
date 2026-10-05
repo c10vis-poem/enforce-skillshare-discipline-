@@ -118,11 +118,11 @@ Version
 | Source | Source directory exists and is readable |
 | Agents | Agents source directory exists (if configured) |
 | Skillignore | `.skillignore` (and `.skillignore.local`) active patterns and ignored skill count |
-| Source link | skills source 第一层的每个 symlink 或 Windows junction 各一条 info：discovery 不会跟进去，所以其内容对 skillshare 不可见 |
+| Source link | skills source 第一层的每个 symlink 或 Windows junction 各一行。[`follow_source_links`](../targets/configuration.md#follow_source_links) 关闭时（默认）：info，`not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it`。开启时：info `followed as a directory (follow_source_links)`，或警告 `not followed: <reason>`（目标缺失、指向 source 根目录或其上级目录、与 sync target 重叠） |
 | Links | System can create symlinks |
 | Git | Repository status and remote configuration |
 
-Source link 检查在 global 与 project mode 都会执行。source 根目录按 discovery 的方式解析，只检查第一层项目，不跟随链接、不读取其内容。没有这类链接时不会增加输出。每个链接在 `doctor --json` 中也会以 status 为 `info` 的 `undeclared_source_links` 检查出现。
+Source link 检查在 global 与 project mode 都会执行。source 根目录按 discovery 的方式解析，只检查第一层项目。没有这类链接时不会增加输出。每个链接在 `doctor --json` 中也会以 `undeclared_source_links` 检查出现，status 为 `info`；被策略跳过的链接则为 `warning`。
 
 ### Targets
 
@@ -234,7 +234,7 @@ Doctor 会在两类重复 skill 风险到达运行时选择器之前将其标记
 - Skill 级别的 `targets:` 字段验证（对未知 target 名称发出警告）
 - 最近一次备份的时间戳（global mode）
 - Trash 状态（条目数量、总大小、最旧条目的存续时间）
-- targets 中损坏的 symlinks
+- targets 中损坏的 symlinks。位于目标不可用（例如未挂载的硬盘）的 source link 背后的 target 链接会单独以警告形式报告，`N links behind an unavailable source link, kept until it is back`，且不会建议清理：`sync` 是有意保留它们的，并且在 `doctor --json` 中 `broken_symlinks` 检查为 `warning` 而不是 `error`。
 
 :::note Project Mode
 当某个项目存在 `.skillshare/config.yaml` 时，`skillshare doctor` 会自动以 project mode 运行。
@@ -280,6 +280,8 @@ git status
 ```bash
 skillshare sync  # Will prune orphaned symlinks
 ```
+
+如果该行显示的是 `behind an unavailable source link, kept until it is back`，说明这个 skill 位于某个[被跟随的 source link](../targets/configuration.md#follow_source_links) 背后，而该链接的目标暂时不可用。无需清理：挂载硬盘或恢复 checkout 后运行 `skillshare sync` 即可。
 
 ### "Skills without SKILL.md"
 

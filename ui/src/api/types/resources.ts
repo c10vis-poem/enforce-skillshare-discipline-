@@ -21,6 +21,11 @@ export interface Overview {
   configDir: string;
 }
 
+export interface LinkedRepo {
+  name: string;
+  target: string;
+}
+
 export interface Skill {
   name: string;
   kind: 'skill' | 'agent';

@@ -97,6 +97,8 @@ skillshare check my-skill                # Single skill
 skillshare check skill-a skill-b         # Multiple skills
 ```
 
+With `follow_source_links: true`, you can also check a followed Git checkout by its link name, for example `skillshare check _dev-skills`.
+
 Use `--group` / `-G` to check all updatable skills in a group directory:
 
 ```bash

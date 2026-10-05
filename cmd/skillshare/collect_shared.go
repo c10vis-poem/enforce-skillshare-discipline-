@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"skillshare/internal/oplog"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/ui"
@@ -42,6 +43,7 @@ type collectDisplayItem struct {
 type collectJSONOutput struct {
 	Pulled   []string          `json:"pulled"`
 	Skipped  []string          `json:"skipped"`
+	Warnings map[string]string `json:"warnings,omitempty"`
 	Failed   map[string]string `json:"failed"`
 	DryRun   bool              `json:"dry_run"`
 	Duration string            `json:"duration"`
@@ -102,6 +104,7 @@ func collectCommandError(err error, jsonOutput bool) error {
 type collectPlan struct {
 	kind   resourceKindFilter
 	source string
+	walk   sourcewalk.Options
 	scan   func(warn bool) collectResources
 }
 
@@ -189,6 +192,7 @@ func runCollectPlan(plan collectPlan, opts collectOptions, start time.Time, scop
 	result, collectErr := res.pull(sync.PullOptions{
 		DryRun: opts.dryRun,
 		Force:  opts.force,
+		Walk:   plan.walk,
 	})
 	summary = updateCollectLogSummary(summary, result)
 	if opts.jsonOutput {
@@ -230,7 +234,11 @@ func renderCollectResult(resourceLabel string, result *sync.PullResult, source s
 		ui.Row(ui.MarkOK, name, "copied to source", width)
 	}
 	for _, name := range result.Skipped {
-		ui.Row(ui.MarkWarn, name, "already exists in source "+ui.DimText("· use --force to overwrite"), width)
+		reason := result.Warnings[name]
+		if reason == "" {
+			reason = "already exists in source " + ui.DimText("· use --force to overwrite")
+		}
+		ui.Row(ui.MarkWarn, name, reason, width)
 	}
 	for name, err := range result.Failed {
 		ui.Row(ui.MarkFail, name, err.Error(), width)
@@ -266,6 +274,7 @@ func collectOutputJSON(result *sync.PullResult, dryRun bool, start time.Time, co
 	if result != nil {
 		output.Pulled = result.Pulled
 		output.Skipped = result.Skipped
+		output.Warnings = result.Warnings
 		for k, v := range result.Failed {
 			output.Failed[k] = v.Error()
 		}

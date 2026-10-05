@@ -84,7 +84,9 @@ flowchart TD
 - git이 변경 사항을 추적 (여러 기기 간 sync를 위해)
 
 :::tip Symlink된 source 디렉터리
-source 디렉터리는 symlink일 수 있습니다 — dotfiles 관리 도구(GNU Stow, chezmoi, yadm)를 사용할 때 흔합니다. 예를 들어, `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`처럼요. skillshare는 스캔 전에 symlink를 해석하므로 모든 명령이 투명하게 동작합니다. 체인으로 연결된 symlink도 지원됩니다.
+source 디렉터리는 symlink일 수 있습니다 — dotfiles 관리 도구(GNU Stow, chezmoi, yadm)를 사용할 때 흔합니다. 예를 들어, `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/`처럼요. skillshare는 스캔 전에 source 루트를 해석하므로 명령이 그 루트에 대해 투명하게 동작합니다. 체인으로 연결된 source 루트 symlink도 지원됩니다.
+
+skills source 바로 **아래**의 링크는 별도의 opt-in입니다. global 또는 project config의 `follow_source_links: true`는 첫 번째 수준의 디렉터리 symlink(Unix) 또는 junction(Windows)을 링크 이름으로 따라갑니다. 기본값은 `false`이며, discovery는 이런 링크를 무시하고 `doctor`는 이를 따라가지 않은 것으로 보고합니다. 더 깊은 링크는 discovery에서 따라가지 않습니다. 예시, 판단 흐름, 안전 장치, 링크를 통한 쓰기는 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)를 참고하세요.
 :::
 
 **구조:**

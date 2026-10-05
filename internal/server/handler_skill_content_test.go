@@ -333,3 +333,45 @@ func TestFindRepoRoot_ExcludesSourceRoot(t *testing.T) {
 		t.Fatalf("findRepoRoot leaked into sibling dir: %q", got)
 	}
 }
+
+func TestHandlePutSkillContent_FollowedSourceLink(t *testing.T) {
+	for _, follow := range []bool{true, false} {
+		s, src := newTestServer(t)
+		checkout := filepath.Join(t.TempDir(), "checkout")
+		if err := os.MkdirAll(filepath.Join(checkout, "foo"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		original := "---\nname: foo\n---\n# Foo"
+		if err := os.WriteFile(filepath.Join(checkout, "foo", "SKILL.md"), []byte(original), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(checkout, filepath.Join(src, "_dev-skills")); err != nil {
+			t.Fatal(err)
+		}
+		if follow {
+			cfgPath := os.Getenv("SKILLSHARE_CONFIG")
+			raw, _ := os.ReadFile(cfgPath)
+			if err := os.WriteFile(cfgPath, append(raw, "follow_source_links: true\n"...), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.reloadConfig(); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		edited := "---\nname: foo\ndescription: edited\n---\n# Foo"
+		raw, _ := json.Marshal(skillContentRequest{Content: edited})
+		req := httptest.NewRequest(http.MethodPut, "/api/resources/_dev-skills__foo/content", bytes.NewReader(raw))
+		rr := httptest.NewRecorder()
+		s.handler.ServeHTTP(rr, req)
+
+		got, _ := os.ReadFile(filepath.Join(checkout, "foo", "SKILL.md"))
+		if follow {
+			if rr.Code != http.StatusOK || string(got) != edited {
+				t.Fatalf("follow on: %d %s, checkout = %q", rr.Code, rr.Body.String(), got)
+			}
+		} else if rr.Code == http.StatusOK || string(got) != original {
+			t.Fatalf("follow off must refuse: %d, checkout = %q", rr.Code, got)
+		}
+	}
+}

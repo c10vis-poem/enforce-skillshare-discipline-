@@ -10,7 +10,11 @@ import (
 )
 
 // SkillKind handles directory-based skill resources identified by SKILL.md.
-type SkillKind struct{}
+// Walk is the source traversal policy Discover uses; the zero value follows
+// no source links.
+type SkillKind struct {
+	Walk sourcewalk.Options
+}
 
 var _ ResourceKind = SkillKind{}
 
@@ -20,12 +24,12 @@ func (SkillKind) Kind() string { return "skill" }
 // This is a simplified discovery for the resource package; the full
 // discovery with ignore support, frontmatter parsing, and context
 // collection remains in internal/sync/discover_walk.go.
-func (SkillKind) Discover(sourceDir string) ([]DiscoveredResource, error) {
+func (k SkillKind) Discover(sourceDir string) ([]DiscoveredResource, error) {
 	walkRoot := utils.ResolveSymlink(sourceDir)
 
 	var resources []DiscoveredResource
 
-	err := sourcewalk.Walk(walkRoot, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
+	err := sourcewalk.Walk(walkRoot, k.Walk, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

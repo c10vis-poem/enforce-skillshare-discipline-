@@ -85,7 +85,9 @@ flowchart TD
 - Git が変更を追跡する(マシン間の同期のため)
 
 :::tip Symlink された source ディレクトリ
-source ディレクトリは symlink にすることができます。dotfiles マネージャー(GNU Stow、chezmoi、yadm)を使う場合によく見られる構成です。たとえば `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/` のように設定します。skillshare はスキャン前に symlink を解決するため、すべてのコマンドが透過的に動作します。連鎖した symlink もサポートされています。
+source ディレクトリは symlink にすることができます。dotfiles マネージャー(GNU Stow、chezmoi、yadm)を使う場合によく見られる構成です。たとえば `~/.config/skillshare/skills/ → ~/dotfiles/ss-skills/` のように設定します。skillshare はスキャン前に source ルートを解決するため、コマンドはそのルートに対して透過的に動作します。連鎖した source ルートの symlink もサポートされています。
+
+Skill の source の **直下** にあるリンクは別のオプトイン機能です。グローバルまたはプロジェクトの config で `follow_source_links: true` を設定すると、第1階層のディレクトリの symlink(Unix)またはジャンクション(Windows)を、そのリンク名でたどります。デフォルトは `false` で、discovery はこれらのリンクを無視し、`doctor` はたどられていないとして報告します。より深い階層のリンクは discovery ではたどられません。例、判断フロー、安全ガード、リンク経由の書き込みについては [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links) を参照してください。
 :::
 
 **構造:**

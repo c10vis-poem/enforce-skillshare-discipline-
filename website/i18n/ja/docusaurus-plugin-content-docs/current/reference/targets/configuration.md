@@ -79,6 +79,9 @@ targets:
 # Source ディレクトリ（Skill を編集する場所）
 source: ~/.config/skillshare/skills
 
+# Skill の Source 直下のディレクトリリンクをたどる（オプトイン）
+# follow_source_links: true
+
 # 新しい Target のデフォルト Sync モード
 mode: merge
 
@@ -155,6 +158,109 @@ source: ~/.config/skillshare/skills
 ```
 
 **デフォルト:** `~/.config/skillshare/skills`
+
+### `follow_source_links` {#follow_source_links}
+
+Skill の Source 直下に置かれたシンボリックリンク（Unix）またはジャンクション（Windows）を通じて Skill を検出する機能にオプトインします。
+
+| フィールド | 型 | デフォルト | スコープ |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | グローバルおよびプロジェクト Config |
+
+```yaml title="~/.config/skillshare/config.yaml"
+follow_source_links: true
+```
+
+デフォルトの `false` では、discovery は第1階層のリンクを無視し、`skillshare doctor` はそれらを「たどられていない」として報告します。`true` にすると、ディレクトリを指す第1階層のリンクは、そのリンク名を持つディレクトリとして扱われます。ツリーのより深い階層にあるリンクは discovery ではたどられません。この設定は、Source ルート自体をリンクにすることとは別物です。後者はオプトインなしで既にサポートされています。
+
+たとえば、既存のチェックアウトを Source にリンクします。
+
+```bash
+ln -s ~/code/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+`~/code/dev-skills` に `.git` エントリが含まれていれば、`_dev-skills` は Tracked リポジトリのグループになり、その子ディレクトリが Skill として検出されます。Sync は他の Skill と同様にそれらをリンクまたはコピーします。symlink モードでは、実際のチェックアウト内のファイルを編集するとすぐに Target に反映されます。copy モードでは再度 sync が必要です。
+
+`.git` ファイルを持つ Git worktree と submodule もチェックアウトです。`update --all` はそれらをスキップし、ダッシュボードは更新を拒否します。
+
+:::warning update は実際のチェックアウトを変更します
+`skillshare update _dev-skills` は、別途管理される clone ではなく `~/code/dev-skills` の中で git を実行します。`skillshare update _dev-skills --force` はその実際のチェックアウトをリセットし、ローカルの変更を破棄します。この理由から、`skillshare update --all` は `--force` を指定しても、たどられたリンクを警告付きでスキップします。名前を指定して update してください。`skillshare install <url> --track --update` は、コミットされていない変更があるたどられたチェックアウトの pull を拒否します。ブロックする audit の検出結果によって `git reset --hard` で巻き戻される可能性があるため、先にコミットするか stash してください。ダッシュボードは強制再試行を含め、たどられた Git チェックアウトを更新しません。ユーザーが管理してください。
+:::
+
+#### 安全ガード {#safety-guards}
+
+- Source ルートまたはその祖先ディレクトリを指すリンクはスキップされます。
+- Sync の Target と重なるリンクはスキップされます。これはリンクのテキストから判断されるため、Target ディレクトリがまだ存在しない場合にも適用されます。
+- リンク先が存在しない、または読み取れないリンクは警告付きでスキップされます。リンク先やそのサブディレクトリの走査中に読み取りに失敗した場合も、一部の Skill がすでに検出されていても、そのリンクは利用不可として扱われます。その実行では **prune、孤立コピーの削除、メタデータの削除は一切行われません**。マウントされていない外部ドライブは安全です。再マウントして sync を再実行してください。`skillshare doctor` は、その Source リンクの背後にあるぶら下がった Target リンクを、prune すべき壊れたリンクではなく、そのリンクを待っているものとして一覧表示します。 この判定はリンクに保存された行き先を使うため、`target_naming: standard` でも機能します。
+- ファイルへのリンク（たとえば共有の `.skillignore`）はディレクトリリンクではありません。通常のエントリのままで、prune に影響することはありません。
+
+#### discovery の判断方法 {#how-discovery-decides}
+
+Source を読み取るすべてのコマンド（`list`、`sync`、`update`、`status`、ダッシュボード）は、共通の1つの walker で Source を走査します。第1階層の各エントリについて、次のように判断します。
+
+```mermaid
+flowchart TD
+    A[Skill の Source 直下の第1階層エントリ] --> B{シンボリックリンクまたはジャンクション?}
+    B -- いいえ --> C[通常のディレクトリまたはファイル]
+    B -- はい --> D{follow_source_links は有効?}
+    D -- いいえ --> E[無視; doctor はたどられていないと報告]
+    D -- はい --> H{リンク先は Source ルートまたはその親?}
+    H -- はい --> I[警告付きでスキップ: 循環]
+    H -- いいえ --> J{リンク先は Sync の Target の内部またはその周辺?}
+    J -- はい --> K[警告付きでスキップ: Target の重複]
+    J -- いいえ --> F{リンク先は存在する?}
+    F -- いいえ --> G[警告付きでスキップ; この実行では何も削除しない]
+    F -- はい --> N{リンク先はディレクトリ?}
+    N -- いいえ --> O[通常のエントリ、たとえば共有ファイルへのリンク]
+    N -- はい --> R{リンク先は読み取り可能?}
+    R -- いいえ --> G
+    R -- はい --> L[リンク名を持つディレクトリとして扱う、1階層のみ]
+    L --> M[Skill は source/_dev-skills/foo のような論理パスを保持]
+```
+
+#### 外部ドライブ上の Skill {#skills-on-an-external-drive}
+
+外部ドライブ上にチェックアウトを置き、それを Source にリンクします。
+
+```bash
+ln -s /Volumes/Work/dev-skills ~/.config/skillshare/skills/_dev-skills
+skillshare sync
+```
+
+ドライブがマウントされている間、`_dev-skills` は他の Tracked リポジトリのグループと同じように動作します。マウントされていない場合は次のようになります。
+
+- `list`、`sync`、`status`、`update --all`、`audit`、ダッシュボードはそのリンクをスキップし、リンク名を示す警告を1つ出力します。`sync --json` は `warnings` にそれを列挙します。`audit --format json` は `warnings` にそれを列挙し、`incomplete: true` を設定するため、自動化で部分的な実行と完全な実行を区別できます。
+- その実行では **何も削除されません**。ドライブ由来の Target リンクとコピーはそのまま残り、孤立コピーはクリーンアップされず、その Skill のインストールメタデータも保持されます。利用できないリンクはインベントリが不完全であることを意味するのであって、Skill が削除されたことを意味するわけではないからです。
+- symlink モードでは、Target リンクはマウントされていないパスを指すため、ドライブが戻るまで AI ツールはそれらの Skill を読めません。copy モードでは、コピーはそのまま動作し続けます。
+- `skillshare doctor` はそれらの Target リンクを、Source リンクを待っているものとして警告で表示し、prune を提案しません。
+- 再登録は不要です。ドライブをマウントして `skillshare sync` を再実行してください。
+
+マウントパスはセッション間で同じでなければなりません。macOS では `/Volumes/<name>` なので、ボリューム名を固定してください。Windows では、接続のたびにドライブレターが変わるとジャンクションが誤った場所を指したままになります。ディスクの管理で固定のドライブレターを割り当てるか、代わりにマウントされたフォルダーのパスを使用してください。
+
+#### リンク経由の書き込み {#writes-through-the-link}
+
+リンクの背後にある Skill への書き込みは、実際のチェックアウトに反映されます。ダッシュボードでのコンテンツ編集、`skillshare install --into _dev-skills`、リンクされたディレクトリ内の通常の Skill の置き換えは、いずれも `~/code/dev-skills` を変更します。`skillshare uninstall _dev-skills/<child>` はその子を実際のチェックアウトから trash に移動します。`skillshare uninstall _dev-skills` はリンクのエントリのみを削除し、実際のチェックアウトは決して削除しません。trash にはそのリンクが一覧表示され、`restore` でリンクが再作成されます。`skillshare trash restore _dev-skills/<child>` は同じポリシーの下で子を実際のチェックアウトに戻します。チェックアウトの下にネストされたリンクが別の場所を指している場合、restore は失敗し、trash のエントリは保持されます。チェックアウトの外に出るパス（`..`、または外部を指すネストされたリンク）は引き続き拒否されます。
+
+ダッシュボードでの Target 割り当てが frontmatter を書き込む場合も、同じ書き込み境界が適用されます。ネストされた `SKILL.md` リンクは、リンク先を変更せずに拒否されます。一括割り当てではその Skill の拒否理由を返し、通常の Skill の処理を続けます。
+
+追従するリンクの背後にある Skill を置き換えるときは、置き換えが成功するまで元の Skill を保持し、コピーに失敗した場合は元に戻します。取り込む内容のリンクは実際のファイルやディレクトリとしてコピーされ、リンク先がないものはスキップされます。
+
+Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。
+
+`update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare uninstall _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
+
+Unix では、Source リポジトリをコミットするとリンクのエントリ自体、つまりそのリンク先のテキスト（通常はマシン固有の絶対パス）がステージされ、チェックアウトのファイルはステージされません。Skill ディレクトリの `.gitignore` に `/_dev-skills` を追加してください。`skillshare commit`、`push`、`init` は、リンクがステージされそうな場合に警告を出力します。
+
+#### Windows
+
+`mklink /J` で作成するディレクトリジャンクションが想定された仕組みです。
+
+```powershell
+cmd /c mklink /J "%APPDATA%\skillshare\skills\_dev-skills" "D:\code\dev-skills"
+```
+
+ドライブレターは安定している必要があります。`ai_docs/tests/windows_follow_source_links_runbook.md` により Windows 11 ARM64 で検証済みです。
 
 ### `mode`
 
@@ -949,6 +1055,9 @@ skillshare init --git-root <scope>   # グローバルモード。cwd がプロ�
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# プロジェクトの Skill Source 直下のディレクトリリンクをたどる（オプトイン）
+# follow_source_links: true
+
 # Target — 文字列またはオブジェクト形式
 targets:
   - claude                    # 文字列: デフォルト設定の既知の Target
@@ -973,6 +1082,18 @@ audit:
   block_threshold: HIGH
   profile: strict
 ```
+
+### `follow_source_links`（プロジェクト）
+
+| フィールド | 型 | デフォルト | スコープ |
+|-------|------|---------|-------|
+| `follow_source_links` | boolean | `false` | プロジェクト Config（`.skillshare/config.yaml`） |
+
+```yaml title=".skillshare/config.yaml"
+follow_source_links: true
+```
+
+プロジェクトの Skill Source（通常は `.skillshare/skills/`）直下のディレクトリリンクを、1階層のみたどります。グローバルモードと同じ [discovery の動作、安全ガード、現在の制限](#follow_source_links) が適用されます。
 
 ### `targets`（プロジェクト）
 

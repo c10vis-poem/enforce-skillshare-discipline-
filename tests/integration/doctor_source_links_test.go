@@ -50,7 +50,7 @@ func TestDoctor_UndeclaredSourceLinks(t *testing.T) {
 
 				result := sb.RunCLIInDir(cwd, args...)
 				result.AssertSuccess(t)
-				message := "linked-skills: not followed by discovery; its contents are invisible to skillshare"
+				message := "linked-skills: not followed by discovery; its contents are invisible to skillshare. Set follow_source_links: true to follow it"
 				if linked {
 					result.AssertOutputContains(t, message)
 				} else {

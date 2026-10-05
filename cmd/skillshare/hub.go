@@ -8,6 +8,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/hub"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/ui"
 )
 
@@ -149,13 +150,10 @@ func cmdHubIndex(args []string) error {
 		i++
 	}
 
-	// Resolve source path
-	if sourcePath == "" {
-		resolved, err := resolveSourcePath(mode, cwd)
-		if err != nil {
-			return err
-		}
-		sourcePath = resolved
+	// Resolve the source and its operation policy, including an explicit source override.
+	sourcePath, walk, err := resolveHubSource(mode, cwd, sourcePath)
+	if err != nil {
+		return err
 	}
 
 	// Resolve output path
@@ -165,7 +163,7 @@ func cmdHubIndex(args []string) error {
 
 	start := time.Now()
 	sp := ui.StartSpinner("Scanning source directory...")
-	idx, err := hub.BuildIndex(sourcePath, full, auditSkills)
+	idx, err := hub.BuildIndex(sourcePath, full, auditSkills, walk)
 	sp.Stop()
 	if err != nil {
 		return fmt.Errorf("failed to build index: %w", err)
@@ -191,21 +189,32 @@ func cmdHubIndex(args []string) error {
 	return nil
 }
 
-// resolveSourcePath determines the source directory based on mode.
-func resolveSourcePath(mode runMode, cwd string) (string, error) {
+// resolveHubSource uses the active config's policy, retaining config-free --source use.
+func resolveHubSource(mode runMode, cwd, sourcePath string) (string, sourcewalk.Options, error) {
 	if mode == modeProject {
 		rt, err := loadProjectRuntime(cwd)
 		if err != nil {
-			return "", fmt.Errorf("failed to load project config: %w", err)
+			if sourcePath != "" {
+				return sourcePath, sourcewalk.Options{}, nil
+			}
+			return "", sourcewalk.Options{}, fmt.Errorf("failed to load project config: %w", err)
 		}
-		return rt.sourcePath, nil
+		if sourcePath == "" {
+			sourcePath = rt.sourcePath
+		}
+		return sourcePath, config.SkillsWalk(rt.config.FollowSourceLinks, sourcePath, rt.targets), nil
 	}
-
 	cfg, err := config.Load()
 	if err != nil {
-		return "", fmt.Errorf("failed to load config: %w", err)
+		if sourcePath != "" {
+			return sourcePath, sourcewalk.Options{}, nil
+		}
+		return "", sourcewalk.Options{}, fmt.Errorf("failed to load config: %w", err)
 	}
-	return cfg.EffectiveSkillsSource(), nil
+	if sourcePath == "" {
+		sourcePath = cfg.EffectiveSkillsSource()
+	}
+	return sourcePath, config.SkillsWalk(cfg.FollowSourceLinks, sourcePath, cfg.Targets), nil
 }
 
 func printHubHelp() {

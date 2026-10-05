@@ -822,6 +822,7 @@
   "trash.toast.emptied": "Lixeira esvaziada ({count} item{s} removido{s})",
   "trash.toast.restored": "\"{name}\" restaurado da lixeira",
   "trash.summary": "Itens desinstalados ficam aqui por 7 dias e depois são excluídos definitivamente.",
+  "update.linkedRepos.note": "Os checkouts vinculados são gerenciados por você e não são atualizados aqui.",
   "update.check.behind": "{count} commits atrás",
   "update.check.behindFallback": "Atrás",
   "update.check.checking": "Verificando",

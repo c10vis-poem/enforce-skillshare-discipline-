@@ -369,6 +369,8 @@ skillshare install anthropics/skills/skills/pdf
 
 새로고침하려면 `--update`를, 덮어쓰려면 `--force`를 사용하세요.
 
+[따라간 source 링크](../targets/configuration.md#follow_source_links) 뒤에 있는 tracked repo에 `--update`를 사용하면, 해당 checkout에 커밋되지 않은 변경 사항이 있는 동안에는 pull을 거부합니다. 차단 수준의 audit 발견 사항이 `git reset --hard`로 checkout을 롤백해 버리기 때문입니다. 먼저 commit하거나 stash하세요.
+
 ### Cross-path 중복
 
 repo가 이미 한 위치에 설치되어 있는데 **다른** 위치에 설치하려고 하면, skillshare는 작업을 차단합니다.

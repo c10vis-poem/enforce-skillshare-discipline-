@@ -162,11 +162,15 @@ type syncTargetEntry struct {
 	mode   string
 	// configErr fails the target without syncing it: its settings are invalid.
 	configErr error
+	// sourceIncomplete means a followed source link is unavailable: link and
+	// copy, but prune nothing.
+	sourceIncomplete bool
 }
 
 // collectSyncResult runs sync for one target and returns a result struct.
 // Does NOT print any UI output — all output data is captured in the result.
-func collectSyncResult(name string, target config.TargetConfig, source, mode string, skills []sync.DiscoveredSkill, ignorePatterns []string, dryRun, force bool, progress *syncProgress, projectRoot string) syncTargetResult {
+func collectSyncResult(entry syncTargetEntry, source string, skills []sync.DiscoveredSkill, ignorePatterns []string, dryRun, force bool, progress *syncProgress, projectRoot string) syncTargetResult {
+	name, target, mode := entry.name, entry.target, entry.mode
 	sc := target.SkillsConfig()
 	r := syncTargetResult{
 		name:    name,
@@ -183,7 +187,7 @@ func collectSyncResult(name string, target config.TargetConfig, source, mode str
 
 	opts := sync.SkillRunOptions{
 		Source: source, ProjectRoot: projectRoot, IgnorePatterns: ignorePatterns,
-		DryRun: dryRun, Force: force,
+		DryRun: dryRun, Force: force, SourceIncomplete: entry.sourceIncomplete,
 	}
 	if progress != nil {
 		opts.OnProgress = func(cur, total int, skill string) {
@@ -383,7 +387,7 @@ func runParallelSyncCore(entries []syncTargetEntry, source string, skills []sync
 				if m.entry.configErr != nil {
 					r.errMsg = invalidConfigMessage(m.entry.configErr)
 				} else {
-					r = collectSyncResult(m.entry.name, m.entry.target, source, m.entry.mode, skills, ignorePatterns, dryRun, force, progress, projectRoot)
+					r = collectSyncResult(m.entry, source, skills, ignorePatterns, dryRun, force, progress, projectRoot)
 				}
 				if progress != nil {
 					progress.doneTarget(m.entry.name, r)

@@ -405,18 +405,20 @@ func (s *Server) handleGitCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	warnings := []string{}
 	if body.DryRun {
+		warnings = git.SourceLinkWarnings(src, s.cfg.EffectiveSkillsSource(), "commit")
 		s.writeOpsLog("commit", "ok", start, map[string]any{
 			"summary": "dry run",
 			"dry_run": true,
 			"scope":   "ui",
 		}, "")
-		writeJSON(w, pushResponse{Success: true, Message: "dry run: would stage and commit changes", DryRun: true})
+		writeJSON(w, pushResponse{Success: true, Message: stagingMessage("dry run: would stage and commit changes", warnings), DryRun: true})
 		return
 	}
 
-	if err := git.StageAll(src); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to stage changes: "+err.Error())
+	if err := git.StageAll(src, s.cfg.EffectiveSkillsSource(), "commit", func(w string) { warnings = append(warnings, w) }); err != nil {
+		writeError(w, http.StatusInternalServerError, stagingMessage("failed to stage changes: "+err.Error(), warnings))
 		return
 	}
 
@@ -425,7 +427,7 @@ func (s *Server) handleGitCommit(w http.ResponseWriter, r *http.Request) {
 		msg = "Update skills"
 	}
 	if err := git.Commit(src, msg); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusInternalServerError, stagingMessage(err.Error(), warnings))
 		return
 	}
 
@@ -435,7 +437,7 @@ func (s *Server) handleGitCommit(w http.ResponseWriter, r *http.Request) {
 		"scope":   "ui",
 	}, "")
 
-	writeJSON(w, pushResponse{Success: true, Message: "committed successfully"})
+	writeJSON(w, pushResponse{Success: true, Message: stagingMessage("committed successfully", warnings)})
 }
 
 // handlePush commits pending changes, then pushes every commit the remote
@@ -490,7 +492,11 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	warnings := []string{}
 	if body.DryRun {
+		if status != "" {
+			warnings = git.SourceLinkWarnings(src, s.cfg.EffectiveSkillsSource(), "push")
+		}
 		s.writeOpsLog("push", "ok", start, map[string]any{
 			"summary": "dry run",
 			"dry_run": true,
@@ -500,7 +506,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 		if status == "" {
 			msg = fmt.Sprintf("dry run: would push %d commit(s)", ahead)
 		}
-		writeJSON(w, pushResponse{Success: true, Message: msg, DryRun: true})
+		writeJSON(w, pushResponse{Success: true, Message: stagingMessage(msg, warnings), DryRun: true})
 		return
 	}
 
@@ -511,11 +517,11 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	args := map[string]any{"message": msg, "dry_run": false, "scope": "ui"}
 	fail := func(err error) {
 		s.writeOpsLog("push", "error", start, args, err.Error())
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusInternalServerError, stagingMessage(err.Error(), warnings))
 	}
 
 	if status != "" {
-		if err := git.StageAll(src); err != nil {
+		if err := git.StageAll(src, s.cfg.EffectiveSkillsSource(), "push", func(w string) { warnings = append(warnings, w) }); err != nil {
 			fail(fmt.Errorf("failed to stage changes: %w", err))
 			return
 		}
@@ -534,7 +540,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, git.ErrPushRejected) {
 			// The UI offers a pull for this code.
 			s.writeOpsLog("push", "error", start, args, err.Error())
-			writeCodedError(w, http.StatusConflict, "push_rejected", err.Error(), nil)
+			writeCodedError(w, http.StatusConflict, "push_rejected", stagingMessage(err.Error(), warnings), nil)
 			return
 		}
 		fail(err)
@@ -542,7 +548,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeOpsLog("push", "ok", start, args, "")
-	writeJSON(w, pushResponse{Success: true, Message: "pushed successfully"})
+	writeJSON(w, pushResponse{Success: true, Message: stagingMessage("pushed successfully", warnings)})
 }
 
 // rootConfigHistoryGuard checks before staging and again before uploading, so
@@ -856,4 +862,11 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 	}, "")
 
 	writeJSON(w, resp)
+}
+
+func stagingMessage(message string, warnings []string) string {
+	for _, warning := range warnings {
+		message += "\nWarning: " + warning
+	}
+	return message
 }
