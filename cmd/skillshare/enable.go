@@ -28,7 +28,7 @@ func cmdToggleSkill(args []string, enable bool) error {
 		action = "enable"
 	}
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--kind")
 	if err != nil {
 		return err
 	}

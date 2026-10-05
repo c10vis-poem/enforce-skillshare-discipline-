@@ -12,7 +12,7 @@ type memoryOptions struct {
 }
 
 func cmdExtrasMemory(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--from", "--version", "--search", "--update-mode")
 	if err != nil {
 		return err
 	}

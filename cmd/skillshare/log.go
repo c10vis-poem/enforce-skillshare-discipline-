@@ -17,7 +17,7 @@ import (
 )
 
 func cmdLog(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--cmd", "--status", "--since", "--tail", "-t")
 	if err != nil {
 		return err
 	}

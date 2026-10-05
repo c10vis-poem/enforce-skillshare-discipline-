@@ -16,7 +16,7 @@ import (
 func cmdExtrasAddTarget(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--add-target", "--as", "--mode")
 	if err != nil {
 		return err
 	}

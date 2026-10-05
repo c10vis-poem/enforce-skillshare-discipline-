@@ -52,7 +52,7 @@ func cmdUI(args []string) error {
 		return nil
 	}
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--port", "--host", "--base-path", "-b")
 	if err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ func cmdUIStop(opts uiBackgroundOptions) error {
 }
 
 func cmdUIRestart(args []string) error {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--port", "--host", "--base-path", "-b")
 	if err != nil {
 		return err
 	}

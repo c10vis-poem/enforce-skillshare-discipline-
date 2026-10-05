@@ -454,7 +454,7 @@ func hasGlobalOnlyInitFlags(args []string) bool {
 func cmdInit(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--source", "-s", "--remote", "--copy-from", "-c", "--targets", "-t", "--mode", "-m", "--git-root", "--subdir", "--select", "--config")
 	if err != nil {
 		return err
 	}

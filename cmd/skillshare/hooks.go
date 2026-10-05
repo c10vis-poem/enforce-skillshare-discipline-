@@ -54,7 +54,7 @@ func parseHooksOptions(args []string) (hooksOptions, error) {
 }
 
 func hooksContext(args []string) (*hooks.Service, []string, error) {
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--file", "--from", "--revision")
 	if err != nil {
 		return nil, nil, err
 	}

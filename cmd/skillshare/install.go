@@ -327,7 +327,7 @@ func dispatchInstall(source *install.Source, cfg *config.Config, opts install.In
 func cmdInstall(args []string) error {
 	start := time.Now()
 
-	mode, rest, err := parseModeArgs(args)
+	mode, rest, err := parseModeArgs(args, "--name", "--audit-threshold", "--threshold", "-T", "--branch", "-b", "--kind", "--agent", "-a", "--skill", "-s", "--exclude", "--into")
 	if err != nil {
 		return err
 	}

@@ -20,7 +20,7 @@ import (
 )
 
 func cmdBackup(args []string) error {
-	mode, args, err := parseModeArgs(args)
+	mode, args, err := parseModeArgs(args, "--target", "-t", "--delete")
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func planBackupCleanup(backups []backup.BackupInfo, cfg backup.CleanupConfig, no
 }
 
 func cmdRestore(args []string) error {
-	mode, args, err := parseModeArgs(args)
+	mode, args, err := parseModeArgs(args, "--from", "-f")
 	if err != nil {
 		return err
 	}
