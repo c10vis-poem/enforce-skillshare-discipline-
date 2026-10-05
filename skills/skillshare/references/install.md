@@ -117,6 +117,9 @@ skillshare check -p          # Check project skills
 - **Local skills:** Shown as "local source"
 - **Targets validation:** Warns about unknown target names in skill-level `targets` field
 
+With `follow_source_links: true`, check a followed Git checkout by its link name:
+`skillshare check _dev-skills`.
+
 ## update
 
 Update installed skills or tracked repositories.

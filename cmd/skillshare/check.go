@@ -670,7 +670,7 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks .
 			continue
 		}
 
-		match, err := resolveByBasename(sourceDir, name)
+		match, err := resolveByBasename(sourceDir, name, walks...)
 		if err != nil {
 			resolveWarnings = append(resolveWarnings, fmt.Sprintf("%s: %v", name, err))
 			continue

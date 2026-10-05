@@ -97,6 +97,8 @@ skillshare check my-skill                # 単一の Skill
 skillshare check skill-a skill-b         # 複数の Skill
 ```
 
+`follow_source_links: true` の場合、たどられた Git チェックアウトもリンク名で確認できます。例: `skillshare check _dev-skills`。
+
 グループディレクトリ内の更新可能な Skill をすべて確認するには `--group` / `-G` を使います。
 
 ```bash
