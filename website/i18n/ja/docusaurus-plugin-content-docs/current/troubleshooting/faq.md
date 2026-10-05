@@ -52,7 +52,7 @@ Skill の Source の **内部** にあるリンクは別の話です。デフォ
 
 `_dev-skills` のようにリンクされた Tracked リポジトリでは、`skillshare update _dev-skills` は
 実際のチェックアウトの中で git を実行し、`--force` はそのチェックアウトをリセットします。
-`skillshare uninstall _dev-skills` はリンクのみを削除し、チェックアウトは決して削除しません。
+`skillshare unlink _dev-skills` はリンクのみを削除し、チェックアウトは決して削除しません。
 
 ### Skill を外部ドライブに置けますか？
 

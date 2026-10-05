@@ -40,7 +40,7 @@ No. A symlinked source root or target directory is resolved and preserved; see [
 
 Links **inside** the skills source are different. By default, discovery ignores first-level links and `skillshare doctor` reports them as not followed. Set `follow_source_links: true` in the global or project config to discover skills through directory links directly under that source, one level only. [`skillshare link <path>`](../reference/commands/link.md) creates such a link and checks it first. Deeper links are not followed for discovery. See [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links) for safety guards, writes through the link, and Windows junction guidance.
 
-For a linked tracked repo such as `_dev-skills`, `skillshare update _dev-skills` runs git in the real checkout, and `--force` resets that checkout. `skillshare uninstall _dev-skills` removes only the link, never the checkout.
+For a linked tracked repo such as `_dev-skills`, `skillshare update _dev-skills` runs git in the real checkout, and `--force` resets that checkout. `skillshare unlink _dev-skills` removes only the link, never the checkout.
 
 ### Can I keep skills on an external drive?
 

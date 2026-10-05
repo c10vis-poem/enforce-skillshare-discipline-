@@ -28,7 +28,7 @@ Next
 
 ## 実行内容
 
-`unlink` は、[`uninstall`](./uninstall.md) が第1階層のリンクを削除するのと同じ方法でリンクのエントリを trash に移動します。両者は同じコードパスを共有します。trash にはそれが `link → <target>` として一覧表示され、`skillshare trash restore <name>` はリンク（またはジャンクション）を再作成し、リンク先のコピーにはしません。その後 `skillshare sync` を実行すると、その Skill が target から削除されます。
+`unlink` はリンクのエントリのみを trash に移動します。リンク先フォルダーの直下に `SKILL.md` がある場合も同じです。ダッシュボードの **Unlink** も同じ動作をします。trash にはそれが `link → <target>` として一覧表示され、`skillshare trash restore <name>` はリンク（またはジャンクション）を再作成し、リンク先のコピーにはしません。その後 `skillshare sync` を実行すると、その Skill が target から削除されます。
 
 第1階層のリンクではない名前は拒否されるため、通常の Skill やフォルダを削除することはありません。
 

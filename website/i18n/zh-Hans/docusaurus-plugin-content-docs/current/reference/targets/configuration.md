@@ -242,9 +242,11 @@ skillshare sync
 
 #### 经由链接的写入 {#writes-through-the-link}
 
-对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare uninstall _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
+对链接背后的 Skill 的写入会落到真实的 checkout 中：在 dashboard 中编辑内容、`skillshare install --into _dev-skills`，以及替换链接目录内的普通 Skill，都会修改 `~/code/dev-skills`。`skillshare uninstall _dev-skills/<child>` 会把该子目录从真实 checkout 移到 trash。`skillshare unlink _dev-skills` 只移除链接条目，从不移除真实的 checkout；trash 会列出该链接，`restore` 会重新创建它。`skillshare trash restore _dev-skills/<child>` 会按同样的策略把子目录放回真实 checkout；如果 checkout 下存在指向别处的嵌套链接，restore 会失败并保留 trash 条目。会逃出 checkout 的路径（`..`，或指向其外部的嵌套链接）仍会被拒绝。
 
-`update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare uninstall _dev-skills`，或按名称指定要移到 trash 的 Skill。
+链接文件夹的根目录包含 `SKILL.md` 时也适用；`uninstall` 会拒绝移除该根级 skill。请使用 dashboard 的 **Unlink** 或 `skillshare unlink _dev-skills`，只移除链接而不改变目标文件夹。
+
+`update` 和 `check` 的 `--group` 接受链接名（`skillshare update --group _dev-skills`）。链接之下嵌套的分组（例如 `_dev-skills/sub`）不被 `--group` 接受；请改为指定其 Skill 的名称。`skillshare uninstall --group _dev-skills` 会被拒绝，因为它会清空真实的 checkout：移除链接请用 `skillshare unlink _dev-skills`，或按名称指定要移到 trash 的 Skill。
 
 在 Unix 上，提交 Source 仓库时暂存的是链接条目本身，也就是它的目标文本（通常是本机的绝对路径），而不是 checkout 中的文件。请把 `/_dev-skills` 加到 skills 目录的 `.gitignore` 中。`skillshare commit`、`push` 和 `init` 在链接将被暂存时会打印警告。
 

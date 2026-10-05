@@ -40,7 +40,7 @@ skillshare sync
 
 skills source **안쪽**의 링크는 다릅니다. 기본적으로 discovery는 첫 번째 수준의 링크를 무시하며, `skillshare doctor`는 이를 따라가지 않은 것으로 보고합니다. global 또는 project config에서 `follow_source_links: true`를 설정하면 해당 source 바로 아래의 디렉터리 링크를 통해 skill을 한 수준만 발견합니다. [`skillshare link <path>`](../reference/commands/link.md)는 먼저 검사한 뒤 이런 링크를 만듭니다. 더 깊은 링크는 discovery에서 따라가지 않습니다. 안전 장치, 링크를 통한 쓰기, Windows junction 안내는 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)를 참고하세요.
 
-`_dev-skills` 같은 링크된 tracked repo의 경우, `skillshare update _dev-skills`는 실제 checkout에서 git을 실행하며, `--force`는 그 checkout을 reset합니다. `skillshare uninstall _dev-skills`는 링크만 제거하고 checkout은 결코 제거하지 않습니다.
+`_dev-skills` 같은 링크된 tracked repo의 경우, `skillshare update _dev-skills`는 실제 checkout에서 git을 실행하며, `--force`는 그 checkout을 reset합니다. `skillshare unlink _dev-skills`는 링크만 제거하고 checkout은 결코 제거하지 않습니다.
 
 ### Can I keep skills on an external drive?
 

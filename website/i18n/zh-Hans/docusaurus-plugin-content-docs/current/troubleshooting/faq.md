@@ -40,7 +40,7 @@ skillshare sync
 
 Skill Source **内部**的链接则另当别论。默认情况下，发现阶段会忽略第一层的链接，`skillshare doctor` 会将它们报告为未跟随。在全局或项目配置中设置 `follow_source_links: true`，即可通过直接位于该 Source 根目录下的目录链接来发现 Skill，仅限一层。[`skillshare link <path>`](../reference/commands/link.md) 会先检查再创建这样的链接。更深层的链接在发现阶段不会被跟随。安全防护、经由链接的写入以及 Windows junction 的指引，参见 [Configuration — `follow_source_links`](../reference/targets/configuration.md#follow_source_links)。
 
-对于像 `_dev-skills` 这样被链接的 tracked repo，`skillshare update _dev-skills` 会在真实的 checkout 中运行 git，`--force` 会重置该 checkout。`skillshare uninstall _dev-skills` 只移除链接，从不移除 checkout。
+对于像 `_dev-skills` 这样被链接的 tracked repo，`skillshare update _dev-skills` 会在真实的 checkout 中运行 git，`--force` 会重置该 checkout。`skillshare unlink _dev-skills` 只移除链接，从不移除 checkout。
 
 ### 我可以把 Skill 放在外置硬盘上吗？
 
