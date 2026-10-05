@@ -124,6 +124,14 @@ func cmdLink(args []string) error {
 	}
 
 	res, err := sourcelink.Create(scope.source, scope.targets, path, name)
+	if err == nil && enable && !scope.follow {
+		// Enabling is part of the request: a failed config write must not
+		// leave a link discovery ignores behind a logged success.
+		if err = scope.enable(); err != nil {
+			_ = os.Remove(res.Path)
+			err = fmt.Errorf("failed to enable follow_source_links: %w", err)
+		}
+	}
 	logLinkOp(scope.configPath, "link", map[string]any{"name": name, "target": path}, start, err)
 	if err != nil {
 		return fmt.Errorf("cannot link %s: %w", path, err)
@@ -137,9 +145,6 @@ func cmdLink(args []string) error {
 	switch {
 	case scope.follow:
 	case enable:
-		if err := scope.enable(); err != nil {
-			return fmt.Errorf("failed to enable follow_source_links: %w", err)
-		}
 		fmt.Printf("%s Set follow_source_links: true %s\n", ui.StyledMark(ui.MarkOK), ui.DimText(utils.FoldHomePath(scope.configPath)))
 	default:
 		ui.Note(unfollowedLinkHint(linkName, true))

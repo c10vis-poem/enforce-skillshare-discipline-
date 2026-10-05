@@ -37,6 +37,30 @@ func TestLink_EnableThenListShowsLinkedSkills(t *testing.T) {
 	sb.RunCLI("list", "--json").AssertOutputContains(t, `"relPath": "_dev-skills/foo"`)
 }
 
+func TestLink_EnableFailureRollsBackLink(t *testing.T) {
+	sb, checkout := linkSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+	if err := os.Chmod(sb.ConfigPath, 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(sb.ConfigPath, 0644) })
+	if f, err := os.OpenFile(sb.ConfigPath, os.O_WRONLY, 0); err == nil {
+		f.Close()
+		t.Skip("requires file write permissions to be enforced")
+	}
+
+	result := sb.RunCLI("link", checkout, "--enable")
+	result.AssertFailure(t)
+	result.AssertAnyOutputContains(t, "failed to enable follow_source_links")
+	if _, err := os.Lstat(filepath.Join(sb.SourcePath, "_dev-skills")); !os.IsNotExist(err) {
+		t.Fatalf("link left behind after enable failure: %v", err)
+	}
+	if !sb.FileExists(filepath.Join(checkout, "foo", "SKILL.md")) {
+		t.Fatal("rollback touched the target")
+	}
+}
+
 func TestLink_WithoutEnablePrintsDoctorHint(t *testing.T) {
 	sb, checkout := linkSandbox(t)
 	defer sb.Cleanup()
