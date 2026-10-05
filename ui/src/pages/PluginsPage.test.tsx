@@ -143,6 +143,20 @@ describe('PluginsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'plugins.check' }));
     expect(await screen.findAllByText('1.0.0 → 1.1.0')).toHaveLength(2);
   });
+  it('shows the commit moving when a check finds a source change under the same version', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'codex', label: 'Codex', project: false, operations: ['add', 'check'] }], packages: { demo: { bindings: { codex: { id: 'demo@market', version: '1.0.0', commit: '00f1aa364b3aa57172e5db2da964167701904d02' } } } }, hosts: [] });
+    vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'r', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update-available', binding: { id: 'demo@market', version: '1.0.0', commit: '944b5dcc253cb0561db525207db5b804072ab127' } }] });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
+    expect(await screen.findAllByText('1.0.0 · 00f1aa3 → 944b5dc')).toHaveLength(2);
+  });
+  it('shows only the commit moving when neither side has a version', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'codex', label: 'Codex', project: false, operations: ['add', 'check'] }], packages: { demo: { bindings: { codex: { id: 'demo@market', commit: '00f1aa364b3aa57172e5db2da964167701904d02' } } } }, hosts: [] });
+    vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'r', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update-available', binding: { id: 'demo@market', commit: '944b5dcc253cb0561db525207db5b804072ab127' } }] });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
+    expect(await screen.findAllByText('00f1aa3 → 944b5dc')).toHaveLength(2);
+  });
   it('updates what a check found from its row in the check, for that Agent only', async () => {
     vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true }], packages: { driver: { bindings: { pi: { id: 'npm:driver' } } } }, hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] }] });
     vi.mocked(pluginsApi.preview).mockResolvedValue({ revision: 'r', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'update-available', binding: { id: 'npm:driver', version: '1.1.0' } }] });
