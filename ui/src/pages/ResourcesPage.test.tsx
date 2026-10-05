@@ -295,6 +295,17 @@ describe('Unlink folder', () => {
     expect(api.batchUninstall).not.toHaveBeenCalled();
   });
 
+  it('keeps the no-match state when a filter excludes every skill but links exist', async () => {
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [LINKED[0]], sourceLinks: [{ name: 'team', target: '/work/team', available: true }] });
+    mount();
+    await screen.findByText('/work/team');
+    fireEvent.change(screen.getByLabelText('Search skills'), { target: { value: 'zzz-no-such-skill' } });
+    expect(await screen.findByText('No matches')).toBeInTheDocument();
+    expect(screen.queryByText('/work/team')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(await screen.findByText('/work/team')).toBeInTheDocument();
+  });
+
   it.each(['list', 'cards', 'tree'])('shows an unavailable link warning in %s view', async (view) => {
     localStorage.setItem('skillshare:skills-view', view);
     vi.mocked(api.listSkills).mockResolvedValue({ resources: [], sourceLinks: [{ name: 'team', target: '/work/team', available: false, warning: 'target is missing' }] });

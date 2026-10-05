@@ -263,6 +263,8 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const query = search.trim();
   const isGlob = /[*?]/.test(query);
   const filtering = query !== '' || source !== 'all' || status !== 'all' || activeTarget !== 'all' || activeFolder !== null;
+  // Standalone links have no skills to match a filter, so they only show unfiltered.
+  const shownLinks = useMemo(() => filtering ? [] : sourceLinks, [filtering, sourceLinks]);
 
   const filtered = useMemo(() => {
     const re = query ? globToRegex(query) : null;
@@ -276,9 +278,9 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     ), sort);
   }, [items, query, source, status, sort, activeTarget, targetIndex, activeFolder]);
 
-  const groups = useMemo(() => groupBySource(filtered, sourceLinks), [filtered, sourceLinks]);
-  const folderGroups = useMemo(() => groupByFolder(filtered, sourceLinks), [filtered, sourceLinks]);
-  const tree = useMemo(() => buildTree(filtered, sourceLinks), [filtered, sourceLinks]);
+  const groups = useMemo(() => groupBySource(filtered, shownLinks), [filtered, shownLinks]);
+  const folderGroups = useMemo(() => groupByFolder(filtered, shownLinks), [filtered, shownLinks]);
+  const tree = useMemo(() => buildTree(filtered, shownLinks), [filtered, shownLinks]);
   const treeRows = useMemo(() => flattenTree(tree, collapsed, filtering), [tree, collapsed, filtering]);
   const shownTreeRows = useMemo(() => {
     let left = limit;
@@ -610,7 +612,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const shown = Math.min(limit, total);
   let content: React.ReactNode;
 
-  if (filtered.length === 0 && sourceLinks.length === 0) {
+  if (filtered.length === 0 && shownLinks.length === 0) {
     content = items.length === 0 ? (
       <EmptyState
         icon={isAgent ? Bot : Puzzle}
