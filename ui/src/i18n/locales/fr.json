@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "Ces skills seront retirés de toutes les cibles lors de la prochaine synchronisation.",
   "sourceLinks.unlinkTrash": "Le lien va dans la corbeille et peut être restauré depuis la page Corbeille.",
   "resources.uninstall.linkedNote": "Les skills sélectionnés sont déplacés du dossier lié vers la corbeille.",
-  "sourceLinks.linked": "lié",
   "sourceLinks.unlink": "Délier",
   "sourceLinks.unlinkTitle": "Délier {name} ?",
   "sourceLinks.unlinked": "{name} délié",

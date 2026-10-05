@@ -133,7 +133,6 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
                 : row.type === 'item' && row.skill.name}
             </span>
             {folder?.repo && !link && <span className="ss-tag shrink-0">tracked</span>}
-            {link && <span className="ss-tag shrink-0">{t('sourceLinks.linked')}</span>}
             <span className={`hv ${link ? '!ml-auto' : ''}`}>
               {folder && <span>{skills.length}</span>}
               {folder && off > 0 && (

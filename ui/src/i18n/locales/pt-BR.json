@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "Estas skills serão removidas de todos os destinos na próxima sincronização.",
   "sourceLinks.unlinkTrash": "O link vai para a lixeira e pode ser restaurado na página Lixeira.",
   "resources.uninstall.linkedNote": "As skills selecionadas são movidas da pasta vinculada para a lixeira.",
-  "sourceLinks.linked": "vinculado",
   "sourceLinks.unlink": "Desvincular",
   "sourceLinks.unlinkTitle": "Desvincular {name}?",
   "sourceLinks.unlinked": "{name} desvinculado",

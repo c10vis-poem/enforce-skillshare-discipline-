@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "These skills leave every target on the next sync.",
   "sourceLinks.unlinkTrash": "The link goes to trash and can be restored from the Trash page.",
   "resources.uninstall.linkedNote": "Selected skills are moved out of the linked folder to the trash.",
-  "sourceLinks.linked": "linked",
   "sourceLinks.unlink": "Unlink",
   "sourceLinks.unlinkTitle": "Unlink {name}?",
   "sourceLinks.unlinked": "Unlinked {name}",

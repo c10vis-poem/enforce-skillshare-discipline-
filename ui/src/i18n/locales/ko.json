@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "이 스킬들은 다음 동기화 시 모든 대상에서 제거됩니다.",
   "sourceLinks.unlinkTrash": "링크는 휴지통으로 이동하며 휴지통 페이지에서 복원할 수 있습니다.",
   "resources.uninstall.linkedNote": "선택한 스킬을 연결된 폴더에서 휴지통으로 이동합니다.",
-  "sourceLinks.linked": "연결됨",
   "sourceLinks.unlink": "연결 해제",
   "sourceLinks.unlinkTitle": "{name} 연결을 해제할까요?",
   "sourceLinks.unlinked": "{name} 연결을 해제했습니다",

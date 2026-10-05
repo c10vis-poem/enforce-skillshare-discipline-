@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "این مهارت‌ها در همگام‌سازی بعدی از همه مقصدها حذف می‌شوند.",
   "sourceLinks.unlinkTrash": "پیوند به سطل زباله می‌رود و از صفحه سطل زباله قابل بازیابی است.",
   "resources.uninstall.linkedNote": "مهارت‌های انتخاب‌شده از پوشه پیوندشده به سطل زباله منتقل می‌شوند.",
-  "sourceLinks.linked": "پیوندشده",
   "sourceLinks.unlink": "حذف پیوند",
   "sourceLinks.unlinkTitle": "پیوند {name} حذف شود؟",
   "sourceLinks.unlinked": "پیوند {name} حذف شد",

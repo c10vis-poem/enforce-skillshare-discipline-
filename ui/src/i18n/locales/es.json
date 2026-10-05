@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "Estos skills se eliminarán de todos los destinos en la próxima sincronización.",
   "sourceLinks.unlinkTrash": "El enlace se mueve a la papelera y se puede restaurar desde la página Papelera.",
   "resources.uninstall.linkedNote": "Los skills seleccionados se mueven de la carpeta vinculada a la papelera.",
-  "sourceLinks.linked": "enlazado",
   "sourceLinks.unlink": "Desenlazar",
   "sourceLinks.unlinkTitle": "¿Desenlazar {name}?",
   "sourceLinks.unlinked": "{name} desenlazado",

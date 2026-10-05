@@ -528,7 +528,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
         <Icon size={15} className="shrink-0 text-ink-2" />
         {g.link ? <b className="font-mono">{g.link.name}</b> : g.repo ? <b className="font-mono">{formatTrackedRepoName(g.repo)}</b> : <b>{SOURCE_LABEL[g.source]}</b>}
         {g.repo && !g.link && <span className="ss-tag">tracked</span>}
-        {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
+        {g.link && <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span>}
         <span className="shrink-0 text-ink-3">{meta.filter(Boolean).join(' · ')}</span>
         <span className="flex-1" />
         {!isAgent && (g.link ? unlinkButton(g.link) : g.repo && repoActions(g.repo))}
@@ -543,7 +543,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       {g.link ? <Link2 size={15} className="shrink-0 text-ink-2" /> : <Folder size={15} className="shrink-0 text-ink-2" />}
       <b className={g.key ? 'font-mono' : ''}>{g.link ? g.link.name : folderName(g.key)}</b>
       {g.repo && !g.link && <span className="ss-tag">tracked</span>}
-      {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
+      {g.link && <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span>}
       <span className="shrink-0 text-ink-3">{countLabel(t, kind, g.items.length)}</span>
       {g.link && !isAgent && <><span className="flex-1" />{unlinkButton(g.link)}</>}
     </div>

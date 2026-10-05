@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "Skill ini akan dihapus dari semua target pada sinkronisasi berikutnya.",
   "sourceLinks.unlinkTrash": "Tautan dipindahkan ke sampah dan dapat dipulihkan dari halaman Sampah.",
   "resources.uninstall.linkedNote": "Skill yang dipilih dipindahkan dari folder tertaut ke sampah.",
-  "sourceLinks.linked": "ditautkan",
   "sourceLinks.unlink": "Lepas tautan",
   "sourceLinks.unlinkTitle": "Lepas tautan {name}?",
   "sourceLinks.unlinked": "Tautan {name} dilepas",

@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "これらのスキルは次回の同期ですべてのターゲットから削除されます。",
   "sourceLinks.unlinkTrash": "リンクはゴミ箱に移動し、ゴミ箱ページから復元できます。",
   "resources.uninstall.linkedNote": "選択したスキルをリンク先のフォルダーからゴミ箱に移動します。",
-  "sourceLinks.linked": "リンク済み",
   "sourceLinks.unlink": "リンクを解除",
   "sourceLinks.unlinkTitle": "{name} のリンクを解除しますか？",
   "sourceLinks.unlinked": "{name} のリンクを解除しました",

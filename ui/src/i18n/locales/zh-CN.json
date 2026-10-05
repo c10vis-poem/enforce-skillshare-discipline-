@@ -4,7 +4,6 @@
   "sourceLinks.unlinkSkills": "这些 skills 会在下次同步时从所有 target 移除。",
   "sourceLinks.unlinkTrash": "链接会移至回收站，可从回收站页面还原。",
   "resources.uninstall.linkedNote": "选中的 skills 会从链接文件夹移出并移至回收站。",
-  "sourceLinks.linked": "已链接",
   "sourceLinks.unlink": "取消链接",
   "sourceLinks.unlinkTitle": "取消链接 {name}？",
   "sourceLinks.unlinked": "已取消链接 {name}",
