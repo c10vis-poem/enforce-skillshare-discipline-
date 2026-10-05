@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 )
 
 func TestSwapStagedIntoSource(t *testing.T) {
@@ -36,7 +37,7 @@ func TestSwapStagedIntoSource(t *testing.T) {
 		filepath.Join(source, "linked"),          // the skill is a link
 		filepath.Join(source, "linked", "child"), // the skill is below one
 	} {
-		if err := swapStagedIntoSource(source, stage(), dest); !errors.Is(err, sourcefs.ErrLink) {
+		if err := swapStagedIntoSource(source, stage(), dest, nil); !errors.Is(err, sourcefs.ErrLink) {
 			t.Errorf("swap into %s: got %v, want ErrLink", dest, err)
 		}
 	}
@@ -47,10 +48,45 @@ func TestSwapStagedIntoSource(t *testing.T) {
 		t.Fatalf("external tree changed: %v", entries)
 	}
 
-	if err := swapStagedIntoSource(source, stage(), filepath.Join(source, "plain")); err != nil {
+	if err := swapStagedIntoSource(source, stage(), filepath.Join(source, "plain"), nil); err != nil {
 		t.Fatalf("swap into a real directory: %v", err)
 	}
 	if data, _ := os.ReadFile(filepath.Join(source, "plain", "SKILL.md")); string(data) != "staged" {
 		t.Fatalf("plain skill = %q, want staged content", data)
+	}
+}
+
+func TestSwapStagedIntoSource_FollowedLinkReplacesInCheckout(t *testing.T) {
+	source := t.TempDir()
+	checkout := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(checkout, "foo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(checkout, "foo", "old.md"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(checkout, filepath.Join(source, "_dev-skills")); err != nil {
+		t.Fatal(err)
+	}
+	staged := filepath.Join(t.TempDir(), "foo")
+	if err := os.MkdirAll(staged, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staged, "SKILL.md"), []byte("staged"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	follow := sourcewalk.NewFollow(source, nil)
+	if err := swapStagedIntoSource(source, staged, filepath.Join(source, "_dev-skills", "foo"), follow); err != nil {
+		t.Fatalf("swap below a followed link: %v", err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(checkout, "foo", "SKILL.md")); string(data) != "staged" {
+		t.Fatalf("checkout skill = %q, want staged content", data)
+	}
+	if _, err := os.Stat(filepath.Join(checkout, "foo", "old.md")); !os.IsNotExist(err) {
+		t.Fatalf("old content kept: %v", err)
+	}
+	if info, err := os.Lstat(filepath.Join(source, "_dev-skills")); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("link was replaced: %v", err)
 	}
 }

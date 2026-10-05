@@ -46,6 +46,10 @@ type InstallOptions struct {
 	// skillFileOnly makes a local install copy only SKILL.md. Updates set it
 	// to keep the shape of a collection root installed that way.
 	skillFileOnly bool
+
+	// SourceFollow is the operation's follow policy for SourceDir, so writes
+	// pass through followed first-level links; nil follows none.
+	SourceFollow *sourcewalk.Follow
 }
 
 // auditAcceptTarget returns the (sourceDir, path) pair used to key accepted

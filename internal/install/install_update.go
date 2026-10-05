@@ -143,7 +143,7 @@ func handleUpdate(source *Source, destPath string, result *InstallResult, opts I
 	updatedMeta := readTempUpdateMeta(tempDir)
 
 	// Installation succeeded - now safe to remove original and move new
-	if err := swapStagedIntoSource(opts.SourceDir, tempDest, destPath); err != nil {
+	if err := swapStagedIntoSource(opts.SourceDir, tempDest, destPath, opts.SourceFollow); err != nil {
 		return nil, err
 	}
 
@@ -250,7 +250,7 @@ func updateRepoRootOrchestrator(source *Source, destPath string, result *Install
 		result.Warnings = append(result.Warnings, innerResult.Warnings...)
 	}
 
-	if err := swapStagedIntoSource(opts.SourceDir, tempDest, destPath); err != nil {
+	if err := swapStagedIntoSource(opts.SourceDir, tempDest, destPath, opts.SourceFollow); err != nil {
 		return true, err
 	}
 

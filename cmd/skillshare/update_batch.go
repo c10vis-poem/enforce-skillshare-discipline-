@@ -10,6 +10,7 @@ import (
 	"skillshare/internal/audit"
 	"skillshare/internal/install"
 	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/trash"
 	"skillshare/internal/ui"
 )
@@ -22,6 +23,7 @@ type updateContext struct {
 	projectRoot string
 	opts        *updateOptions
 	parseOpts   install.ParseOptions
+	follow      *sourcewalk.Follow // writes pass through followed source links; nil follows none
 }
 
 func (uc *updateContext) isProject() bool {
@@ -45,6 +47,7 @@ func (uc *updateContext) makeInstallOpts() install.InstallOptions {
 		SkipAudit:      uc.opts.skipAudit,
 		AuditThreshold: uc.opts.threshold,
 		SourceDir:      uc.sourcePath,
+		SourceFollow:   uc.follow,
 	}
 	if uc.isProject() {
 		opts.AuditProjectRoot = uc.projectRoot
@@ -383,7 +386,7 @@ func pruneSkill(skillPath, name string, uc *updateContext) error {
 	} else {
 		trashDir = trash.TrashDir()
 	}
-	if err := sourcefs.CheckMoveOut(uc.sourcePath, skillPath); err != nil {
+	if err := sourcefs.CheckMoveOut(uc.sourcePath, skillPath, uc.follow); err != nil {
 		return err
 	}
 	_, err := trash.MoveToTrash(skillPath, name, trashDir)

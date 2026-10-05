@@ -48,14 +48,14 @@ func cmdUpdateProject(args []string, root string) (*updateResult, error) {
 	}
 
 	if opts.all {
-		uc := &updateContext{sourcePath: sourcePath, projectRoot: root, opts: opts, parseOpts: parseOptsFromProjectConfig(runtime.config)}
+		uc := &updateContext{sourcePath: sourcePath, projectRoot: root, opts: opts, parseOpts: parseOptsFromProjectConfig(runtime.config), follow: runtime.skillsWalk().Follow}
 		return updateAllProjectSkills(uc, runtime.skillsWalk())
 	}
 
-	return cmdUpdateProjectBatch(sourcePath, opts, root, parseOptsFromProjectConfig(runtime.config))
+	return cmdUpdateProjectBatch(sourcePath, opts, root, parseOptsFromProjectConfig(runtime.config), runtime.skillsWalk().Follow)
 }
 
-func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot string, pOpts install.ParseOptions) (*updateResult, error) {
+func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot string, pOpts install.ParseOptions, follow *sourcewalk.Follow) (*updateResult, error) {
 	// --- Resolve targets ---
 	var targets []updateTarget
 	seen := map[string]bool{}
@@ -153,7 +153,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 	}
 
 	// --- Execute ---
-	uc := &updateContext{sourcePath: sourcePath, projectRoot: projectRoot, opts: opts, parseOpts: pOpts}
+	uc := &updateContext{sourcePath: sourcePath, projectRoot: projectRoot, opts: opts, parseOpts: pOpts, follow: follow}
 
 	if len(targets) == 1 {
 		t := targets[0]

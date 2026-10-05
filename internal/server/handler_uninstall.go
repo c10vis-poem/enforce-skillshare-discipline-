@@ -213,7 +213,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 				continue
 			}
 
-			if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath); err != nil {
+			if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath, s.skillsWalk().Follow); err != nil {
 				res.Success = false
 				res.Error = err.Error()
 				results = append(results, res)
@@ -270,7 +270,7 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 		}
 
 		baseName := filepath.Base(skill.SourcePath)
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), skill.SourcePath); err != nil {
+		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), skill.SourcePath, s.skillsWalk().Follow); err != nil {
 			res.Success = false
 			res.Error = err.Error()
 			results = append(results, res)

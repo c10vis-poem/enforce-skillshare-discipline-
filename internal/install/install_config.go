@@ -271,7 +271,7 @@ func InstallFromConfig(ctx InstallContext, opts InstallOptions) (ConfigInstallRe
 			}
 
 			if groupDir != "" {
-				if err := sourcefs.MkdirAllIn(sourcePath, filepath.FromSlash(groupDir)); err != nil {
+				if err := sourcefs.MkdirAllIn(sourcePath, filepath.FromSlash(groupDir), opts.SourceFollow); err != nil {
 					if !opts.Quiet {
 						ui.StepFail(displayName, fmt.Sprintf("failed to create group directory: %v", err))
 					}
@@ -404,7 +404,7 @@ func installPlainFromConfig(
 
 	// Ensure group directory exists.
 	if groupDir != "" {
-		if err := sourcefs.MkdirAllIn(sourcePath, filepath.FromSlash(groupDir)); err != nil {
+		if err := sourcefs.MkdirAllIn(sourcePath, filepath.FromSlash(groupDir), opts.SourceFollow); err != nil {
 			if !opts.Quiet {
 				ui.StepFail(displayName, fmt.Sprintf("failed to create group directory: %v", err))
 			}

@@ -392,7 +392,7 @@ func (s *Server) handleUninstallRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Move to trash first — only clean gitignore after durable removal.
-	if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath); err != nil {
+	if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath, s.skillsWalk().Follow); err != nil {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
@@ -528,7 +528,7 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath); err != nil {
+		if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), d.SourcePath, s.skillsWalk().Follow); err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
