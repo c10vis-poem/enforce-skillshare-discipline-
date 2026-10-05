@@ -75,11 +75,11 @@ const SKILLS = [
   at('local/two', { disabled: true }),
 ];
 
-function mount() {
+function mount(kind: 'skill' | 'agent' = 'skill') {
   render(
     <MemoryRouter initialEntries={['/skills']}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <I18nProvider><ToastProvider><ResourcesPage kind="skill" /></ToastProvider></I18nProvider>
+        <I18nProvider><ToastProvider><ResourcesPage kind={kind} /></ToastProvider></I18nProvider>
       </QueryClientProvider>
     </MemoryRouter>,
   );
@@ -186,6 +186,69 @@ describe('Skills tree view', () => {
     fireEvent.keyDown(divider, { key: 'ArrowRight' });
     expect(divider).toHaveAttribute('aria-valuenow', '396');
     expect(localStorage.getItem('skillshare:tree-width')).toBe('396');
+  });
+});
+
+describe('Link folder', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [] });
+    vi.mocked(api.getConfig).mockResolvedValue({ config: { FollowSourceLinks: false }, raw: '' });
+    vi.mocked(api.createSourceLink).mockResolvedValue({ path: '/source/_team', target: '/work/team', kind: 'symlink', warning: '' });
+  });
+
+  it('opens the dialog on the skills page', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Link folder' }));
+    expect(screen.getByRole('dialog', { name: 'Link folder' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Folder path')).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: /Enable follow_source_links/ })).not.toBeChecked();
+  });
+
+  it('posts the path, optional name and explicit enable flag and refreshes the list', async () => {
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Link folder' }));
+    fireEvent.change(screen.getByLabelText('Folder path'), { target: { value: '/work/team' } });
+    fireEvent.change(screen.getByLabelText('Link name (optional)'), { target: { value: '_team' } });
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Enable follow_source_links/ }));
+    const calls = vi.mocked(api.listSkills).mock.calls.length;
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Link folder' }));
+    await waitFor(() => expect(api.createSourceLink).toHaveBeenCalledWith({ path: '/work/team', name: '_team', enable: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(vi.mocked(api.listSkills).mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('renders the HTTP 400 guard message verbatim', async () => {
+    const { ApiError } = await import('../api/client');
+    vi.mocked(api.createSourceLink).mockRejectedValue(new ApiError(400, 'target overlaps sync target /tools/skills'));
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Link folder' }));
+    fireEvent.change(screen.getByLabelText('Folder path'), { target: { value: '/tools/skills' } });
+    await screen.findByRole('checkbox', { name: /Enable follow_source_links/ });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Link folder' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('target overlaps sync target /tools/skills');
+    expect(screen.getByLabelText('Folder path')).toHaveValue('/tools/skills');
+  });
+
+  it('hides the enable checkbox when following is already on and shows the warning', async () => {
+    vi.mocked(api.getConfig).mockResolvedValue({ config: { FollowSourceLinks: true }, raw: '' });
+    vi.mocked(api.createSourceLink).mockResolvedValue({ path: '/source/_team', target: '/work/team', kind: 'symlink', warning: 'target is not a git checkout' });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'Link folder' }));
+    fireEvent.change(screen.getByLabelText('Folder path'), { target: { value: '/work/team' } });
+    const submit = within(screen.getByRole('dialog')).getByRole('button', { name: 'Link folder' });
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    expect(screen.queryByRole('checkbox', { name: /Enable follow_source_links/ })).toBeNull();
+    fireEvent.click(submit);
+    await waitFor(() => expect(api.createSourceLink).toHaveBeenCalledWith({ path: '/work/team', enable: false }));
+    expect(await screen.findByText('target is not a git checkout')).toBeInTheDocument();
+  });
+
+  it('does not offer Link folder on the agents page', async () => {
+    mount('agent');
+    await screen.findByRole('heading', { name: 'Agents' });
+    expect(screen.queryByRole('button', { name: 'Link folder' })).toBeNull();
   });
 });
 

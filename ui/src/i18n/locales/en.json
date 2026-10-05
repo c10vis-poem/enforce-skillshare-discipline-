@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "Link folder",
+  "sourceLinks.description": "Link a folder on this machine into the skills source.",
+  "sourceLinks.path": "Folder path",
+  "sourceLinks.name": "Link name (optional)",
+  "sourceLinks.nameHint": "Default: _ followed by the folder name.",
+  "sourceLinks.enable": "Enable follow_source_links to list and sync this folder’s skills",
+  "sourceLinks.created": "Folder linked",
+  "sourceLinks.notFollowing": "follow_source_links is off. Enable it in config to list and sync the linked skills.",
   "mcp.tokenEnv": "Token environment variable",
   "mcp.tokenEnvHint": "Optional. The value is read when a tool starts and sent as a Bearer header. It is never written into config files.",
   "mcp.title": "MCP",

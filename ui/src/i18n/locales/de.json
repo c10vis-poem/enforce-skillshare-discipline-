@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "Ordner verknüpfen",
+  "sourceLinks.description": "Einen Ordner auf diesem Computer mit der Skill-Quelle verknüpfen.",
+  "sourceLinks.path": "Ordnerpfad",
+  "sourceLinks.name": "Linkname (optional)",
+  "sourceLinks.nameHint": "Standard: _ gefolgt vom Ordnernamen.",
+  "sourceLinks.enable": "follow_source_links aktivieren, um die Skills dieses Ordners aufzulisten und zu synchronisieren",
+  "sourceLinks.created": "Ordner verknüpft",
+  "sourceLinks.notFollowing": "follow_source_links ist deaktiviert. In der Konfiguration aktivieren, um verknüpfte Skills aufzulisten und zu synchronisieren.",
   "mcp.tokenEnv": "Token-Umgebungsvariable (optional)",
   "mcp.tokenEnvHint": "Optional. Der Wert wird beim Start eines Tools gelesen und als Bearer-Header gesendet. Er wird nie in Konfigurationsdateien geschrieben.",
   "mcp.title": "MCP",

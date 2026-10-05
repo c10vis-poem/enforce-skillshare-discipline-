@@ -1,7 +1,11 @@
 import { apiFetch, kindQuery } from './http';
-import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, LinkedRepo, Skill, SkillFileContent, TemplatesResponse } from './types/resources';
+import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, LinkedRepo, Skill, SkillFileContent, SourceLinkRequest, SourceLinkResult, TemplatesResponse } from './types/resources';
 
 export const resourcesApi = {
+  createSourceLink: (body: SourceLinkRequest) =>
+    apiFetch<SourceLinkResult>('/source-links', { method: 'POST', body: JSON.stringify(body) }),
+  removeSourceLink: (name: string) =>
+    apiFetch<{ success: boolean; name: string }>(`/source-links/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   getOverview: () => apiFetch<Overview>('/overview'),
   listSkills: (kind?: 'skill' | 'agent') =>
     apiFetch<{ resources: Skill[]; sourceLinkWarnings?: string[]; linked_repos?: LinkedRepo[] }>(`/resources${kindQuery(kind)}`),

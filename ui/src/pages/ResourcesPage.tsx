@@ -17,6 +17,7 @@ import {
   Info,
   LayoutGrid,
   List,
+  Link2,
   Plus,
   Power,
   Puzzle,
@@ -61,6 +62,7 @@ import type { SelectMode } from '../components/resources/SkillTree';
 import TreeDetailPane from '../components/resources/TreeDetailPane';
 import type { PaneSubject } from '../components/resources/TreeDetailPane';
 import { UninstallDialog } from '../components/resources/UninstallDialog';
+import LinkFolderDialog from '../components/resources/LinkFolderDialog';
 import TreeSplit from '../components/resources/TreeSplit';
 import ArrangeMenu from '../components/resources/ArrangeMenu';
 import { buildTree, findFolder, flattenTree, folderPaths, isRepoRoot, rangeIds, selectedSkills, skillsUnder, summarize } from '../components/resources/tree';
@@ -194,6 +196,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const { data: targetsData } = useSyncedTargetsQuery();
   const syncPending = diffData ? countChanges(resourceGroups(diffData.diffs, targetsData?.targets ?? [], new Set([kind]), false).groups) > 0 : false;
   const [syncOpen, setSyncOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const { matrix, getSkillTargets } = useSyncMatrix();
   // The project count needs room, and the wider column fits more icons; without projects nothing changes.
   const hasProjects = matrix.some((e) => projectOf(e.target));
@@ -716,6 +719,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
               {syncPending && <span className="size-1.5 rounded-full bg-warn" role="img" aria-label={t('plugins.pending')} />}
             </Button>
             {!isAgent && <Link to="/hubs" className="ss-btn">{t('hubs.title')}</Link>}
+            {!isAgent && <Button variant="secondary" onClick={() => setLinkOpen(true)}><Link2 size={15} />{t('sourceLinks.title')}</Button>}
             {!isAgent && (
               <Link to="/skills/new" className="ss-btn">
                 <Plus size={15} />
@@ -1010,6 +1014,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       )}
       <SyncPreviewModal open={syncOpen} onClose={() => setSyncOpen(false)} kind={kind} />
       {installTab && <InstallDialog kind={kind} initialTab={installTab === 'url' ? 'url' : 'search'} initialSource={params.get('source') ?? undefined} onClose={() => setInstall(null)} />}
+      {!isAgent && linkOpen && <LinkFolderDialog onClose={() => setLinkOpen(false)} />}
     </div>
   );
 }

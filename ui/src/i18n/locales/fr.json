@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "Lier un dossier",
+  "sourceLinks.description": "Liez un dossier de cet ordinateur à la source des skills.",
+  "sourceLinks.path": "Chemin du dossier",
+  "sourceLinks.name": "Nom du lien (facultatif)",
+  "sourceLinks.nameHint": "Par défaut : _ suivi du nom du dossier.",
+  "sourceLinks.enable": "Activer follow_source_links pour afficher et synchroniser les skills de ce dossier",
+  "sourceLinks.created": "Dossier lié",
+  "sourceLinks.notFollowing": "follow_source_links est désactivé. Activez-le dans la configuration pour afficher et synchroniser les skills liés.",
   "mcp.tokenEnv": "Variable du jeton (facultatif)",
   "mcp.tokenEnvHint": "Facultatif. La valeur est lue au démarrage de l’outil et envoyée comme en-tête Bearer. Elle n’est jamais écrite dans les fichiers de configuration.",
   "mcp.title": "MCP",

@@ -45,6 +45,15 @@ Compare routes in `internal/server/server.go`, `handler_*.go` files, handler tes
 
 `GET /api/check` and the `done` event of `GET /api/check/stream` return the same `linked_repos` field separately from `tracked_repos`. Linked checkouts are excluded from Git checks and work-unit totals. Dashboard update endpoints return a `skipped` result for them before running Git, including force retries and skills within those checkouts.
 
+Source-link endpoints (skills only, in the dashboard's current global/project mode):
+
+| Endpoint | Request | Response |
+|---|---|---|
+| `POST /api/source-links` | `{path, name?, enable?}` | `{path, target, kind, warning}`; `kind` is `symlink` or `junction` |
+| `DELETE /api/source-links/{name}` | First-level link name | `{success, name}`; moves only the link to trash |
+
+Both call `internal/sourcelink`, share the uninstall routes' middleware, and return guard refusals as HTTP 400 with the core reason in the string `error` field. `enable: true` persists `follow_source_links` in the current config and refreshes the follow snapshot. The skills page's **Link folder** dialog offers that setting only while it is off; the list does not identify link groups, so unlink is available through the CLI and API.
+
 ## Report
 
 Use a concise table for each dimension:

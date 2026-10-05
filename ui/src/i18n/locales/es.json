@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "Enlazar carpeta",
+  "sourceLinks.description": "Enlaza una carpeta de este equipo con la fuente de skills.",
+  "sourceLinks.path": "Ruta de la carpeta",
+  "sourceLinks.name": "Nombre del enlace (opcional)",
+  "sourceLinks.nameHint": "Por defecto: _ seguido del nombre de la carpeta.",
+  "sourceLinks.enable": "Activar follow_source_links para listar y sincronizar los skills de esta carpeta",
+  "sourceLinks.created": "Carpeta enlazada",
+  "sourceLinks.notFollowing": "follow_source_links está desactivado. Actívalo en la configuración para listar y sincronizar los skills enlazados.",
   "mcp.tokenEnv": "Variable del token (opcional)",
   "mcp.tokenEnvHint": "Opcional. El valor se lee al iniciar la herramienta y se envía como cabecera Bearer. Nunca se escribe en archivos de configuración.",
   "mcp.title": "MCP",

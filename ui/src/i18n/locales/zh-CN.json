@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "链接文件夹",
+  "sourceLinks.description": "将这台电脑上的文件夹链接至技能来源。",
+  "sourceLinks.path": "文件夹路径",
+  "sourceLinks.name": "链接名称（选填）",
+  "sourceLinks.nameHint": "默认为 _ 加上文件夹名称。",
+  "sourceLinks.enable": "启用 follow_source_links，列出并同步此文件夹的技能",
+  "sourceLinks.created": "已链接文件夹",
+  "sourceLinks.notFollowing": "follow_source_links 尚未启用。请在配置中启用，以列出并同步链接的技能。",
   "mcp.tokenEnv": "Token 环境变量（选填）",
   "mcp.tokenEnvHint": "可选。工具启动时读取该值并作为 Bearer 头发送，不会写入配置文件。",
   "mcp.title": "MCP",

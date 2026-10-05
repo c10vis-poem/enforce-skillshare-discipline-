@@ -81,6 +81,19 @@ export interface CreateSkillResponse {
   createdFiles: string[];
 }
 
+export interface SourceLinkRequest {
+  path: string;
+  name?: string;
+  enable?: boolean;
+}
+
+export interface SourceLinkResult {
+  path: string;
+  target: string;
+  kind: 'symlink' | 'junction';
+  warning: string;
+}
+
 export interface SkillFileContent {
   content: string;
   contentType: string;

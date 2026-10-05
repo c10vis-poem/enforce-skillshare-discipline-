@@ -1,4 +1,12 @@
 {
+  "sourceLinks.title": "پیوند پوشه",
+  "sourceLinks.description": "یک پوشه در این رایانه را به منبع مهارت‌ها پیوند دهید.",
+  "sourceLinks.path": "مسیر پوشه",
+  "sourceLinks.name": "نام پیوند (اختیاری)",
+  "sourceLinks.nameHint": "پیش‌فرض: _ و سپس نام پوشه.",
+  "sourceLinks.enable": "فعال‌سازی follow_source_links برای نمایش و همگام‌سازی مهارت‌های این پوشه",
+  "sourceLinks.created": "پوشه پیوند داده شد",
+  "sourceLinks.notFollowing": "follow_source_links غیرفعال است. آن را در پیکربندی فعال کنید تا مهارت‌های پیوندشده نمایش داده و همگام شوند.",
   "mcp.tokenEnv": "متغیر محیطی توکن (اختیاری)",
   "mcp.tokenEnvHint": "اختیاری. مقدار هنگام اجرای ابزار خوانده و به‌صورت هدر Bearer ارسال می‌شود و هرگز در فایل‌های پیکربندی نوشته نمی‌شود.",
   "mcp.title": "MCP",
