@@ -26,6 +26,12 @@ func IsLinkMode(path string, m fs.FileMode) bool {
 	return m&fs.ModeIrregular != 0 && isJunction(path)
 }
 
+// IsJunction reports whether path is a Windows junction, as opposed to a symlink.
+func IsJunction(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode()&fs.ModeIrregular != 0 && isJunction(path)
+}
+
 // isJunction reports whether path is a Windows junction (mount point).
 // A variable so tests on other platforms can simulate one.
 var isJunction = platformIsJunction
