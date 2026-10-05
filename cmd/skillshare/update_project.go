@@ -192,14 +192,19 @@ func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*update
 			return filepath.SkipDir
 		}
 
-		// Tracked repo (_-prefixed)
-		if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
+		// Followed checkouts are skipped whatever their name: a root SKILL.md
+		// would otherwise schedule them as a regular update below.
+		if info.IsDir() {
 			if warning, skip := followedRepoSkipped(walk, walkRoot, path); skip {
 				if warning != "" {
 					ui.Warning("%s", warning)
 				}
 				return filepath.SkipDir
 			}
+		}
+
+		// Tracked repo (_-prefixed)
+		if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
 			if install.IsGitRepo(path) {
 				rel, _ := filepath.Rel(walkRoot, path)
 				targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
