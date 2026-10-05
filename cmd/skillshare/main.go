@@ -26,6 +26,8 @@ var commands = map[string]func([]string) error{
 	"init":         cmdInit,
 	"install":      cmdInstall,
 	"uninstall":    cmdUninstall,
+	"link":         cmdLink,
+	"unlink":       cmdUnlink,
 	"list":         cmdList,
 	"sync":         cmdSync,
 	"status":       cmdStatus,
@@ -197,6 +199,8 @@ func printUsage() {
 		helpGroup{title: "Skills and agents", rows: []helpRow{
 			{"install", "Install from a repo or path"},
 			{"uninstall", "Remove from the source"},
+			{"link", "Link a folder of your own skills into the source"},
+			{"unlink", "Remove a link from the source"},
 			{"list", "List what is installed"},
 			{"search", "Find skills on GitHub or a hub"},
 			{"new", "Create a skill from a template"},

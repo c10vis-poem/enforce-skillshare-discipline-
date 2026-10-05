@@ -10,6 +10,8 @@ $_skillshareCompleter = {
             @{ Name = 'init'; Desc = 'Initialize skillshare' }
             @{ Name = 'install'; Desc = 'Install skills/agents from local path or git repo' }
             @{ Name = 'uninstall'; Desc = 'Remove skills/agents from source directory' }
+            @{ Name = 'link'; Desc = 'Link a folder of your own skills into the source' }
+            @{ Name = 'unlink'; Desc = 'Remove a link from the source' }
             @{ Name = 'list'; Desc = 'List installed skills' }
             @{ Name = 'search'; Desc = 'Search or browse GitHub for skills' }
             @{ Name = 'sync'; Desc = 'Sync skills/agents/extras/MCP to targets' }
@@ -181,6 +183,8 @@ $_skillshareCompleter = {
         'init' = '--source', '-s', '--remote', '--copy-from', '-c', '--no-copy', '--targets', '-t', '--all-targets', '--no-targets', '--mode', '-m', '--git', '--no-git', '--git-root', '--skill', '--no-skill', '--discover', '-d', '--select', '--subdir', '--visible', '--config', '--dry-run', '-n', '--help', '-h', '--project', '-p', '--global', '-g'
         'install' = '--name', '--force', '-f', '--update', '-u', '--dry-run', '-n', '--skip-audit', '--audit-verbose', '--audit-threshold', '--threshold', '-T', '--branch', '-b', '--track', '-t', '--kind', '--agent', '-a', '--skill', '--exclude', '--into', '--all', '--yes', '-y', '--json', '--help', '-h', '--project', '-p', '--global', '-g'
         'uninstall' = '--all', '--force', '-f', '--dry-run', '-n', '--json', '--group', '-G', '--help', '-h', '--project', '-p', '--global', '-g'
+        'link' = '--name', '--enable', '--help', '-h', '--project', '-p', '--global', '-g'
+        'unlink' = '--help', '-h', '--project', '-p', '--global', '-g'
         'list' = '--verbose', '-v', '--json', '-j', '--no-tui', '--type', '-t', '--status', '--sort', '-s', '--all', '--help', '-h', '--project', '-p', '--global', '-g'
         'sync' = '--all', '--dry-run', '-n', '--force', '-f', '--json', '--quiet', '-q', '--help', '-h', '--project', '-p', '--global', '-g'
         'diff' = '--no-tui', '--patch', '--stat', '--json', '--help', '-h', '--project', '-p', '--global', '-g'
