@@ -53,9 +53,10 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	sourceDir := s.skillsSource()
 	projectRoot := s.projectRoot
+	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
-	repos, _ := install.GetTrackedRepos(sourceDir, s.skillsWalk())
+	repos, linked := dashboardRepos(sourceDir, walk)
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 
 	var repoResults []repoCheckResult
@@ -68,6 +69,9 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 	var localResults []skillCheckResult
 
 	for _, skill := range skills {
+		if followedCheckout(filepath.Join(sourceDir, skill), walk.Follow) != "" {
+			continue
+		}
 		entry := s.skillEntry(skill)
 		if entry == nil || entry.RepoURL == "" {
 			localResults = append(localResults, localCheckResult(skill, entry, projectRoot))
@@ -175,6 +179,7 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"tracked_repos": repoResults,
+		"linked_repos":  linked,
 		"skills":        skillResults,
 	})
 }

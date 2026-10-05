@@ -822,6 +822,7 @@
   "trash.toast.emptied": "ゴミ箱を空にしました（{count} 件削除）{s}",
   "trash.toast.restored": "「{name}」をゴミ箱から復元しました",
   "trash.summary": "アンインストールした項目は 7 日間ここに残り、その後完全に削除されます。",
+  "update.linkedRepos.note": "たどられたチェックアウトはユーザーが管理し、ここでは更新しません。",
   "update.check.behind": "{count} コミット遅れ",
   "update.check.behindFallback": "遅れています",
   "update.check.checking": "確認中",

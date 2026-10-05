@@ -15,7 +15,7 @@ import (
 	"skillshare/internal/testutil"
 )
 
-func TestHandleUpdate_FollowedTrackedRepoAudit(t *testing.T) {
+func TestHandleUpdate_FollowedTrackedRepoSkipped(t *testing.T) {
 	for _, project := range []bool{false, true} {
 		for _, stream := range []bool{false, true} {
 			for _, enabled := range []bool{false, true} {
@@ -43,12 +43,30 @@ func TestHandleUpdate_FollowedTrackedRepoAudit(t *testing.T) {
 
 					results := runFollowUpdate(t, s, stream, "")
 					if enabled {
-						if len(results) != 1 || results[0].Name != "_dev" || results[0].Action != "blocked" || !strings.Contains(results[0].Message, "security audit") {
-							t.Fatalf("expected linked repo audit to block update, got %+v", results)
+						if len(results) != 1 || results[0].Name != "_dev" || results[0].Action != "skipped" || !strings.Contains(results[0].Message, "managed by you") {
+							t.Fatalf("expected linked repo update to be refused, got %+v", results)
 						}
 					} else if len(results) != 0 {
 						t.Fatalf("disabled follow must not discover the linked repo, got %+v", results)
 					}
+					if enabled {
+						dirty := filepath.Join(checkout, "local.txt")
+						if err := os.WriteFile(dirty, []byte("keep local changes"), 0644); err != nil {
+							t.Fatal(err)
+						}
+						for _, name := range []string{"_dev", "_dev/child"} {
+							for _, force := range []bool{false, true} {
+								targeted := runFollowUpdate(t, s, stream, name, force)
+								if len(targeted) != 1 || targeted[0].Action != "skipped" || !strings.Contains(targeted[0].Message, "managed by you") {
+									t.Fatalf("targeted update not refused: %+v", targeted)
+								}
+							}
+						}
+						if data, err := os.ReadFile(dirty); err != nil || string(data) != "keep local changes" {
+							t.Fatalf("force retry discarded local changes: %q, %v", data, err)
+						}
+					}
+
 					if after := testutil.RunGit(t, checkout, "rev-parse", "HEAD"); after != before {
 						t.Fatalf("checkout HEAD = %s, want original %s", after, before)
 					}
@@ -142,13 +160,14 @@ func newUpdateFollowServer(t *testing.T, project, enabled bool) (*Server, string
 	return s, source
 }
 
-func runFollowUpdate(t *testing.T, s *Server, stream bool, name string) []updateResultItem {
+func runFollowUpdate(t *testing.T, s *Server, stream bool, name string, forces ...bool) []updateResultItem {
 	t.Helper()
+	force := len(forces) > 0 && forces[0]
 	rr := httptest.NewRecorder()
 	if stream {
-		s.handleUpdateStream(rr, httptest.NewRequest(http.MethodGet, "/api/update/stream?names="+name, nil))
+		s.handleUpdateStream(rr, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/update/stream?names=%s&force=%t", name, force), nil))
 	} else {
-		body := fmt.Sprintf(`{"name":%q,"all":%t}`, name, name == "")
+		body := fmt.Sprintf(`{"name":%q,"all":%t,"force":%t}`, name, name == "", force)
 		s.handleUpdate(rr, httptest.NewRequest(http.MethodPost, "/api/update", strings.NewReader(body)))
 	}
 	if rr.Code != http.StatusOK {

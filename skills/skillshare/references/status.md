@@ -112,3 +112,5 @@ is requested. `init --skill` also opts in explicitly.
 **After upgrading skill:** `skillshare sync`
 
 `list` and `status` warn when an enabled `follow_source_links` policy skips an unavailable first-level source link; healthy skills remain in the inventory. With `--json`, warnings go to stderr so stdout stays valid JSON.
+
+The dashboard Updates tab lists followed Git checkouts as information only, with the link name and target path. It does not check, update, or force-retry them; manage them yourself or use `skillshare update <link>` explicitly.

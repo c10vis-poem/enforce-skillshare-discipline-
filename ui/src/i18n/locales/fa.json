@@ -822,6 +822,7 @@
   "trash.toast.emptied": "زباله‌دان خالی شد ({count} مورد حذف شد){s}",
   "trash.toast.restored": "\"{name}\" از زباله‌دان بازیابی شد",
   "trash.summary": "موارد حذف‌نصب‌شده ۷ روز اینجا می‌مانند و سپس برای همیشه پاک می‌شوند.",
+  "update.linkedRepos.note": "مدیریت مخزن‌های پیوندشده با شماست و اینجا به‌روزرسانی نمی‌شوند.",
   "update.check.behind": "{count} کامیت عقب",
   "update.check.behindFallback": "عقب",
   "update.check.checking": "در حال بررسی",

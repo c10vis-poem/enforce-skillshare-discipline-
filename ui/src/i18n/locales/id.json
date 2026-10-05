@@ -822,6 +822,7 @@
   "trash.toast.emptied": "Sampah dikosongkan ({count} item dihapus){s}",
   "trash.toast.restored": "Memulihkan \"{name}\" dari sampah",
   "trash.summary": "Item yang dicopot tetap di sini selama 7 hari, lalu dihapus permanen.",
+  "update.linkedRepos.note": "Checkout tertaut dikelola oleh Anda dan tidak diperbarui di sini.",
   "update.check.behind": "{count} commit tertinggal",
   "update.check.behindFallback": "Tertinggal",
   "update.check.checking": "Memeriksa",

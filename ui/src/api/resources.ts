@@ -1,10 +1,10 @@
 import { apiFetch, kindQuery } from './http';
-import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, Skill, SkillFileContent, TemplatesResponse } from './types/resources';
+import type { BatchToggleResult, BatchUninstallRequest, BatchUninstallResult, CollectResult, CollectScanResult, CreateSkillRequest, CreateSkillResponse, Overview, LinkedRepo, Skill, SkillFileContent, TemplatesResponse } from './types/resources';
 
 export const resourcesApi = {
   getOverview: () => apiFetch<Overview>('/overview'),
   listSkills: (kind?: 'skill' | 'agent') =>
-    apiFetch<{ resources: Skill[]; sourceLinkWarnings?: string[] }>(`/resources${kindQuery(kind)}`),
+    apiFetch<{ resources: Skill[]; sourceLinkWarnings?: string[]; linked_repos?: LinkedRepo[] }>(`/resources${kindQuery(kind)}`),
   getResource: (name: string, kind?: 'skill' | 'agent') =>
     apiFetch<{ resource: Skill; skillMdContent: string; files: string[] }>(
       `/resources/${encodeURIComponent(name)}${kindQuery(kind)}`

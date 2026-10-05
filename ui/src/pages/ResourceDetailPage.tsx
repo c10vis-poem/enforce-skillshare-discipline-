@@ -106,7 +106,7 @@ export default function ResourceDetailPage() {
   const listPath = isAgent ? '/agents' : '/skills';
   const { frontmatter, body } = parseSkillMarkdown(skillMdContent);
   const docName = isAgent ? resource.relPath.split('/').pop()! : 'SKILL.md';
-  const unit = updateUnits(allSkills.data?.resources ?? [resource], resource.kind)
+  const unit = updateUnits(allSkills.data?.resources ?? [resource], resource.kind, allSkills.data?.linked_repos)
     .find((u) => u.items.some((i) => i.flatName === resource.flatName));
   const check = statuses.get(resource.name) ?? { status: 'unchecked' as const };
   const updateAvailable = hasUpdate(check);

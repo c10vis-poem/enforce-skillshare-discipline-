@@ -1,3 +1,5 @@
+import type { LinkedRepo } from './resources';
+
 export interface HubIndex {
   schemaVersion: number;
   generatedAt: string;
@@ -90,6 +92,7 @@ export interface SkillCheckResult {
 }
 
 export interface CheckResult {
+  linked_repos?: LinkedRepo[];
   tracked_repos: RepoCheckResult[];
   skills: SkillCheckResult[];
 }

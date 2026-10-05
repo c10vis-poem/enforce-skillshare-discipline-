@@ -143,7 +143,8 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false)})
+	_, linked := dashboardRepos(source, walk)
+	writeJSON(w, map[string]any{"resources": items, "sourceLinkWarnings": sync.SourceLinkWarnings(walk, false), "linked_repos": linked})
 }
 
 func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {

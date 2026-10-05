@@ -744,6 +744,7 @@
   "targets.targetAdded": "Target \"{name}\" added.",
   "targets.targetRemoved": "Target \"{name}\" removed.",
   "targets.title": "Targets",
+  "update.linkedRepos.note": "Followed checkouts are managed by you and are not updated here.",
   "update.check.behind": "{count} commits behind",
   "update.check.behindFallback": "Behind",
   "update.check.checking": "Checking",

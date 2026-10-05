@@ -33,12 +33,13 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	sourceDir := s.skillsSource()
 	projectRoot := s.projectRoot
+	walk := s.skillsWalk()
 	s.mu.RUnlock()
 
 	// Immediate feedback before the potentially slow discovery walk.
 	safeSend("discovering", map[string]string{"phase": "scanning source directory"})
 
-	repos, _ := install.GetTrackedRepos(sourceDir, s.skillsWalk())
+	repos, linked := dashboardRepos(sourceDir, walk)
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 
 	// --- Pre-process: group skills by URL (fast, local only) ---
@@ -46,6 +47,9 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 	var localResults []skillCheckResult
 
 	for _, skill := range skills {
+		if followedCheckout(filepath.Join(sourceDir, skill), walk.Follow) != "" {
+			continue
+		}
 		entry := s.skillEntry(skill)
 		if entry == nil || entry.RepoURL == "" {
 			localResults = append(localResults, localCheckResult(skill, entry, projectRoot))
@@ -214,6 +218,7 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 
 	safeSend("done", map[string]any{
 		"tracked_repos": repoResults,
+		"linked_repos":  linked,
 		"skills":        skillResults,
 	})
 }

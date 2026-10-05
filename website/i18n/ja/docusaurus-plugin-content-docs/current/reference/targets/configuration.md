@@ -183,7 +183,7 @@ skillshare sync
 `~/code/dev-skills` に `.git` エントリが含まれていれば、`_dev-skills` は Tracked リポジトリのグループになり、その子ディレクトリが Skill として検出されます。Sync は他の Skill と同様にそれらをリンクまたはコピーします。symlink モードでは、実際のチェックアウト内のファイルを編集するとすぐに Target に反映されます。copy モードでは再度 sync が必要です。
 
 :::warning update は実際のチェックアウトを変更します
-`skillshare update _dev-skills` は、別途管理される clone ではなく `~/code/dev-skills` の中で git を実行します。`skillshare update _dev-skills --force` はその実際のチェックアウトをリセットし、ローカルの変更を破棄します。この理由から、`skillshare update --all` はたどられたリンクを警告付きでスキップします。名前を指定して update してください。`skillshare install <url> --track --update` とダッシュボードの update は、コミットされていない変更があるたどられたチェックアウトの pull を拒否します。そうしないと、ブロックする audit の検出結果によって `git reset --hard` でチェックアウトが巻き戻されてしまうためです。先にコミットするか stash してください。
+`skillshare update _dev-skills` は、別途管理される clone ではなく `~/code/dev-skills` の中で git を実行します。`skillshare update _dev-skills --force` はその実際のチェックアウトをリセットし、ローカルの変更を破棄します。この理由から、`skillshare update --all` はたどられたリンクを警告付きでスキップします。名前を指定して update してください。`skillshare install <url> --track --update` は、コミットされていない変更があるたどられたチェックアウトの pull を拒否します。ブロックする audit の検出結果によって `git reset --hard` で巻き戻される可能性があるため、先にコミットするか stash してください。ダッシュボードは強制再試行を含め、たどられた Git チェックアウトを更新しません。ユーザーが管理してください。
 :::
 
 #### 安全ガード {#safety-guards}

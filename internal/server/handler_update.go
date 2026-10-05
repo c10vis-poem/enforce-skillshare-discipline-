@@ -172,6 +172,9 @@ func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) up
 	walk := s.skillsWalk()
 	// Try exact skill path first (prevents basename collision with nested repos)
 	skillPath := filepath.Join(s.cfg.EffectiveSkillsSource(), name)
+	if refusal := s.refuseFollowedCheckout(name, skillPath, []*sourcewalk.Follow{walk.Follow}); refusal != nil {
+		return *refusal
+	}
 	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" {
 		return s.updateRegularSkill(name, skillPath, force, skipAudit, walk.Follow)
 	}
@@ -297,6 +300,9 @@ func (s *Server) updateAgent(name string, force, skipAudit bool) updateResultIte
 }
 
 func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
+	if refusal := s.refuseFollowedCheckout(name, repoPath, follow); refusal != nil {
+		return *refusal
+	}
 	// Check for uncommitted changes
 	if isDirty, _ := git.IsDirty(repoPath); isDirty {
 		if !force {
@@ -416,6 +422,9 @@ func (s *Server) auditGateTrackedRepo(name, repoPath, beforeHash string, force b
 }
 
 func (s *Server) updateRegularSkill(name, skillPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
+	if refusal := s.refuseFollowedCheckout(name, skillPath, follow); refusal != nil {
+		return *refusal
+	}
 	entry := s.skillsStore.GetByPath(name)
 	if entry == nil {
 		return updateResultItem{Name: name, Action: "error", Message: "no metadata found"}

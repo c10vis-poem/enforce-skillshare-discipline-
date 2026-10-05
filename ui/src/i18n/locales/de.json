@@ -822,6 +822,7 @@
   "trash.toast.emptied": "Papierkorb geleert ({count} Element{s} entfernt)",
   "trash.toast.restored": "\"{name}\" aus Papierkorb wiederhergestellt",
   "trash.summary": "Deinstallierte Elemente bleiben 7 Tage hier und werden danach endgültig gelöscht.",
+  "update.linkedRepos.note": "Verknüpfte Checkouts verwaltest du selbst; sie werden hier nicht aktualisiert.",
   "update.check.behind": "{count} Commits zurück",
   "update.check.behindFallback": "Zurück",
   "update.check.checking": "Wird geprüft",
