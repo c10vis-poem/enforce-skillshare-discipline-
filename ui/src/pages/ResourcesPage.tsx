@@ -84,7 +84,6 @@ type MenuState =
   | { mode: 'item'; skill: Skill; point: Point }
   | { mode: 'folder'; path: string; summary: TargetSummary; point: Point }
   | { mode: 'repo'; repo: string; point: Point }
-  | { mode: 'link'; link: SourceLink; point: Point }
   | { mode: 'skill'; skill: Skill; point: Point }
   | { mode: 'bulk'; names: string[]; point: Point };
 type SkillsData = { resources: Skill[] };
@@ -460,12 +459,11 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     e.stopPropagation();
     setMenu({ mode: 'item', skill, point: menuPoint(e) });
   };
-  const openGroupMenu = (e: ReactMouseEvent, repo?: string, link?: SourceLink) => {
-    if (isAgent || (!repo && !link)) return;
+  const openGroupMenu = (e: ReactMouseEvent, repo?: string) => {
+    if (isAgent || !repo) return;
     e.preventDefault();
     e.stopPropagation();
-    if (link) setMenu({ mode: 'link', link, point: menuPoint(e) });
-    else if (repo) setMenu({ mode: 'repo', repo, point: menuPoint(e) });
+    setMenu({ mode: 'repo', repo, point: menuPoint(e) });
   };
   const openRow = (e: ReactMouseEvent, s: Skill) => {
     if ((e.target as HTMLElement).closest('a,button,label,input')) return;
@@ -495,34 +493,43 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
     <Checkbox hideLabel label={s.name} checked={selected.has(s.flatName)} onChange={() => toggle(s.flatName)} />
   );
 
-  const repoActions = (repo?: string, link?: SourceLink) => (
+  const repoActions = (repo: string) => (
     <>
-      {repo && <Button variant="secondary" size="sm" loading={updating === repo} disabled={updating !== null} onClick={() => update(repo)}>
+      <Button variant="secondary" size="sm" loading={updating === repo} disabled={updating !== null} onClick={() => update(repo)}>
         {t('resources.repo.update')}
-      </Button>}
+      </Button>
       <button
         type="button"
         className="ss-ib"
         aria-label={t('resources.repo.actions')}
-        onClick={(e) => openGroupMenu(e, repo, link)}
+        onClick={(e) => openGroupMenu(e, repo)}
       >
         <Ellipsis size={16} />
       </button>
     </>
   );
 
+  const unlinkButton = (link: SourceLink) => (
+    <Tooltip content={t('sourceLinks.unlink')}>
+      <button type="button" className="ss-ib hover:!text-bad focus-visible:!text-bad" aria-label={t('sourceLinks.unlink')}
+        onClick={() => setUnlinking(link)}>
+        <Unlink2 size={16} />
+      </button>
+    </Tooltip>
+  );
+
   const groupHead = (g: Group, asLabel: boolean) => {
     const Icon = g.link ? Link2 : SOURCE_ICON[g.source];
     const meta = [countLabel(t, kind, g.items.length), g.repo && !g.link ? g.items[0].branch : ''];
     return (
-      <div key={`g:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'} onContextMenu={(e) => openGroupMenu(e, g.repo, g.link)}>
+      <div key={`g:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'} onContextMenu={g.link ? undefined : (e) => openGroupMenu(e, g.repo)}>
         <Icon size={15} className="shrink-0 text-ink-2" />
         {g.link ? <b className="font-mono">{g.link.name}</b> : g.repo ? <b className="font-mono">{formatTrackedRepoName(g.repo)}</b> : <b>{SOURCE_LABEL[g.source]}</b>}
         {g.repo && !g.link && <span className="ss-tag">tracked</span>}
         {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
         <span className="shrink-0 text-ink-3">{meta.filter(Boolean).join(' · ')}</span>
         <span className="flex-1" />
-        {(g.repo || g.link) && !isAgent && repoActions(g.repo, g.link)}
+        {!isAgent && (g.link ? unlinkButton(g.link) : g.repo && repoActions(g.repo))}
       </div>
     );
   };
@@ -530,13 +537,13 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   const folderName = (key: string) => (key === '' ? t('resources.folder.root') : formatTrackedRepoName(key));
 
   const folderHead = (g: FolderGroup, asLabel: boolean) => (
-    <div key={`f:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'} onContextMenu={(e) => { if (g.link) openGroupMenu(e, g.repo ? g.key : undefined, g.link); }}>
+    <div key={`f:${g.key}`} className={asLabel ? 'ss-gl' : 'ss-gh'}>
       {g.link ? <Link2 size={15} className="shrink-0 text-ink-2" /> : <Folder size={15} className="shrink-0 text-ink-2" />}
       <b className={g.key ? 'font-mono' : ''}>{g.link ? g.link.name : folderName(g.key)}</b>
       {g.repo && !g.link && <span className="ss-tag">tracked</span>}
       {g.link && <><span className="ss-tag">{t('sourceLinks.linked')}</span><span className="min-w-0 truncate font-mono text-xs text-ink-3" title={g.link.target}>{g.link.target}</span></>}
       <span className="shrink-0 text-ink-3">{countLabel(t, kind, g.items.length)}</span>
-      {g.link && !isAgent && <><span className="flex-1" />{repoActions(g.repo ? g.key : undefined, g.link)}</>}
+      {g.link && !isAgent && <><span className="flex-1" />{unlinkButton(g.link)}</>}
     </div>
   );
 
@@ -641,7 +648,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
   } else if (view === 'tree') {
     const subject = paneSubject;
     const link = subject.type === 'folder' && !isAgent ? subject.node.link : undefined;
-    const repoRoot = subject.type === 'folder' && !isAgent && (link ? link.isRepo : isRepoRoot(subject.node)) ? subject.node.path : null;
+    const repoRoot = subject.type === 'folder' && !isAgent && !link && isRepoRoot(subject.node) ? subject.node.path : null;
     content = (
       <TreeSplit
         tree={
@@ -655,7 +662,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
             onOpen={(s) => navigate(resourceHref(s))}
             onContextMenu={isAgent ? undefined : (e, row) => {
               if (row.type === 'item') openItemMenu(e, row.skill);
-              else if (row.node.link || row.repo) openGroupMenu(e, row.repo ? row.node.path : undefined, row.node.link);
+              else if (row.repo && !row.node.link) openGroupMenu(e, row.node.path);
             }}
           />
         }
@@ -1001,12 +1008,6 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
                 onSelect: () => setUninstalling(items.filter((s) => repoOf(s) === menu.repo)),
               }]}
             />
-          )}
-          {menu?.mode === 'link' && (
-            <SkillContextMenu open anchorPoint={menu.point} onClose={() => setMenu(null)} items={[{
-              key: 'unlink', label: t('sourceLinks.unlinkMenu'), icon: <Unlink2 size={14} />, danger: true,
-              onSelect: () => setUnlinking(menu.link),
-            }]} />
           )}
 
           <ConfirmDialog

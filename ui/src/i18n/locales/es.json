@@ -1,5 +1,4 @@
 {
-  "sourceLinks.unlinkMenu": "Desvincular…",
   "sourceLinks.unlinkMessage": "El enlace se elimina de la fuente de skills y la carpeta a la que apunta no se modifica.",
   "sourceLinks.target": "Destino",
   "sourceLinks.unlinkSkills": "Estos skills se eliminarán de todos los destinos en la próxima sincronización.",

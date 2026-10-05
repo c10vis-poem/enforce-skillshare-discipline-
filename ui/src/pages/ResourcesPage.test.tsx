@@ -263,8 +263,7 @@ describe('Unlink folder', () => {
   const openUnlink = async () => {
     await screen.findByText('linked');
     const user = userEvent.setup();
-    await user.click(within(linkedHeader()).getByRole('button', { name: 'Repo actions' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Unlink…' }));
+    await user.click(within(linkedHeader()).getByRole('button', { name: 'Unlink' }));
     return screen.getByRole('dialog', { name: 'Unlink team?' });
   };
 
@@ -280,8 +279,8 @@ describe('Unlink folder', () => {
     vi.mocked(api.getSyncMatrix).mockResolvedValue({ entries: [] } as unknown as Awaited<ReturnType<typeof api.getSyncMatrix>>);
   });
 
-  it('shows one linked badge, the target and a menu instead of an inline Unlink button', async () => {
-    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: false, linkIsRepo: true }, LINKED[1]] });
+  it('shows one linked badge, the target and a muted icon-only Unlink button', async () => {
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: false }, LINKED[1]] });
     mount();
     await screen.findByText('linked');
     const linked = linkedHeader();
@@ -289,34 +288,40 @@ describe('Unlink folder', () => {
     expect(within(linked).queryByText('tracked')).toBeNull();
     expect(linked.querySelector('.lucide-link-2')).toBeInTheDocument();
     expect(within(linked).getByText('/work/team')).toHaveAttribute('title', '/work/team');
-    expect(within(linked).getByRole('button', { name: 'Update repo' })).toBeInTheDocument();
-    expect(within(linked).getByRole('button', { name: 'Repo actions' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Unlink' })).toBeNull();
+    expect(within(linked).queryByRole('button', { name: 'Update repo' })).toBeNull();
+    expect(within(linked).queryByRole('button', { name: 'Repo actions' })).toBeNull();
+    const unlink = within(linked).getByRole('button', { name: 'Unlink' });
+    expect(unlink).toHaveClass('ss-ib', 'hover:!text-bad', 'focus-visible:!text-bad');
+    expect(unlink.textContent).toBe('');
+    expect(unlink.querySelector('.lucide-unlink-2')).toBeInTheDocument();
     const plain = [...document.querySelectorAll<HTMLElement>('.ss-gh')].find((g) => g.querySelector('b')?.textContent === 'Local')!;
     expect(within(plain).queryByText('linked')).toBeNull();
     expect(within(plain).queryByRole('button', { name: 'Repo actions' })).toBeNull();
   });
 
-  it('replaces Uninstall repo with Unlink in the linked group menu and preserves plain repo actions', async () => {
+  it('opens unlink confirmation from the icon and preserves plain repo actions', async () => {
     const user = userEvent.setup();
-    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: true, linkIsRepo: true }, at('_repo/skills/gamma')] });
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: true }, at('_repo/skills/gamma')] });
     mount();
     await screen.findByText('linked');
-    await user.click(within(linkedHeader()).getByRole('button', { name: 'Repo actions' }));
-    expect(screen.getByRole('menuitem', { name: 'Unlink…' })).toHaveClass('dng');
-    expect(screen.queryByRole('menuitem', { name: 'Uninstall repo' })).toBeNull();
+    const unlink = within(linkedHeader()).getByRole('button', { name: 'Unlink' });
+    await user.hover(unlink);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Unlink');
+    await user.click(unlink);
+    expect(screen.getByRole('dialog', { name: 'Unlink team?' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu')).toBeNull();
     expect(api.removeSourceLink).not.toHaveBeenCalled();
-    await user.keyboard('{Escape}');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     const plain = [...document.querySelectorAll<HTMLElement>('.ss-gh')].find((g) => g.querySelector('b')?.textContent === 'repo')!;
+    expect(within(plain).getByRole('button', { name: 'Update repo' })).toBeInTheDocument();
     await user.click(within(plain).getByRole('button', { name: 'Repo actions' }));
     expect(screen.getByRole('menuitem', { name: 'Uninstall repo' })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: 'Unlink…' })).toBeNull();
   });
 
-  it.each(['list', 'cards', 'tree'])('hides Update repo for a non-checkout underscore link in %s view', async (view) => {
+  it.each(['list', 'cards', 'tree'])('hides Update repo for an underscore linked group in %s view', async (view) => {
     localStorage.setItem('skillshare:skills-view', view);
     vi.mocked(api.listSkills).mockResolvedValue({ resources: [at('_team/skills/alpha', {
-      isInRepo: true, linkName: '_team', linkTarget: '/work/team', linkIsRepo: false,
+      isInRepo: true, linkName: '_team', linkTarget: '/work/team',
     })] });
     mount();
     if (view === 'tree') fireEvent.click(await row('_team'));
@@ -325,18 +330,18 @@ describe('Unlink folder', () => {
     expect(screen.queryByText('tracked')).toBeNull();
   });
 
-  it('opens the linked group menu on list right-click before showing confirmation', async () => {
+  it('does not open a linked group menu on list right-click', async () => {
     mount();
     await screen.findByText('linked');
     fireEvent.contextMenu(linkedHeader());
-    await userEvent.setup().click(screen.getByRole('menuitem', { name: 'Unlink…' }));
-    expect(screen.getByRole('dialog', { name: 'Unlink team?' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(api.removeSourceLink).not.toHaveBeenCalled();
   });
 
   it('keeps the linked tree row compact and puts secondary Unlink in its detail pane', async () => {
     localStorage.setItem('skillshare:skills-view', 'tree');
-    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: false, linkIsRepo: true }, LINKED[1]] });
+    vi.mocked(api.listSkills).mockResolvedValue({ resources: [{ ...LINKED[0], isInRepo: false }, LINKED[1]] });
     mount();
     const linked = await row('team');
     expect(within(linked).getByText('linked')).toBeInTheDocument();
@@ -348,7 +353,7 @@ describe('Unlink folder', () => {
     fireEvent.click(linked);
     expect(screen.getByText('/work/team')).toBeInTheDocument();
     expect(screen.queryByText('tracked')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Update repo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update repo' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Uninstall repo' })).toBeNull();
     const unlink = screen.getByRole('button', { name: 'Unlink' });
     expect(unlink).not.toHaveClass('dng');
@@ -358,23 +363,22 @@ describe('Unlink folder', () => {
     expect(api.removeSourceLink).not.toHaveBeenCalled();
   });
 
-  it('opens the same unlink menu on tree right-click without sending a request', async () => {
+  it('does not open a linked group menu on tree right-click', async () => {
     localStorage.setItem('skillshare:skills-view', 'tree');
     mount();
     fireEvent.contextMenu(await row('team'));
-    expect(screen.queryByRole('menuitem', { name: 'Uninstall repo' })).toBeNull();
-    await userEvent.setup().click(screen.getByRole('menuitem', { name: 'Unlink…' }));
-    expect(screen.getByRole('dialog', { name: 'Unlink team?' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(api.removeSourceLink).not.toHaveBeenCalled();
   });
 
-  it('groups linked skills by their link root in folder mode with the same menu', async () => {
+  it('groups linked skills by their link root in folder mode with the same icon action', async () => {
     const user = userEvent.setup();
     mount();
     await user.click(await screen.findByRole('button', { name: 'Group and sort' }));
     await user.click(screen.getByRole('menuitemradio', { name: 'Folder' }));
     const linked = linkedHeader();
-    expect(within(linked).queryByRole('button', { name: 'Unlink' })).toBeNull();
+    expect(within(linked).getByRole('button', { name: 'Unlink' })).toHaveClass('ss-ib');
     expect(within(linked).queryByRole('button', { name: 'Update repo' })).toBeNull();
     const plain = [...document.querySelectorAll<HTMLElement>('.ss-gh')].find((g) => g.querySelector('b')?.textContent === 'plain/plugins/skills')!;
     expect(within(plain).queryByText('linked')).toBeNull();
@@ -383,7 +387,7 @@ describe('Unlink folder', () => {
     expect(api.removeSourceLink).not.toHaveBeenCalled();
   });
 
-  it('offers the same unlink menu and confirmation from the cards group', async () => {
+  it('offers the same unlink icon and confirmation from the cards group', async () => {
     localStorage.setItem('skillshare:skills-view', 'cards');
     mount();
     expect(await openUnlink()).toBeInTheDocument();
@@ -422,7 +426,7 @@ describe('Unlink folder', () => {
   it.each(['actions', 'right-click', 'cards actions', 'cards right-click', 'tree right-click'])('confirms single linked skill uninstall from %s and sends only that skill name', async (action) => {
     const user = userEvent.setup();
     vi.mocked(api.listSkills).mockResolvedValue({ resources: [
-      { ...LINKED[0], isInRepo: true, linkIsRepo: true },
+      { ...LINKED[0], isInRepo: true },
       at('team/skills/second', { isInRepo: true, linkName: 'team', linkTarget: '/work/team' }),
     ] });
     if (action === 'tree right-click') localStorage.setItem('skillshare:skills-view', 'tree');

@@ -1,5 +1,4 @@
 {
-  "sourceLinks.unlinkMenu": "取消連結…",
   "sourceLinks.unlinkMessage": "此連結會從 skills source 移除，它指向的資料夾不會被變更。",
   "sourceLinks.target": "目標",
   "sourceLinks.unlinkSkills": "這些 skills 會在下次同步時從所有 target 移除。",

@@ -1,5 +1,4 @@
 {
-  "sourceLinks.unlinkMenu": "링크 해제…",
   "sourceLinks.unlinkMessage": "스킬 소스에서 링크를 제거하며 링크가 가리키는 폴더는 변경되지 않습니다.",
   "sourceLinks.target": "대상",
   "sourceLinks.unlinkSkills": "이 스킬들은 다음 동기화 시 모든 대상에서 제거됩니다.",

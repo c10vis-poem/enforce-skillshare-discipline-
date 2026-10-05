@@ -1,5 +1,4 @@
 {
-  "sourceLinks.unlinkMenu": "Unlink…",
   "sourceLinks.unlinkMessage": "The link is removed from the skills source, and the folder it points at is not touched.",
   "sourceLinks.target": "Target",
   "sourceLinks.unlinkSkills": "These skills leave every target on the next sync.",

@@ -1,5 +1,4 @@
 {
-  "sourceLinks.unlinkMenu": "リンク解除…",
   "sourceLinks.unlinkMessage": "リンクをスキルのソースから削除しますが、リンク先のフォルダーは変更しません。",
   "sourceLinks.target": "リンク先",
   "sourceLinks.unlinkSkills": "これらのスキルは次回の同期ですべてのターゲットから削除されます。",

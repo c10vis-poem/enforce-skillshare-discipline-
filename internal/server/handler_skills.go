@@ -27,7 +27,6 @@ type skillItem struct {
 	SourcePath  string   `json:"sourcePath"`
 	LinkName    string   `json:"linkName,omitempty"`
 	LinkTarget  string   `json:"linkTarget,omitempty"`
-	LinkIsRepo  bool     `json:"linkIsRepo,omitempty"`
 	IsInRepo    bool     `json:"isInRepo"`
 	Targets     []string `json:"targets,omitempty"`
 	InstalledAt string   `json:"installedAt,omitempty"`
@@ -79,7 +78,6 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 
 		// Resolve each first-level entry once with the same policy used for discovery.
 		linkTargets := make(map[string]string)
-		linkRepos := make(map[string]bool)
 		for _, d := range discovered {
 			item := skillItem{
 				Name:       filepath.Base(d.SourcePath),
@@ -98,11 +96,9 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				if !checked {
 					target, _ = walk.Follow.Resolve(filepath.Join(source, name))
 					linkTargets[name] = target
-					linkRepos[name] = target != "" && git.IsRepo(target)
 				}
 				if target != "" {
 					item.LinkName, item.LinkTarget = name, target
-					item.LinkIsRepo = linkRepos[name]
 				}
 			}
 

@@ -78,7 +78,7 @@ export function repoOf(s: Skill): string | undefined {
 }
 
 export function sourceLinkOf(s: Skill): SourceLink | undefined {
-  return s.kind === 'skill' && s.linkName && s.linkTarget ? { name: s.linkName, target: s.linkTarget, isRepo: !!s.linkIsRepo } : undefined;
+  return s.kind === 'skill' && s.linkName && s.linkTarget ? { name: s.linkName, target: s.linkTarget } : undefined;
 }
 
 /** Parent folder shown under the name. Inside a repo group the repo prefix is already in the header. */
@@ -109,7 +109,7 @@ export function groupBySource(items: Skill[]): Group[] {
   for (const s of items) {
     const source = resolveSource(s.type, s.isInRepo);
     const link = sourceLinkOf(s);
-    const repo = link ? (link.isRepo ? link.name : undefined) : repoOf(s);
+    const repo = repoOf(s);
     const key = link ? `link:${link.name}` : repo ?? source;
     if (!groups.has(key)) groups.set(key, { key, source, repo, link, items: [] });
     groups.get(key)!.items.push(s);
@@ -127,7 +127,7 @@ export function groupByFolder(items: Skill[]): FolderGroup[] {
   for (const s of items) {
     const link = sourceLinkOf(s);
     const key = link?.name ?? folderOf(s);
-    if (!groups.has(key)) groups.set(key, { key, repo: link ? link.isRepo : !!repoOf(s), link, items: [] });
+    if (!groups.has(key)) groups.set(key, { key, repo: !!repoOf(s), link, items: [] });
     groups.get(key)!.items.push(s);
   }
   return [...groups.values()].sort((a, b) => formatTrackedRepoName(a.key).localeCompare(formatTrackedRepoName(b.key)));

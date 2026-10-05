@@ -71,7 +71,7 @@ export default function TreeDetailPane({ kind, subject, busy, onToggleAll, onTog
   const link = subject.type === 'folder' && !isAgent ? subject.node.link : undefined;
   if (subject.type === 'folder') {
     const { node } = subject;
-    const repo = link ? link.isRepo : isRepoRoot(node);
+    const repo = !link && isRepoRoot(node);
     path = node.path.slice(0, node.path.length - node.name.length);
     title = link ? link.name : repo ? formatTrackedRepoName(node.name) : node.name;
     tracked = !link && node.path.startsWith('_');

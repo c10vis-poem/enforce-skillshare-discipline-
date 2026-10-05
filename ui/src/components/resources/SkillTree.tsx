@@ -93,7 +93,7 @@ export default function SkillTree({ rows, selected, kind, label, onSelect, onTog
             style={{ '--d': row.depth } as CSSProperties}
             onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
             onClick={(e) => onClick(e, row.id)}
-            onContextMenu={(e) => onContextMenu?.(e, row)}
+            onContextMenu={link ? undefined : (e) => onContextMenu?.(e, row)}
             onDoubleClick={() => { if (row.type === 'item') onOpen(row.skill); }}
             onFocus={() => setFocusId(row.id)}
             onKeyDown={(e) => onKeyDown(e, i)}

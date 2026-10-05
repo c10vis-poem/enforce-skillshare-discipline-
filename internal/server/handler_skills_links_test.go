@@ -90,9 +90,8 @@ func TestHandleListSkills_SourceLinkIdentity(t *testing.T) {
 				if skill["linkName"] != linkName || skill["linkTarget"] != target {
 					t.Fatalf("incorrect link identity: %+v", skill)
 				}
-				isRepo, _ := skill["linkIsRepo"].(bool)
-				if isRepo != tc.repo {
-					t.Fatalf("link repo flag %v, want %v", skill["linkIsRepo"], tc.repo)
+				if _, ok := skill["linkIsRepo"]; ok {
+					t.Fatal("link has obsolete repo metadata")
 				}
 				linked++
 			}
