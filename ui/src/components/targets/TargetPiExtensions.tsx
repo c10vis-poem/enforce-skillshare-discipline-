@@ -8,7 +8,7 @@ import PiPackageIcon from '../PiPackageIcon';
 import type { PiExtensionAction, PiExtensionChange, PiExtensionFolder, PiExtensionPackage, PiExtensionRow, PiExtensionsPlan, PiExtensionsView, PiSelection } from '../../api/piExtensions';
 import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import Button from '../Button';
 import EmptyState from '../EmptyState';
 import ExtensionsReviewDialog from './ExtensionsReviewDialog';
@@ -46,7 +46,7 @@ function ExtensionsView({ name, view, applied, setApplied, t }: { name: string; 
     const source = view.packages.find((p) => p.scope === scope && p.index === Number(index))?.source ?? '';
     return { scope, index: Number(index), source, path, action };
   });
-  const pendingLabel = t(changes.length === 1 ? 'targetDetail.piExtensions.pending.one' : 'targetDetail.piExtensions.pending.other', { count: changes.length });
+  const pendingLabel = t(plural('targetDetail.piExtensions.pending', changes.length), { count: changes.length });
   const set: SetAction = (scope, index, path, action) => {
     setApplied('');
     setPending((prev) => {

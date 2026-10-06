@@ -7,7 +7,7 @@ import IconButton from '../IconButton';
 import { RailGroup, RailRow, RailSection } from '../StatusRail';
 import PluginDocsLink from './PluginDocsLink';
 import { keyedText } from './outcomeText';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { useSlow } from '../../hooks/useSlow';
 import { useSyncedTargetsQuery } from '../../hooks/useSharedQueries';
 
@@ -50,7 +50,7 @@ export default function PluginAgents({ inventory, ready, refreshing, disabled, o
             <RailGroup label={t('plugins.hostReady')} count={byStatus('ready').length}>
               {byStatus('ready').map((h) => (
                 <RailRow key={h.target} target={h.target} label={label(h.target)}
-                  right={h.installed.length > 0 && <span className="shrink-0 text-xs text-ink-3">{t(h.installed.length === 1 ? 'plugins.hostRegistered.one' : 'plugins.hostRegistered.other', { count: h.installed.length })}</span>}
+                  right={h.installed.length > 0 && <span className="shrink-0 text-xs text-ink-3">{t(plural('plugins.hostRegistered', h.installed.length), { count: h.installed.length })}</span>}
                   detail={<>
                     <span>{h.target === 'grok' ? t('plugins.reason.grok') : keyedText(t, h.noteKey || 'plugins.note.native', h.note)}</span>
                     {h.version && <span className="break-all font-mono text-xs text-ink-3">{h.version}</span>}

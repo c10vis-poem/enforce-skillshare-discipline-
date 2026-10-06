@@ -24,7 +24,7 @@ import { projectHealth, projectRows, toolGroups, type ProjectRow } from '../comp
 import FilterSection, { ModePicker } from '../components/targets/FilterSection';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { shortenHome } from '../lib/paths';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
 import { invalidate } from '../lib/queryEvents';
 
@@ -179,7 +179,7 @@ function ProjectEditor({ project, tools, mcp, hooks, hooksError }: { project: Pr
             <Button variant="secondary" onClick={() => setSyncing(true)} disabled={project.missing}>
               <RefreshCw size={16} />
               {t('projects.sync.button')}
-              {health.state === 'pending' && <span className="size-2 rounded-full bg-warn" role="img" aria-label={t(health.count === 1 ? 'projects.note.pending.one' : 'projects.note.pending.other', { count: health.count })} />}
+              {health.state === 'pending' && <span className="size-2 rounded-full bg-warn" role="img" aria-label={t(plural('projects.note.pending', health.count), { count: health.count })} />}
             </Button>
             {tab === 'skills' && previewTool && (
               <Link to={`/skills?tab=analyze&target=${encodeURIComponent(`${project.name}@${previewTool}`)}`} className="ss-btn ghost">{t('analyze.open')}</Link>

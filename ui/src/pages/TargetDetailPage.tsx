@@ -28,7 +28,7 @@ import TargetFileTab from '../components/targetFiles/TargetFileTab';
 import { mcpClient, serverCount } from '../components/mcp/mcpView';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { fileName, shortenHome } from '../lib/paths';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
 import { invalidate } from '../lib/queryEvents';
 
@@ -263,7 +263,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
             {t('targetDetail.skillsOff.noWrites', { path: shortenHome(target.path) })}
             <br />
             {readFrom
-              ? t(readFrom.linkedCount === 1 ? 'targetDetail.skillsOff.readsFrom.one' : 'targetDetail.skillsOff.readsFrom.other', { name: target.name, from: readFrom.name, path: shortenHome(readFrom.path), count: readFrom.linkedCount })
+              ? t(plural('targetDetail.skillsOff.readsFrom', readFrom.linkedCount), { name: target.name, from: readFrom.name, path: shortenHome(readFrom.path), count: readFrom.linkedCount })
               : t('targetDetail.skillsOff.generic')}
           </p>
           <div className="mt-2"><Button variant="secondary" onClick={resume} loading={resuming}>{t('targetDetail.skillsOff.resume')}</Button></div>
@@ -324,7 +324,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
                   <SegmentedControl value={draft.naming} onChange={(naming) => setDraft({ ...draft, naming })} options={[{ value: 'flat', label: 'flat' }, { value: 'standard', label: 'standard' }]} />
                 </div>
                 {saved.naming === 'standard' && (target.skippedSkillCount ?? 0) > 0 && (
-                  <span className="text-[13px] text-warn">{t(target.skippedSkillCount === 1 ? 'targetDetail.skipped.one' : 'targetDetail.skipped.other', { count: target.skippedSkillCount })}</span>
+                  <span className="text-[13px] text-warn">{t(plural('targetDetail.skipped', target.skippedSkillCount), { count: target.skippedSkillCount })}</span>
                 )}
               </div>
             )}
@@ -332,9 +332,9 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
             {local > 0 && (
               <div className="ss-box flex flex-col gap-3">
                 <span className="flex items-center gap-2 font-semibold"><ArrowDownToLine size={16} />{t('targetDetail.collect')}</span>
-                <p className="text-[13px] text-ink-2">{t(`targetDetail.collectHint.${agent ? 'agents' : 'skills'}.${local === 1 ? 'one' : 'other'}`, { count: local })}</p>
+                <p className="text-[13px] text-ink-2">{t(plural(`targetDetail.collectHint.${agent ? 'agents' : 'skills'}`, local), { count: local })}</p>
                 <Button variant="secondary" onClick={() => setCollecting(true)}>
-                  {t(`collectDialog.run.${kind}.${local === 1 ? 'one' : 'other'}`, { count: local })}
+                  {t(plural(`collectDialog.run.${kind}`, local), { count: local })}
                 </Button>
               </div>
             )}
@@ -364,7 +364,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
           onStopped={(removed) => {
             setStoppingSkills(false);
             void invalidate(queryClient, 'targetsChanged');
-            toast(t(removed === 1 ? 'targetDetail.skillsOff.stopped.one' : 'targetDetail.skillsOff.stopped.other', { name: target.name, count: removed }), 'success');
+            toast(t(plural('targetDetail.skillsOff.stopped', removed), { name: target.name, count: removed }), 'success');
           }}
         />
       )}

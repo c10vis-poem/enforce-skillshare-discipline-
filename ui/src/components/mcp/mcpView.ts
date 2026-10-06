@@ -1,5 +1,6 @@
 import { mcpOffTargets, mcpTargets } from '../../api/mcp';
 import type { MCPPlan, MCPServer, MCPToolPolicy } from '../../api/mcp';
+import { plural } from '../../i18n';
 
 export type MCPChange = MCPPlan['changes'][number];
 
@@ -268,7 +269,7 @@ export const toolSummary = (t: (key: string, params?: Record<string, string | nu
   const deny = tools.deny?.length ?? 0;
   if (allow && deny) return t('mcp.tools.summaryBoth', { allow, deny });
   const [key, count] = allow ? ['mcp.tools.summaryAllow', allow] as const : ['mcp.tools.summaryDeny', deny] as const;
-  return t(`${key}.${count === 1 ? 'one' : 'other'}`, { count });
+  return t(plural(key, count), { count });
 };
 
 /** The parts of a tool policy an Agent does not apply, as the backend names them: allow, deny, allow patterns, deny patterns. */

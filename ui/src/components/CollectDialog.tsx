@@ -5,7 +5,7 @@ import { api, type LocalSkillInfo } from '../api/client';
 import { queryKeys } from '../lib/queryKeys';
 import { formatSize } from '../lib/format';
 import { formatAgentDisplayName } from '../lib/resourceNames';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import AgentIcon from './AgentIcon';
 import Button from './Button';
 import DialogShell from './DialogShell';
@@ -155,7 +155,7 @@ export default function CollectDialog({ target, kind, onClose }: { target?: stri
           <div className="ss-list max-h-[360px] overflow-y-auto !shadow-none">
             <div className="ss-lh !px-4">
               <Checkbox
-                label={t(items.length === 1 ? 'collectDialog.found.one' : 'collectDialog.found.other', { count: items.length })}
+                label={t(plural('collectDialog.found', items.length), { count: items.length })}
                 checked={chosenItems.length === items.length}
                 indeterminate={chosenItems.length > 0 && chosenItems.length < items.length}
                 onChange={(on) => setPicked(new Set(on ? items.map(keyOf) : []))}
@@ -199,7 +199,7 @@ export default function CollectDialog({ target, kind, onClose }: { target?: stri
         <Button variant="ghost" onClick={onClose} disabled={busy}>{t('common.cancel')}</Button>
         <Button variant="primary" onClick={run} loading={busy} disabled={chosenItems.length === 0}>
           {!busy && <ArrowDownToLine size={15} />}
-          {t(`collectDialog.run.${noun}.${chosenItems.length === 1 ? 'one' : 'other'}`, { count: chosenItems.length })}
+          {t(plural(`collectDialog.run.${noun}`, chosenItems.length), { count: chosenItems.length })}
         </Button>
       </div>
     </DialogShell>

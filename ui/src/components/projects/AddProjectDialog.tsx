@@ -5,7 +5,7 @@ import { hooksApi } from '../../api/hooks';
 import { mcpApi, mcpTargets } from '../../api/mcp';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import ProjectTools from './ProjectTools';
 import { toolGroups } from './projectView';
@@ -104,7 +104,7 @@ export default function AddProjectDialog({ tools, common, existing, onClose, onA
         {error && <div className="ss-note bad"><span className="flex-1">{error}</span></div>}
       </form>
       <div className="df">
-        <span className="flex-1 text-[13px] text-ink-2">{folders > 0 && t(folders === 1 ? 'projects.add.writes.one' : 'projects.add.writes.other', { count: folders })}</span>
+        <span className="flex-1 text-[13px] text-ink-2">{folders > 0 && t(plural('projects.add.writes', folders), { count: folders })}</span>
         <Button variant="ghost" onClick={onClose} disabled={saving}>{t('common.cancel')}</Button>
         <Button type="submit" form="add-project" variant="primary" loading={saving} disabled={!canSave}>{t('projects.add.submit')}</Button>
       </div>

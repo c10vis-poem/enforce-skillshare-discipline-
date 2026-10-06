@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Trash2, X } from 'lucide-react';
 import { api, type Target } from '../../api/client';
 import { shortenHome } from '../../lib/paths';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
 
@@ -27,7 +27,7 @@ export default function RemoveTargetDialog({ target, onClose, onRemoved }: { tar
     ? t('targets.remove.symlink', { path: shortenHome(target.path) })
     : target.mode === 'copy'
       ? t('targets.remove.copy')
-      : t(target.linkedCount === 1 ? 'targets.remove.merge.one' : 'targets.remove.merge.other', { count: target.linkedCount, name: target.name });
+      : t(plural('targets.remove.merge', target.linkedCount), { count: target.linkedCount, name: target.name });
   return (
     <DialogShell open onClose={onClose} padding="none" preventClose={busy} ariaLabel={title} className="!max-w-[460px]">
       <div className="dh">

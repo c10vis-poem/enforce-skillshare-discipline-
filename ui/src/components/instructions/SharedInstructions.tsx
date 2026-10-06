@@ -16,7 +16,7 @@ import { Select } from '../Select';
 import { PageSkeleton } from '../Skeleton';
 import { SkillContextMenu } from '../TargetMenu';
 import { useToast } from '../Toast';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
 import AddLocationDialog from './AddLocationDialog';
@@ -104,7 +104,7 @@ export default function SharedInstructions({ creating, setCreating }: { creating
                           {using.slice(0, 5).map((tg) => <span key={tg.name} className="ss-at !h-5 !w-5"><AgentIcon target={tg.name} size={11} /></span>)}
                         </span>
                       )}
-                      <span className="text-[12px] text-ink-3">{t(using.length === 1 ? 'instructions.shared.count.one' : 'instructions.shared.count.other', { count: using.length })}</span>
+                      <span className="text-[12px] text-ink-3">{t(plural('instructions.shared.count', using.length), { count: using.length })}</span>
                     </span>
                   </button>
                 );
@@ -259,7 +259,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const connectNote = (s: ConnectStep) => (s.note === 'held' ? t('instructions.plan.held', { other: s.other ?? '' })
     : s.note === 'tooLong' ? t('instructions.plan.tooLong', { max: (s.max ?? 0).toLocaleString() })
       : t(`instructions.plan.${s.note}`));
-  const restoreNote = (s: RestoreStep) => (s.note === 'importKeep' ? t((s.others ?? []).length === 1 ? 'instructions.plan.importKeep.one' : 'instructions.plan.importKeep.other', { name, others: list(s.others ?? []) })
+  const restoreNote = (s: RestoreStep) => (s.note === 'importKeep' ? t(plural('instructions.plan.importKeep', (s.others ?? []).length), { name, others: list(s.others ?? []) })
     : s.note === 'import' ? t('instructions.plan.dropImport', { name })
       : s.note === 'modified' ? t('instructions.plan.modified') : t('instructions.plan.restoreLink'));
   const planList = (rows: { target: string; note: string; warn: boolean }[], footer: string) => (
@@ -280,14 +280,14 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const askConnect = (steps: ConnectStep[], confirm: string) => {
     const run = steps.filter((s) => s.note !== 'held');
     ask({
-      title: t(run.length === 1 ? 'instructions.connectAll.title.one' : 'instructions.connectAll.title.other', { count: run.length, name }),
+      title: t(plural('instructions.connectAll.title', run.length), { count: run.length, name }),
       message: planList(steps.map((s) => ({ target: s.target, note: connectNote(s), warn: s.note !== 'import' && s.note !== 'link' })), t('instructions.connectAll.message')),
       confirm,
       run: () => connect(run),
     });
   };
   const askRestore = (steps: RestoreStep[], confirm: string) => ask({
-    title: t(steps.length === 1 ? 'instructions.restoreAll.title.one' : 'instructions.restoreAll.title.other', { count: steps.length, name }),
+    title: t(plural('instructions.restoreAll.title', steps.length), { count: steps.length, name }),
     message: <RestorePlan name={name} steps={steps} note={restoreNote} planList={planList} footer={t('instructions.restoreAll.message', { name })} />,
     confirm,
     run: () => detach(steps.map((s) => s.target)),
@@ -296,7 +296,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   // label names the row in the messages: a target's name or a location's path.
   const resolve = (label: string, on: { target: string } | { path: string }, action: 'collect' | 'reapply') => ask({
     title: t(`instructions.resolve.${action}.title`, { name, target: label }),
-    message: t(action === 'collect' ? `instructions.resolve.collect.message.${connected.length === 1 ? 'one' : 'other'}` : 'instructions.resolve.reapply.message', { name, target: label, count: connected.length }),
+    message: t(action === 'collect' ? plural('instructions.resolve.collect.message', connected.length) : 'instructions.resolve.reapply.message', { name, target: label, count: connected.length }),
     confirm: t(`instructions.resolve.${action}.item`, { name }),
     run: async () => {
       await api.resolveSharedInstructions(name, on, action);
@@ -314,7 +314,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const remove = () => ask({
     title: t('instructions.delete.title', { name }),
     message: connected.length
-      ? t(connected.length === 1 ? 'instructions.delete.message.one' : 'instructions.delete.message.other', { count: connected.length, targets: list(connected.map((tg) => tg.name)), name })
+      ? t(plural('instructions.delete.message', connected.length), { count: connected.length, targets: list(connected.map((tg) => tg.name)), name })
       : t('instructions.delete.unused', { name }),
     confirm: t('instructions.detail.delete.confirm'),
     danger: true,
@@ -408,7 +408,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
         <span className="flex-1" />
         {staleCount > 0 && (
           <>
-            <span className="text-[12.5px] text-warn">{t(staleCount === 1 ? 'instructions.shared.needSync.one' : 'instructions.shared.needSync.other', { count: staleCount })}</span>
+            <span className="text-[12.5px] text-warn">{t(plural('instructions.shared.needSync', staleCount), { count: staleCount })}</span>
             <Button variant="primary" size="sm" onClick={() => void sync()} loading={busy}>{t('extras.sync')}</Button>
           </>
         )}
@@ -474,7 +474,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
 
       <div className="flex items-center gap-2 pt-2.5 pl-1">
         <h3 className="text-[15px] font-bold">{t('instructions.locations.title')}</h3>
-        {locations.length > 0 && <span className="text-[12.5px] text-ink-3">{t(locations.length === 1 ? 'instructions.locations.count.one' : 'instructions.locations.count.other', { count: locations.length })}</span>}
+        {locations.length > 0 && <span className="text-[12.5px] text-ink-3">{t(plural('instructions.locations.count', locations.length), { count: locations.length })}</span>}
         <span className="flex-1" />
         <Button variant="secondary" size="sm" disabled={busy} onClick={() => setAddingLocation(true)}><Plus size={14} />{t('instructions.locations.add')}</Button>
       </div>

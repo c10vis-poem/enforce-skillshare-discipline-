@@ -102,6 +102,14 @@ export function interpolate(template: string, params?: TranslationParams): strin
   });
 }
 
+/**
+ * The key of the form of `key` that fits `count`: `key.one` for exactly 1, otherwise `key.other`.
+ * Every locale defines both forms, and the same split is used for all of them.
+ */
+export function plural(key: string, count: number | undefined): string {
+  return `${key}.${count === 1 ? 'one' : 'other'}`;
+}
+
 export function translate(
   locale: Locale,
   key: string,

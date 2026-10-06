@@ -8,7 +8,7 @@ import { ToastProvider } from '../components/Toast';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../api/plugins', async (importOriginal) => ({ ...await importOriginal<typeof import('../api/plugins')>(), pluginsApi: { list: vi.fn(), files: vi.fn(), file: vi.fn(), discover: vi.fn(), preview: vi.fn(), apply: vi.fn() } }));
-vi.mock('../i18n', () => ({ useT: () => (key: string) => key }));
+vi.mock('../i18n', async (importOriginal) => ({ ...await importOriginal<typeof import('../i18n')>(), useT: () => (key: string) => key }));
 vi.mock('../context/AppContext', () => ({ useAppContext: () => ({ isProjectMode: false }) }));
 vi.mock('../components/plugins/PluginAddDialog', () => ({ default: ({ initialTargets }: { initialTargets?: string[] }) => <div role="dialog" aria-label="add">{initialTargets?.join(',')}</div> }));
 const synced = vi.hoisted(() => ({ targets: [{ name: 'pi' }] as { name: string; agent?: string }[] }));

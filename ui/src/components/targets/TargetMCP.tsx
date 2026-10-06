@@ -7,7 +7,7 @@ import EmptyState from '../EmptyState';
 import { MCPSyncDialog } from '../mcp/MCPSyncBox';
 import { describeEndpoint, describeMessage, mcpOrder, reachOf, serverCount, writes } from '../mcp/mcpView';
 import { useMCPToggle } from '../mcp/useMCPToggle';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 
 type MCPList = Awaited<ReturnType<typeof mcpApi.list>>;
 
@@ -55,7 +55,7 @@ export default function TargetMCP({ name, data }: { name: string; data: MCPList 
       <section className="flex flex-col gap-5">
         <h2 className="ss-h2">{t('targetDetail.whatSyncs')}</h2>
         <p className="text-[13.5px]">
-          {t(`targetDetail.mcp.summary.${total === 1 ? 'one' : 'other'}`, { synced: serverCount(data, name), total, name })}
+          {t(plural('targetDetail.mcp.summary', total), { synced: serverCount(data, name), total, name })}
         </p>
         {conflicts.map((c) => (
           <div key={`${c.path}:${c.root ?? ''}:${c.name}`} className="ss-note warn">
@@ -106,11 +106,11 @@ export default function TargetMCP({ name, data }: { name: string; data: MCPList 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="ss-h2">{t('sync.title')}</h2>
-              <span className={`ss-st ${mine > 0 || conflicts.length > 0 ? 'warn' : 'ok'}`}>{mine > 0 ? t(mine === 1 ? 'mcp.pending.one' : 'mcp.pending.other', { count: mine }) : conflicts.length > 0 ? t('mcp.status.conflict') : t('targets.state.synced')}</span>
+              <span className={`ss-st ${mine > 0 || conflicts.length > 0 ? 'warn' : 'ok'}`}>{mine > 0 ? t(plural('mcp.pending', mine), { count: mine }) : conflicts.length > 0 ? t('mcp.status.conflict') : t('targets.state.synced')}</span>
             </div>
             {mine > 0 && (
               <>
-                <p className="text-[13px] text-ink-2">{t(all === 1 ? 'targetDetail.mcp.syncHint.one' : 'targetDetail.mcp.syncHint.other', { count: all })}</p>
+                <p className="text-[13px] text-ink-2">{t(plural('targetDetail.mcp.syncHint', all), { count: all })}</p>
                 {/* A blocked plan applies nothing; the Sync page shows why. */}
                 {plan.blocked
                   ? <Button variant="secondary" className="self-start" onClick={() => navigate('/sync')}>{t('mcp.reviewInSync')}<ChevronRight size={15} /></Button>

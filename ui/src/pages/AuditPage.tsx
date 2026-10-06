@@ -10,7 +10,7 @@ import PageHeader from '../components/PageHeader';
 import { Select } from '../components/Select';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
-import { formatRelativeTime, useI18n, useT } from '../i18n';
+import { formatRelativeTime, useI18n, useT, plural } from '../i18n';
 import { getCachedAuditResult } from '../lib/auditCache';
 import { queryKeys } from '../lib/queryKeys';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
@@ -62,7 +62,7 @@ export default function AuditPage() {
         redraw((n) => n + 1);
         setScanning(false);
         setProgress(null);
-        if (res.summary.failed > 0) toast(t(res.summary.failed === 1 ? 'audit.toast.blocked.one' : 'audit.toast.blocked.other', { count: res.summary.failed, threshold: res.summary.threshold }), 'warning');
+        if (res.summary.failed > 0) toast(t(plural('audit.toast.blocked', res.summary.failed), { count: res.summary.failed, threshold: res.summary.threshold }), 'warning');
         else if (res.summary.total > 0 && res.results.every((r) => r.findings.length === 0)) toast(t('audit.toast.clean'), 'success');
       },
       (err) => {
@@ -110,7 +110,7 @@ export default function AuditPage() {
         <>
           {data && scannedAt ? (
             <span className="text-[13px] text-ink-3">
-              {t(`audit.scanned.${kind === 'agents' ? 'agents' : 'skills'}.${data.summary.total === 1 ? 'one' : 'other'}`, { count: data.summary.total, when: formatRelativeTime(scannedAt, locale) })}
+              {t(plural(`audit.scanned.${kind === 'agents' ? 'agents' : 'skills'}`, data.summary.total), { count: data.summary.total, when: formatRelativeTime(scannedAt, locale) })}
             </span>
           ) : null}
           <Button variant={data ? 'secondary' : 'primary'} onClick={scan} loading={scanning} disabled={scanning || installed === 0}>
@@ -223,9 +223,9 @@ export default function AuditPage() {
           )}
 
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-ink-2">
-            {data.summary.passed > 0 && <span className="ss-st ok">{t(`audit.passed.${kind === 'agents' ? 'agents' : 'skills'}.${data.summary.passed === 1 ? 'one' : 'other'}`, { count: data.summary.passed })}</span>}
+            {data.summary.passed > 0 && <span className="ss-st ok">{t(plural(`audit.passed.${kind === 'agents' ? 'agents' : 'skills'}`, data.summary.passed), { count: data.summary.passed })}</span>}
             {(data.summary.scanErrors ?? 0) > 0 && (
-              <span className="ss-st bad">{t((data.summary.scanErrors ?? 0) === 1 ? 'audit.scanErrors.one' : 'audit.scanErrors.other', { count: data.summary.scanErrors })}</span>
+              <span className="ss-st bad">{t(plural('audit.scanErrors', data.summary.scanErrors ?? 0), { count: data.summary.scanErrors })}</span>
             )}
           </p>
         </>
@@ -301,7 +301,7 @@ function ResultGroup({ result, kind, only, expanded, onToggle, onIgnore }: {
       ))}
       {hidden > 0 && (
         <button type="button" className="ss-r w-full text-left text-[13px] text-ink-2" aria-expanded={expanded} onClick={onToggle}>
-          <span className="ml-[74px]">{t(expanded ? 'audit.minor.hide' : hidden === 1 ? 'audit.minor.show.one' : 'audit.minor.show.other', { count: hidden })}</span>
+          <span className="ml-[74px]">{t(expanded ? 'audit.minor.hide' : plural('audit.minor.show', hidden), { count: hidden })}</span>
         </button>
       )}
     </>

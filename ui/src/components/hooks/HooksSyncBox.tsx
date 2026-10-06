@@ -4,7 +4,7 @@ import { AlertCircle, CircleCheck, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hooksApi, type HookChange, type HookEntry, type HookMutation, type HookPlan } from '../../api/hooks';
 import { useTheme } from '../../context/ThemeContext';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import Button from '../Button';
@@ -91,7 +91,7 @@ export default function HooksSyncBox({ plan, project, canTakeOver, onTakeover }:
   const conflicts = plan.changes.filter((c) => c.action === 'conflict');
   const inactive = plan.changes.filter((c) => c.action === 'inactive' || c.inactiveReason);
   const inactiveReasons = [...new Set(inactive.map((c) => c.inactiveReason || c.message).filter(Boolean))];
-  const state = pending.length > 0 ? t(pending.length === 1 ? 'mcp.pending.one' : 'mcp.pending.other', { count: pending.length }) : conflicts.length > 0 ? t(conflicts.every(needsTakeover) ? 'hooks.status.unmanaged' : 'mcp.status.conflict') : inactive.length > 0 ? t('hooks.status.inactive') : t('targets.state.synced');
+  const state = pending.length > 0 ? t(plural('mcp.pending', pending.length), { count: pending.length }) : conflicts.length > 0 ? t(conflicts.every(needsTakeover) ? 'hooks.status.unmanaged' : 'mcp.status.conflict') : inactive.length > 0 ? t('hooks.status.inactive') : t('targets.state.synced');
   return (
     // The clean theme is black and white only; playful keeps its tint.
     <SyncBox tone={pending.length > 0 || conflicts.length > 0 || inactive.length > 0 ? (style === 'clean' ? 'plain' : 'warn') : style === 'clean' ? 'plain' : 'ok'} state={state}>

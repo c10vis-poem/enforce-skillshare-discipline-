@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { SyncMatrixEntry } from '../../api/client';
 import AgentIcon from '../AgentIcon';
 import Spinner from '../Spinner';
-import { useI18n, useT } from '../../i18n';
+import { useI18n, useT, plural } from '../../i18n';
 import PatternInput from './PatternInput';
 import { joinList, patternName, togglePatterns } from './targetView';
 
@@ -71,7 +71,7 @@ export default function FilterSection({ kind, mode, name, include, exclude, onCh
     <>
       {loaded && (
         <p className="text-[13.5px]">
-          {t(`targetDetail.summary.${agent ? 'agents' : 'skills'}.${entries.length === 1 ? 'one' : 'other'}`, { synced, total: entries.length, name })}
+          {t(plural(`targetDetail.summary.${agent ? 'agents' : 'skills'}`, entries.length), { synced, total: entries.length, name })}
         </p>
       )}
       {readers}

@@ -21,7 +21,7 @@ import { keyedMessage, keyedText, outcomeStatus } from '../components/plugins/ou
 import { installedVersion, usePluginsFlow } from '../components/plugins/pluginsFlow';
 import PluginList, { VersionChange } from '../components/plugins/PluginList';
 import { PluginRunLine, UnchangedRuns } from '../components/plugins/PluginRuns';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { useSlow } from '../hooks/useSlow';
 import { queryKeys } from '../lib/queryKeys';
 import { invalidate } from '../lib/queryEvents';
@@ -105,7 +105,7 @@ export default function PluginsPage() {
     <>
       {(packages.length > 0 || outcomes.length > 0) && (
         // What config recorded as pending is known at once; the rest, and "synced", only after the Agents answered.
-        <SyncBox tone={pending > 0 ? 'warn' : hostsReady ? 'ok' : 'busy'} state={pending > 0 ? t(pending === 1 ? 'plugins.pendingCount.one' : 'plugins.pendingCount.other', { count: pending }) : t(hostsReady ? 'targets.state.synced' : 'plugins.checking')}>
+        <SyncBox tone={pending > 0 ? 'warn' : hostsReady ? 'ok' : 'busy'} state={pending > 0 ? t(plural('plugins.pendingCount', pending), { count: pending }) : t(hostsReady ? 'targets.state.synced' : 'plugins.checking')}>
           {pending > 0 && (
             <>
               <div className="flex flex-col gap-1">

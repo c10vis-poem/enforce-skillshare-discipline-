@@ -15,7 +15,7 @@ import { targetLabel } from '../mcp/mcpView';
 import { PageSkeleton } from '../Skeleton';
 import { useToast } from '../Toast';
 import { useAppContext } from '../../context/AppContext';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
 import ConvertDialog from './ConvertDialog';
@@ -373,7 +373,7 @@ function SourceCard({ data, onChangeLocation, onConvert, convertable, dirty }: {
             <span className="ss-stack" role="img" aria-label={others.join(', ')} title={others.join(', ')}>
               {others.slice(0, 5).map((n) => <span key={n} className="ss-at !h-5 !w-5"><AgentIcon target={n} size={11} /></span>)}
             </span>
-            <span className="text-[12.5px] text-ink-3">{t(others.length === 1 ? 'instructions.card.alsoUsed.one' : 'instructions.card.alsoUsed.other', { count: others.length })}</span>
+            <span className="text-[12.5px] text-ink-3">{t(plural('instructions.card.alsoUsed', others.length), { count: others.length })}</span>
           </>
         )}
         <span className="flex-1" />

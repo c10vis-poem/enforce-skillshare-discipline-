@@ -6,7 +6,7 @@ import AgentIcon from './AgentIcon';
 import { hookLabel } from './hooks/hooksView';
 import { targetLabel } from './mcp/mcpView';
 import { baseName } from './projects/projectView';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { shortenHome } from '../lib/paths';
 
 /** Friendly empty state for a sync with nothing to write. */
@@ -66,7 +66,7 @@ export default function SyncResultList({ groups, inSync, className = '' }: { gro
       {inSync.length > 0 && (
         <div className="ss-r text-[13px] text-ink-3" title={inSync.join(', ')}>
           <CircleCheck size={16} className="shrink-0 text-ok" />
-          {t(inSync.length === 1 ? 'syncResult.upToDate.one' : 'syncResult.upToDate.other', { count: inSync.length })}
+          {t(plural('syncResult.upToDate', inSync.length), { count: inSync.length })}
         </div>
       )}
     </div>

@@ -6,7 +6,7 @@ import AgentIcon from '../AgentIcon';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
 import Spinner from '../Spinner';
-import { useI18n } from '../../i18n';
+import { useI18n, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { joinList } from '../targets/targetView';
 import { describeMessage, writes } from './mcpView';
@@ -76,7 +76,7 @@ export default function MCPRemoveDialog({ name, project, inScope = () => true, o
         ) : (
           <p className="text-[13px] text-ink-3">{t('mcp.notWritten')}</p>
         )}
-        {others.length > 0 && <p className="text-[13px] text-ink-2">{t(others.length === 1 ? 'mcp.removeOthers.one' : 'mcp.removeOthers.other', { count: others.length, names: joinList(others, locale) })}</p>}
+        {others.length > 0 && <p className="text-[13px] text-ink-2">{t(plural('mcp.removeOthers', others.length), { count: others.length, names: joinList(others, locale) })}</p>}
         {(error || saveError) && <div className="ss-note bad" role="alert"><span className="flex-1">{error?.message ?? saveError}</span></div>}
         {plan?.blocked ? (
           <div className="ss-note warn"><Info size={16} /><span className="flex-1">{t('mcp.removeBlocked')}</span></div>

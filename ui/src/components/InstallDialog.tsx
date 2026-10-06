@@ -171,7 +171,7 @@ export default function InstallDialog({ kind, initialTab, initialSource, onClose
     staleTime: staleTimes.config,
   });
 
-  // The i18n layer has no plural rules, so pick the key by count.
+  // These keys are not named `.one`/`.other`, so `plural` does not fit them.
   const countLabel = (k: Kind, n: number) => t(`resources.count.${k}${n === 1 ? '' : 's'}`, { count: n });
   const findingsLabel = (n: number) => t(n === 1 ? 'install.finding' : 'install.findings', { count: n });
   const compact = new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 });

@@ -11,7 +11,7 @@ import DialogShell from '../DialogShell';
 import IconButton from '../IconButton';
 import Spinner from '../Spinner';
 import { Input } from '../Input';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { useAppContext } from '../../context/AppContext';
 import { shortenPath } from '../../lib/paths';
 
@@ -178,7 +178,7 @@ export default function PluginAddDialog({ onClose, onPreview, initialSource = ''
               <div className="ss-fld">
                 <span className="flex items-baseline gap-2">
                   <span className="text-[13px] font-semibold">{t('plugins.targets')}</span>
-                  <span className="text-xs text-ink-3">{t(reasons.length === 1 ? 'plugins.targetsUsable.one' : 'plugins.targetsUsable.other', { count: usable.length, total: reasons.length })}</span>
+                  <span className="text-xs text-ink-3">{t(plural('plugins.targetsUsable', reasons.length), { count: usable.length, total: reasons.length })}</span>
                 </span>
                 {/* A grid, not a wrap: every cell is the same height, so one long reason can no
                     longer set the height of a whole row and leave holes beside it. */}

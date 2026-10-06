@@ -17,7 +17,7 @@ import PageHeader from '../components/PageHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { PageSkeleton } from '../components/Skeleton';
 import { SkillContextMenu, type ContextMenuItem } from '../components/TargetMenu';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { buildSyncToast, sumEntry, syncToastType } from '../lib/extrasSyncToast';
 import { shortenHome } from '../lib/paths';
 import ProjectInstructions from '../components/instructions/ProjectInstructions';
@@ -668,7 +668,7 @@ export default function ExtrasPage() {
                   ) : (
                     <>
                       <span className="min-w-0 truncate font-mono text-ink-3" title={extra.source_dir}>{shortenHome(extra.source_dir)}</span>
-                      <span className="shrink-0 text-ink-3">· {t(extra.file_count === 1 ? 'extras.files.one' : 'extras.files.other', { count: extra.file_count })}</span>
+                      <span className="shrink-0 text-ink-3">· {t(plural('extras.files', extra.file_count), { count: extra.file_count })}</span>
                     </>
                   )}
                   <span className="flex-1" />

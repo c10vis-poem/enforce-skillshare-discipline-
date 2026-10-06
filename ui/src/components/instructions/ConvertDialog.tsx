@@ -8,7 +8,7 @@ import { Checkbox } from '../Checkbox';
 import DialogShell from '../DialogShell';
 import { Select } from '../Select';
 import { useToast } from '../Toast';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { fileName, shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import { instructionsErrorMessage, defaultShareName, importLines, isOtherExtra, lineDiff, sharedNameProblem, takenName } from './instructionsView';
@@ -147,7 +147,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
             {method === 'import' && (tool > 0 || !data.project) && (
               <div className="flex flex-col gap-2.5 border-t border-line-soft pt-3.5 text-[12.5px] text-ink-2">
                 {tool > 0 && (
-                  <Checkbox size="sm" label={t(tool === 1 ? 'instructions.convert.keep.one' : 'instructions.convert.keep.other', { count: tool, file })} checked={keep} onChange={setKeep} disabled={busy} />
+                  <Checkbox size="sm" label={t(plural('instructions.convert.keep', tool), { count: tool, file })} checked={keep} onChange={setKeep} disabled={busy} />
                 )}
                 {!data.project && (
                   <>

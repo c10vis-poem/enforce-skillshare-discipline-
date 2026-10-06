@@ -18,7 +18,7 @@ import { sourceLinkOf } from '../lib/resourceGrouping';
 import { targetFilterPatch } from '../lib/targetFilter';
 import { useSyncMatrix } from '../hooks/useSyncMatrix';
 import { projectUrl } from '../components/projects/projectView';
-import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
+import { formatDateTime, formatRelativeTime, useI18n, useT, plural } from '../i18n';
 import AgentIcon from '../components/AgentIcon';
 import Button from '../components/Button';
 import DialogShell from '../components/DialogShell';
@@ -427,7 +427,7 @@ function MetaBox({ resource, frontmatter, body, fileCount, check, audit, auditPe
     rows.push([t('resourceDetail.meta.size'), [
       t(fileCount === 1 ? 'resourceDetail.meta.file' : 'resourceDetail.meta.files', { count: fileCount }),
       t(lineCount === 1 ? 'resourceDetail.meta.line' : 'resourceDetail.meta.lines', { count: compact.format(lineCount) }),
-      t(words(body) === 1 ? 'resourceDetail.meta.words.one' : 'resourceDetail.meta.words.other', { count: compact.format(words(body)) }),
+      t(plural('resourceDetail.meta.words', words(body)), { count: compact.format(words(body)) }),
     ].join(' · ')]);
   }
   rows.push([t('resourceDetail.meta.context'), t('resourceDetail.meta.contextValue', { always: compact.format(always), onDemand: compact.format(onDemand) })]);

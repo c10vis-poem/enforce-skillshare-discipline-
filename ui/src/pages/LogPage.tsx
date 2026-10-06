@@ -11,7 +11,7 @@ import { Select } from '../components/Select';
 import { PageSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useAppContext } from '../context/AppContext';
-import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
+import { formatDateTime, formatRelativeTime, useI18n, useT, plural } from '../i18n';
 import { formatLogDetail } from '../lib/logFormat';
 import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
@@ -216,7 +216,7 @@ export default function LogPage() {
             />
             {stats && stats.total > 0 && (
               <p className="text-[13px] text-ink-3">
-                {t(stats.total === 1 ? 'log.summary.entries.one' : 'log.summary.entries.other', { total: stats.total })}
+                {t(plural('log.summary.entries', stats.total), { total: stats.total })}
                 {` · ${t('log.summary.success', { rate: Math.round(stats.success_rate * 100) })}`}
                 {stats.last_operation && ` · ${t('log.summary.lastCommand')} ${stats.last_operation.cmd} ${formatRelativeTime(stats.last_operation.ts, locale)}`}
                 {filtered && ` · ${t('log.summary.filtered')}`}

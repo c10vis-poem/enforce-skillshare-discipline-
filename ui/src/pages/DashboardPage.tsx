@@ -27,7 +27,7 @@ import { pluginsApi } from '../api/plugins';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { clearAuditCache } from '../lib/auditCache';
 import { formatLogDetail } from '../lib/logFormat';
-import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
+import { formatDateTime, formatRelativeTime, useI18n, useT, plural } from '../i18n';
 import AgentIcon from '../components/AgentIcon';
 import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -125,7 +125,7 @@ export default function DashboardPage() {
 
   const subtitle = [
     isProjectMode ? t('dashboard.projectSummary') : '',
-    t(targets.length === 1 ? 'dashboard.summary.one' : 'dashboard.summary.other', { synced, total: targets.length }),
+    t(plural('dashboard.summary', targets.length), { synced, total: targets.length }),
     lastSyncTs ? t('dashboard.lastSync', { time: formatRelativeTime(lastSyncTs, locale) }) : '',
   ].filter(Boolean).join(' ');
 
@@ -479,7 +479,7 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
             <Github size={15} />
             <span className="flex flex-col min-w-0 flex-1 gap-px">
               <span className="font-mono text-[13px] font-semibold truncate">{repo.name.replace(/^_/, '')}</span>
-              <span className="text-[13px] text-ink-2">{t(repo.skillCount === 1 ? 'dashboard.trackedRepos.skillCount.one' : 'dashboard.trackedRepos.skillCount.other', { count: repo.skillCount })}</span>
+              <span className="text-[13px] text-ink-2">{t(plural('dashboard.trackedRepos.skillCount', repo.skillCount), { count: repo.skillCount })}</span>
             </span>
             <span className={`ss-st ${repo.dirty ? 'warn' : 'ok'}`}>
               {repo.dirty ? t('dashboard.trackedRepos.modified') : t('dashboard.trackedRepos.clean')}

@@ -17,7 +17,7 @@ import MoreMenu from '../components/hub/MoreMenu';
 import ShareDialog from '../components/hub/ShareDialog';
 import { COMMUNITY, DRAFT, sameURL } from '../components/hub/hubShared';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { invalidate } from '../lib/queryEvents';
 
 /**
@@ -56,7 +56,7 @@ export default function HubPage() {
     ...drafts.map((d) => ({
       key: DRAFT + d.id,
       label: d.name || t('hubBuilder.untitled'),
-      sub: t(d.entries.length === 1 ? 'hubBuilder.count.one' : 'hubBuilder.count.other', { count: d.entries.length })
+      sub: t(plural('hubBuilder.count', d.entries.length), { count: d.entries.length })
         + (String(d.fields?.publishUrl ?? '').trim() ? ` · ${t('hubs.shared')}` : ''),
       mine: true,
       isDefault: false,

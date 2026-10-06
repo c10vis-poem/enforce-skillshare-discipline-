@@ -9,7 +9,7 @@ import { PageSkeleton } from '../Skeleton';
 import { useToast } from '../Toast';
 import MCPRestoreDialog from '../mcp/MCPRestoreDialog';
 import { backupTime, targetLabel } from '../mcp/mcpView';
-import { formatDateTime, formatRelativeTime, useI18n } from '../../i18n';
+import { formatDateTime, formatRelativeTime, useI18n, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { mcpChanges } from './backupView';
 import { useMcpQuery } from '../../hooks/useSharedQueries';
@@ -46,7 +46,7 @@ export default function MCPBackups() {
               <span className="ss-at"><AgentIcon target={group[0].target} size={16} /></span>
               <span className="font-semibold">{targetLabel(group[0].target)}</span>
               <span className="min-w-0 flex-1 truncate font-mono text-ink-3" title={group[0].path}>{shortenHome(group[0].path)}</span>
-              <span className="shrink-0 text-ink-3">{t(group.length === 1 ? 'backup.mcp.count.one' : 'backup.mcp.count.other', { count: group.length })}</span>
+              <span className="shrink-0 text-ink-3">{t(plural('backup.mcp.count', group.length), { count: group.length })}</span>
             </div>
             {group.map((b) => {
               const taken = when(b);

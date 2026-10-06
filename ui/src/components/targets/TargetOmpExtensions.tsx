@@ -8,7 +8,7 @@ import EmptyState from '../EmptyState';
 import ExtensionsReviewDialog from './ExtensionsReviewDialog';
 import Tooltip from '../Tooltip';
 import { PageSkeleton } from '../Skeleton';
-import { messagesByLocale, useT } from '../../i18n';
+import { messagesByLocale, useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
 
@@ -62,7 +62,7 @@ function ExtensionsView({ name, view, pending, setPending, applied, setApplied, 
   // Only a draft that still differs from a switchable row is a change.
   const drafts = view.rows.filter((r) => switchable(r) && r.key in pending && pending[r.key] !== r.enabled);
   const changes: OmpExtensionChange[] = drafts.map((r) => ({ key: r.key, enabled: pending[r.key] }));
-  const pendingLabel = t(changes.length === 1 ? 'targetDetail.ompExtensions.pending.one' : 'targetDetail.ompExtensions.pending.other', { count: changes.length });
+  const pendingLabel = t(plural('targetDetail.ompExtensions.pending', changes.length), { count: changes.length });
   const flip = (row: OmpExtensionRow) => {
     setApplied('');
     const next = { ...pending };

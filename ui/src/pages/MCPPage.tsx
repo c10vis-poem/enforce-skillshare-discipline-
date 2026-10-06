@@ -30,7 +30,7 @@ import { isServeCommand, type AddMode } from '../components/mcp/mcpServerDraft';
 import { buildMatrix, canImportConflict, describeError, describeMessage, isShadowed, isResolvable, mcpOrder, projectOf, targetLabel, writes, type MCPChange } from '../components/mcp/mcpView';
 import { MCPTargetOrder } from '../components/mcp/targetOrder';
 import { useMCPToggle } from '../components/mcp/useMCPToggle';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { shortenHome } from '../lib/paths';
 import { useMcpQuery } from '../hooks/useSharedQueries';
 import { invalidate } from '../lib/queryEvents';
@@ -156,7 +156,7 @@ function MCPContent({ data, model, order, allFiles, onShowAll, busy, onToggle, o
             {conflicts.map((c, i) => (
               <div key={`${c.path}:${c.target}:${c.name}`} className="flex items-center gap-3">
                 <span className="flex-1">
-                  {i === 0 && <b>{t(conflicts.length === 1 ? 'mcp.conflictLead.one' : 'mcp.conflictLead.other', { count: conflicts.length })} </b>}
+                  {i === 0 && <b>{t(plural('mcp.conflictLead', conflicts.length), { count: conflicts.length })} </b>}
                   {conflictText(c)}
                   {/* One server can conflict in several folders, so a project's row says which. */}
                   {projectOf(roots, c) && <span className="text-ink-2"> · {shortenHome(projectOf(roots, c)!)}</span>}

@@ -21,7 +21,7 @@ import RetentionPopover from '../components/backups/RetentionPopover';
 import { backupItem, filterItems, retentionSummary } from '../components/backups/backupView';
 import { TargetAgents } from '../components/targetAgents';
 import { useAppContext } from '../context/AppContext';
-import { formatDateTime, formatRelativeTime, formatSize, useI18n, useT } from '../i18n';
+import { formatDateTime, formatRelativeTime, formatSize, useI18n, useT, plural } from '../i18n';
 import type { Locale } from '../i18n/locales';
 import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
@@ -247,7 +247,7 @@ function FolderBackups({ creating }: { creating: boolean }) {
                                 <span className="ss-at"><AgentIcon target={it.target} size={14} /></span>
                                 <span className="font-mono text-[13px]">{it.target}</span>
                                 <span className="ss-tag">{it.kind}</span>
-                                {e && <span className="text-xs text-ink-3">{t(e.files === 1 ? 'backup.item.files.one' : 'backup.item.files.other', { count: e.files, size: formatSize(e.sizeBytes, locale) })}</span>}
+                                {e && <span className="text-xs text-ink-3">{t(plural('backup.item.files', e.files), { count: e.files, size: formatSize(e.sizeBytes, locale) })}</span>}
                                 <span className="flex-1" />
                                 <Button variant="secondary" size="sm" onClick={() => setRestore({ backup: b, target: it.name })}>{t('backup.actions.restore')}</Button>
                               </div>
@@ -268,7 +268,7 @@ function FolderBackups({ creating }: { creating: boolean }) {
           </div>
           <div className="flex items-center gap-3 text-[13px] text-ink-3">
             <span>
-              {t(backups.length === 1 ? 'backup.footer.count.one' : 'backup.footer.count.other', { count: backups.length })}
+              {t(plural('backup.footer.count', backups.length), { count: backups.length })}
               {data && data.totalSizeBytes > 0 ? ` · ${formatSize(data.totalSizeBytes, locale)}` : ''}
               {` · ${shortenHome(backupsDir(backups[0].path))}`}
             </span>
@@ -373,7 +373,7 @@ function RestoreDialog({ backup, target, onClose, onDone }: {
           <div className="ss-note bad"><span className="flex-1">{check.error.message}</span></div>
         ) : conflicts.length > 0 ? (
           <div className="ss-note warn flex-col !items-stretch">
-            <span>{t(conflicts.length === 1 ? 'backup.restore.overwriteWarning.one' : 'backup.restore.overwriteWarning.other', { count: conflicts.length })}</span>
+            <span>{t(plural('backup.restore.overwriteWarning', conflicts.length), { count: conflicts.length })}</span>
             <ul className="mt-2 flex flex-col gap-1 font-mono text-[12px]">
               {(more ? conflicts : conflicts.slice(0, CONFLICTS_SHOWN)).map((f) => <li key={f}>{f}</li>)}
             </ul>

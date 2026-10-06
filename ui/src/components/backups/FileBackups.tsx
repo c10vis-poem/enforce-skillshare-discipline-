@@ -10,7 +10,7 @@ import EmptyState from '../EmptyState';
 import { PageSkeleton } from '../Skeleton';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
-import { formatDateTime, formatSize, useI18n } from '../../i18n';
+import { formatDateTime, formatSize, useI18n, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileBackupErrorMessage, kindTone, reasonKey } from './backupView';
@@ -87,7 +87,7 @@ function Versions({ file }: { file: FileBackup }) {
       <div className="ss-gh !min-h-[52px]">
         <span className="flex min-w-0 flex-1 flex-col gap-px">
           <span className="truncate font-mono font-semibold" title={file.path}>{shortenHome(file.path)}</span>
-          <span className="text-xs text-ink-3">{t((data?.versions.length ?? file.versions) === 1 ? 'backup.files.versionsCount.one' : 'backup.files.versionsCount.other', { count: data?.versions.length ?? file.versions })}</span>
+          <span className="text-xs text-ink-3">{t(plural('backup.files.versionsCount', data?.versions.length ?? file.versions), { count: data?.versions.length ?? file.versions })}</span>
         </span>
         {file.extra && (
           <Link to={`/extras?tab=instructions&file=${encodeURIComponent(file.extra)}`} className="ss-btn sm ghost">{t('backup.files.toShared')}</Link>
