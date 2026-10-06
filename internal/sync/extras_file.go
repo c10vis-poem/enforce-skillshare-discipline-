@@ -211,7 +211,7 @@ func syncExtraFileReplace(f ExtraFile, dryRun bool, projectRoot string) (*ExtraR
 			// removed. Once attached, a differing file is an edit; keep it as
 			// a drift backup so the restore point stays the pre-attach state.
 			if !attached {
-				if err := recordExtraRestorePoint(f.Target, f.importLine()); err != nil {
+				if err := recordExtraRestorePoint(f); err != nil {
 					return nil, err
 				}
 				attached = true

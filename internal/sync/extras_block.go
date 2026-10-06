@@ -49,7 +49,8 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 		raw = strings.TrimSuffix(raw, "\r")
 		indent := len(raw) - len(strings.TrimLeft(raw, " "))
 		line := strings.TrimSpace(raw)
-		if open == nil && indent < 4 && !strings.HasPrefix(raw, "\t") {
+		// Fences are tracked inside a block too: a source may quote a marker in an example.
+		if indent < 4 && !strings.HasPrefix(raw, "\t") {
 			if c, n := fenceRun(line); n >= 3 {
 				switch {
 				case fenceLen == 0:
@@ -189,6 +190,13 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 	if err != nil {
 		return nil, err
 	}
+	// A block left where the other mode put it is moved: taken out here and
+	// inserted afresh below. A hand-edited one is refused first, as usual.
+	if found != nil && (overwriteEdited || contentBlockHash(found.body) == found.hash) && !f.blockInPlace(found, lines) {
+		content, _ = f.removeContentBlock(content)
+		lines = strings.Split(content, "\n")
+		found = nil
+	}
 
 	var updated string
 	switch {
@@ -240,6 +248,21 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 		}
 	}
 	return result, nil
+}
+
+// blockInPlace reports whether b sits where f.Mode puts a block: nothing but
+// blank lines before it (prepend) or after it (append).
+func (f ExtraFile) blockInPlace(b *contentBlock, lines []string) bool {
+	rest := lines[:b.start]
+	if f.Mode == "append" {
+		rest = lines[b.end+1:]
+	}
+	for _, l := range rest {
+		if strings.TrimSpace(l) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // extraBlockStatus reports synced, modified (edited by hand) or drift for a
@@ -335,10 +358,17 @@ func restoreExtraBlock(f ExtraFile) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to read target: %w", err)
 	}
-	updated, changed := f.removeContentBlock(string(data))
-	if !changed {
+	found, err := f.findContentBlock(strings.Split(string(data), "\n"))
+	if err != nil || found == nil {
 		return false, nil
 	}
+	// A hand-edited block is kept as a drift backup, as an edited copy or link would be.
+	if contentBlockHash(found.body) != found.hash {
+		if err := backupExtraDrift(f.Target, DriftReasonRestore); err != nil {
+			return false, err
+		}
+	}
+	updated, _ := f.removeContentBlock(string(data))
 	if strings.TrimSpace(updated) == "" && extraAttached(f.Target) {
 		if err := os.Remove(f.Target); err != nil {
 			return false, fmt.Errorf("failed to remove target: %w", err)
