@@ -32,16 +32,17 @@ func (l gitlink) String() string {
 // accepts any text there, so this fails closed on the raw string: everything
 // before the last "@" goes, keeping only a well-formed "scheme://" prefix.
 func displayURL(raw string) string {
+	// Userinfo first: a "?" or "#" inside it must not hide the "@".
+	if at := strings.LastIndex(raw, "@"); at >= 0 {
+		if scheme, _, ok := strings.Cut(raw[:at], "://"); ok {
+			raw = scheme + "://" + raw[at+1:]
+		} else {
+			raw = raw[at+1:]
+		}
+	}
 	raw, _, _ = strings.Cut(raw, "#")
 	raw, _, _ = strings.Cut(raw, "?")
-	at := strings.LastIndex(raw, "@")
-	if at < 0 {
-		return raw
-	}
-	if scheme, _, ok := strings.Cut(raw[:at], "://"); ok {
-		return scheme + "://" + raw[at+1:]
-	}
-	return raw[at+1:]
+	return raw
 }
 
 // repoGitlinks lists the submodules recorded in HEAD of repoPath. extraEnv

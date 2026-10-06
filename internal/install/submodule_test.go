@@ -155,6 +155,8 @@ func TestGitlinkString_HidesURLCredentials(t *testing.T) {
 		"s3cret@example.com:org/up.git":                      "example.com:org/up.git",
 		"https:/user:s3cret@example.com/org/up.git":          "example.com/org/up.git",
 		"//user:s3cret@example.com/org/up.git":               "example.com/org/up.git",
+		"https://user:s3cret?x@example.com/org/up.git":       "https://example.com/org/up.git",
+		"https://user:s3cret#x@example.com/org/up.git":       "https://example.com/org/up.git",
 	} {
 		got := gitlink{Path: "vendor/up", Commit: "abc", URL: raw}.String()
 		if strings.Contains(got, "s3cret") || !strings.Contains(got, want) {
