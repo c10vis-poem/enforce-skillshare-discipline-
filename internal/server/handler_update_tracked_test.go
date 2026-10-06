@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -192,5 +193,22 @@ func TestUpdateTrackedRepo_RefreshesRootSkillMetadata(t *testing.T) {
 	}
 	if entry := f.s.skillsStore.GetByPath("_team"); entry == nil || entry.FileHashes["SKILL.md"] == "" {
 		t.Errorf("root skill hashes were not refreshed: %+v", entry)
+	}
+}
+
+// The dashboard offers Force Retry only for messages that contain "blocked by
+// security audit": findings, never a scan that could not run.
+func TestTrackedBlockMessage(t *testing.T) {
+	scanErr, resetErr := errors.New("load rules"), errors.New("exit status 128")
+	for want, e := range map[string]*install.AuditGateError{
+		"blocked by security audit — findings at/above HIGH detected, rolled back":                                                                    {Threshold: "HIGH"},
+		"blocked by security audit — findings at/above HIGH detected (WARNING: rollback also failed: exit status 128 — malicious content may remain)": {Threshold: "HIGH", Rollback: install.RollbackFailed, ResetErr: resetErr},
+		"security audit failed: load rules (rolled back)":                                                                                             {ScanErr: scanErr},
+		"security audit failed: load rules (WARNING: rollback also failed: exit status 128 — malicious content may remain)":                           {ScanErr: scanErr, Rollback: install.RollbackFailed, ResetErr: resetErr},
+		"security audit failed (rollback commit unavailable, update aborted and repository state is unknown)":                                         {Rollback: install.RollbackUnavailable},
+	} {
+		if got := trackedBlockMessage(e); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
 	}
 }

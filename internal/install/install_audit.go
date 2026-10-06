@@ -457,9 +457,16 @@ func auditTrackedRepoUpdate(repoPath, beforeHash string, result *TrackedRepoResu
 	}.Run()
 	if err != nil {
 		var blocked *AuditGateError
-		if errors.As(err, &blocked) && blocked.ScanErr == nil && blocked.Rollback == RolledBack {
-			return blockedDetailsError(blocked, res,
-				fmt.Sprintf("security audit failed — findings at/above %s detected in tracked repository", blocked.Threshold))
+		// The CLI reads "tracked repository" from these to word its summary.
+		if errors.As(err, &blocked) && blocked.ScanErr == nil {
+			switch blocked.Rollback {
+			case RolledBack:
+				return blockedDetailsError(blocked, res,
+					fmt.Sprintf("security audit failed — findings at/above %s detected in tracked repository", blocked.Threshold))
+			case RollbackFailed:
+				return fmt.Errorf("security audit found findings at/above %s in tracked repository — %s: %w",
+					blocked.Threshold, blocked.RollbackNote(), audit.ErrBlocked)
+			}
 		}
 		return err
 	}

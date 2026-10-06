@@ -343,6 +343,9 @@ func (s *Server) updateTrackedRepo(name, repoPath, sourceDir string, force, skip
 		return item
 	}
 
+	if res.MetadataErr != nil {
+		log.Printf("warning: failed to refresh metadata for %s: %v", name, res.MetadataErr)
+	}
 	if sourceDir != "" && res.Status != update.StatusDirty {
 		if st, loadErr := install.LoadMetadataWithMigration(sourceDir, ""); loadErr == nil && st != nil {
 			s.skillsStore = st
