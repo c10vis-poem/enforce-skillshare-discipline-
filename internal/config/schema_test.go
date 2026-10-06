@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -181,6 +182,36 @@ func TestSchemaFiles_ValidJSON(t *testing.T) {
 				t.Error("schema should have $defs")
 			}
 		})
+	}
+}
+
+// Both schemas reject unknown keys, so every yaml tag the structs accept must
+// be listed or editors flag valid configs.
+func TestSchema_PropertiesCoverConfigStructs(t *testing.T) {
+	root := findRepoRoot(t)
+	for file, typ := range map[string]reflect.Type{
+		"schemas/config.schema.json":         reflect.TypeOf(Config{}),
+		"schemas/project-config.schema.json": reflect.TypeOf(ProjectConfig{}),
+	} {
+		data, err := os.ReadFile(filepath.Join(root, file))
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		var schema struct {
+			Properties map[string]any `json:"properties"`
+		}
+		if err := json.Unmarshal(data, &schema); err != nil {
+			t.Fatalf("%s: invalid JSON: %v", file, err)
+		}
+		for i := 0; i < typ.NumField(); i++ {
+			key, _, _ := strings.Cut(typ.Field(i).Tag.Get("yaml"), ",")
+			if key == "" || key == "-" {
+				continue
+			}
+			if _, ok := schema.Properties[key]; !ok {
+				t.Errorf("%s: missing property %q for %s.%s", file, key, typ.Name(), typ.Field(i).Name)
+			}
+		}
 	}
 }
 
