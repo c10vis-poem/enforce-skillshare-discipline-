@@ -2,92 +2,59 @@
 
 ## [0.25.0] - 2026-10-06
 
-
 ### New Features
 
-* add link and unlink for followed source folders ([e26dc06](https://github.com/runkids/skillshare/commit/e26dc0631bd379f3360278fa398aa6c0df0d4127))
-* follow first-level source links (follow_source_links) ([112be17](https://github.com/runkids/skillshare/commit/112be1776d49c593841420d94a39c27c49eeb1ee))
-* **mcp:** require HTTPS for mcp serve off loopback ([2647e79](https://github.com/runkids/skillshare/commit/2647e79ef9815a5206e229722ed4ba31daf80e50))
-* **mcp:** serve skills over MCP (SEP-2640) with a tool fallback ([74b04fe](https://github.com/runkids/skillshare/commit/74b04fe1fd9e5a664cd8ddada373fc762db7c2bc))
-* **mcp:** serve skills over MCP with the SEP-2640 Skills extension ([cc7d802](https://github.com/runkids/skillshare/commit/cc7d8024119bb3da2df54d66ddb68d8466e0185c)), closes [#428](https://github.com/runkids/skillshare/issues/428)
-* **omp:** add native Oh My Pi support ([#423](https://github.com/runkids/skillshare/issues/423)) ([9744674](https://github.com/runkids/skillshare/commit/97446744ff43193c336634aacf72ad1289f2e28f))
-* **source-links:** add link and unlink commands ([4ae67cb](https://github.com/runkids/skillshare/commit/4ae67cbe529a5a344681ac4ff51b3e6e7c68b38c)), closes [#419](https://github.com/runkids/skillshare/issues/419)
-* **ui:** add a Skillshare tab to Add server for mcp serve ([d1751f1](https://github.com/runkids/skillshare/commit/d1751f1a56d4a0e3e271739b854aa6e639edb321))
-* **ui:** link folders from the skills dashboard ([c1ea7e3](https://github.com/runkids/skillshare/commit/c1ea7e3445895ee5893ea1923808d781f8598a3b))
-* **ui:** unlink followed source folders from the dashboard ([46fd8ef](https://github.com/runkids/skillshare/commit/46fd8ef355643cb4222864377b0a9e51867e57b8))
+#### Serve skills over MCP
 
+- **`skillshare mcp serve`** — serves your skills read-only over MCP, for Agents that cannot reach the synced folders, such as one in a throwaway VM or behind an MCP gateway. It implements the [Skills extension](https://modelcontextprotocol.io/seps/2640-skills-extension) (SEP-2640): each skill is one entry with its full frontmatter and a manifest of its files with their `sha256` digest and size. Most Agents do not support the extension yet, so the server also offers two tools, `list_skills` and `read_skill`, which any Agent that uses MCP tools can call; a client that declares the extension gets the skills natively and does not see the tools. Changes in the source show up within 5 seconds without a restart. Refs: #428.
+  ```bash
+  skillshare mcp serve                       # stdio, every enabled skill
+  skillshare mcp serve --target claude       # only what the claude target selects
+  skillshare mcp serve --check               # list skipped skills and exit
+  SKILLSHARE_MCP_TOKEN=change-me skillshare mcp serve --http 0.0.0.0:8765 \
+    --tls-cert cert.pem --tls-key key.pem    # HTTPS for other machines
+  ```
+  - Global by default; `-p` serves the project in the current directory.
+  - A skill is skipped, with a warning on stderr, when it breaks the Agent Skills format (for example its `name` differs from its directory), is over 512 files or 16 MiB, or contains a nested skill that is not served.
+  - `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN` and HTTPS through `--tls-cert` and `--tls-key`, or a loopback address behind a TLS proxy. Cross-origin browser requests are refused.
+  - Do not connect local Agents that already sync skills; they would see each skill twice.
+- **A Skillshare tab in the dashboard's Add server** — adds `skillshare mcp serve` as an MCP server, with the target and scope to serve, so the Agents you sync it to can read your skills.
+
+#### Followed source links
+
+- **`skillshare link` and `unlink`** — use a skills checkout where it already lives, or keep skills on an external drive, by linking the folder directly under the skills source. `--enable` also turns on `follow_source_links`; `unlink` removes only the link and leaves the folder alone. On Windows `link` creates a junction, which needs no Developer Mode. Refs: #274, #419.
+  ```bash
+  skillshare link ~/code/dev-skills --enable    # links it as _dev-skills
+  skillshare sync
+  skillshare unlink _dev-skills
+  ```
+- **`follow_source_links`** — with this setting on, globally or per project, `list`, `sync`, `status`, `audit` and the dashboard find the skills inside first-level links in the source. A link that would loop back into the source, overlaps a sync target, or is missing is skipped with a warning. While a linked drive is unmounted, that run deletes nothing: target links, copies and install metadata stay until it is back. `update --all` skips linked checkouts, because they are your own working copies; update one by name.
+  ```yaml
+  follow_source_links: true
+  ```
+- **Link and unlink folders from the dashboard** — **Link folder** on the Skills page takes a path, an optional name and the `follow_source_links` switch, and shows the same reasons as the command when it refuses a folder. A linked folder is listed as its own group with the folder it points at, and its row unlinks it after a confirmation; the link can be restored from **Trash**.
+
+#### Oh My Pi
+
+- **MCP, code hooks, plugins and extensions for Oh My Pi (`omp`)** — the `omp` target already received skills and instructions. It now also gets MCP servers in its own `mcpServers` format, code hooks as native extensions, plugins from reviewed local or Git sources or imported from its marketplace, and a guarded **Extensions** tab for choosing which extensions load. An account declared with `agent: omp` gets skills, instructions, MCP and code hooks. Refs: #409.
+  ```bash
+  skillshare mcp add docs --url https://example.com/mcp --target omp -g --sync
+  skillshare plugin add ./my-omp-plugin --target omp -g
+  ```
+
+#### Targets
+
+- **DeepSeek Harness and GitLab Duo** — two new built-in targets, `deepseek-harness` and `gitlab-duo`.
+- **Unicode skill names under `target_naming: standard`** — names in lowercase letters of any script, such as `café` or `日本語-tool`, now sync like ASCII names instead of being skipped. Underscores are still rejected.
 
 ### Bug Fixes
 
-* **check:** resolve followed checkouts by explicit name ([1a472eb](https://github.com/runkids/skillshare/commit/1a472eb0ab4389b69be82feaab691fbda7e435ec))
-* **cli:** accept option terminators for link and unlink ([42ed06e](https://github.com/runkids/skillshare/commit/42ed06e3e4bec340ec405a5bca493d5b4f81778a))
-* **cli:** preserve mode flags used as option values ([1d66193](https://github.com/runkids/skillshare/commit/1d66193749e099fe9a3e9a0300586edce24755c2))
-* **cli:** preserve mode flags used as option values ([e329f5d](https://github.com/runkids/skillshare/commit/e329f5d90614ddaf40cd8b5bcd3e8ad037f91ea3))
-* **discovery:** surface skipped source link warnings ([c5c9289](https://github.com/runkids/skillshare/commit/c5c9289781d23676d901c3e31eb6a205afb21d43))
-* **doctor:** classify unavailable links by their destination ([1254fe5](https://github.com/runkids/skillshare/commit/1254fe522de6154523f5425508ae6cd01e58205c))
-* **hub:** apply the source follow policy to local discovery ([113d410](https://github.com/runkids/skillshare/commit/113d410da7afffa3e82e31ca509331ebdfb2bf30))
-* **install:** recognize gitdir files as checkouts ([98300a2](https://github.com/runkids/skillshare/commit/98300a2eec555509d94f71b37bb639fa56c2bb8e))
-* **install:** retain existing skills until replacement succeeds ([51f2bea](https://github.com/runkids/skillshare/commit/51f2beadd1b26ca4d0479dac68f990ba6e6f4bfc))
-* **link:** remove a rolled-back link through the source handle ([294c332](https://github.com/runkids/skillshare/commit/294c33248430c6fc01df8e8d9ef97caccf0f3574))
-* **link:** roll back the link when enabling follow_source_links fails ([ad5d5cd](https://github.com/runkids/skillshare/commit/ad5d5cd09f844a5e9bd74f1af98c5290c2076cf2))
-* **link:** show help before loading the scope and accept -g/-p as --name values ([7d5776e](https://github.com/runkids/skillshare/commit/7d5776ef79b945b928527431dfb1d78d39a3e3fb))
-* **mcp:** address review findings on mcp serve and its dashboard tab ([0ad3ffa](https://github.com/runkids/skillshare/commit/0ad3ffab5a8b037c06958816db80580064d0e0d0))
-* **mcp:** continue skills/list from a URI and cap the bytes hashed ([4f7f2d8](https://github.com/runkids/skillshare/commit/4f7f2d81515d9984195625578056723bd54d4875))
-* **mcp:** find the frontmatter without splitting the whole SKILL.md ([76a49ad](https://github.com/runkids/skillshare/commit/76a49ada77f569b399b7bedf18b33dcb5a125a0b))
-* **mcp:** follow the reference validator for names and bound SKILL.md reads ([a8edbc7](https://github.com/runkids/skillshare/commit/a8edbc715f45f308a90fe93d5033d6fe563dd05b))
-* **mcp:** hash SKILL.md from the bytes its frontmatter came from ([97844aa](https://github.com/runkids/skillshare/commit/97844aa7f8724b292b1d4e21a6278d164b9374aa))
-* **mcp:** keep a nested skill's file entries when its parent disagrees ([321d3be](https://github.com/runkids/skillshare/commit/321d3beeedc3aed9ef5f1ef7fa54ecb0d46bf72d))
-* **mcp:** keep an edited serve command's -p and reject padded names ([db3840b](https://github.com/runkids/skillshare/commit/db3840b0317df429014992acbd71a4b738a36f32))
-* **mcp:** keep migration notices off stdout and require closed frontmatter ([64898e1](https://github.com/runkids/skillshare/commit/64898e145b1c08fdd25b1e38f13c74db0ceae336))
-* **mcp:** keep serve digests and stdout trustworthy ([fd4f499](https://github.com/runkids/skillshare/commit/fd4f499be768612e0dce4a3e52c82ba9bf2fb3f4))
-* **mcp:** match a skill's name to its directory exactly ([a6166ed](https://github.com/runkids/skillshare/commit/a6166ed27bcf10371d5f9b68272d232060d63b0a))
-* **mcp:** quote the served target and cap skill descriptions ([96593f9](https://github.com/runkids/skillshare/commit/96593f94115e4483283fc18c595a42ebd44fa1bb))
-* **mcp:** read only the file the link check saw ([1c7cf12](https://github.com/runkids/skillshare/commit/1c7cf1259c9baecdcbe303a0d6c08b33cffcc35b))
-* **mcp:** rebuild the catalog when discovery changes during a build ([a3ddb88](https://github.com/runkids/skillshare/commit/a3ddb88f99f246bbad31d823bd4a8a066aff6ed2))
-* **mcp:** refuse cross-origin browser requests to mcp serve --http ([699dcb8](https://github.com/runkids/skillshare/commit/699dcb86ec81500631afd3678a863cb79a3f5246))
-* **mcp:** reject an empty compatibility ([6285e49](https://github.com/runkids/skillshare/commit/6285e490e656431e7089ff61482e3963889184bb))
-* **mcp:** require an unindented closing frontmatter delimiter ([69f7dfa](https://github.com/runkids/skillshare/commit/69f7dfa89bd993ed653ab6e9179bfef8e65eac81))
-* **mcp:** serve only bytes that match the listed digest ([b5bad20](https://github.com/runkids/skillshare/commit/b5bad20e50f2d54316f1498ed99a45ed10a27df3))
-* **mcp:** skip a linked SKILL.md and an indented opening delimiter ([78857ad](https://github.com/runkids/skillshare/commit/78857ad6f147b2f3fd5d5e011a20474347a30190))
-* **mcp:** skip skills whose compatibility exceeds the format limit ([d13e03a](https://github.com/runkids/skillshare/commit/d13e03adfc3402b2c58f1d62c47f212478514937))
-* **mcp:** take a file's manifest size and digest from one read ([2ac0926](https://github.com/runkids/skillshare/commit/2ac0926cce7d61da1104777fadc29185af43c2c6))
-* **mcp:** validate Pi CIMD OAuth settings ([af4ddac](https://github.com/runkids/skillshare/commit/af4ddac07e077bcb37e28a3754a8e81fb6f70618))
-* **mcp:** validate Pi CIMD OAuth settings ([8f79733](https://github.com/runkids/skillshare/commit/8f79733b4f9bb708ef7072a34d6957492d96e5b3))
-* **plugins:** show the commit when a source changes without a new version ([147b509](https://github.com/runkids/skillshare/commit/147b509e5f8e30169fe363525b11f85e05fe52b4))
-* **server:** anchor target frontmatter writes to the source ([891c687](https://github.com/runkids/skillshare/commit/891c687a47768ef389506192ebece3799622180b))
-* **server:** list files from followed skill roots ([064048d](https://github.com/runkids/skillshare/commit/064048da8995a64ca7749f2268b0d7dacb61f18c))
-* **server:** reflect traversal failures on standalone source links ([d6a533d](https://github.com/runkids/skillshare/commit/d6a533d1b6868c203981a8742bd9580882aa0775))
-* **server:** resolve uninstall names without basename collisions ([3ad3af7](https://github.com/runkids/skillshare/commit/3ad3af713fa0f2bf6ff3a79f9e73ceeab4a918ca))
-* **server:** restore skills through followed source links ([6e641dc](https://github.com/runkids/skillshare/commit/6e641dca14068c481b51c82646ced9b3f6a93c38))
-* **server:** roll back the dashboard link when enabling fails ([6c9c3f5](https://github.com/runkids/skillshare/commit/6c9c3f5fcec3d96070648e726fb30c77a6eaf158))
-* **server:** uninstall individual skills from followed links ([db45b0d](https://github.com/runkids/skillshare/commit/db45b0db0674210789f4177d9748146e0e6c4487))
-* **sourcefs:** retain the staged-copy traversal allowance ([50b6515](https://github.com/runkids/skillshare/commit/50b6515a1675d4501c39384b981909850a21e6a3))
-* **sourcewalk:** preserve inventory on followed traversal failures ([df7a6ad](https://github.com/runkids/skillshare/commit/df7a6ad73dd29f7e720e6d8f6d9fb3a5e2b1dae9))
-* **trash:** keep junctions as junctions when moving across volumes ([76de343](https://github.com/runkids/skillshare/commit/76de343779e9fe41af36d6d412be9587f36e084a))
-* **trash:** keep junctions as junctions when moving across volumes ([d97f6d8](https://github.com/runkids/skillshare/commit/d97f6d88b7e74288eb0a41fa652292b4b84bd3d0)), closes [#420](https://github.com/runkids/skillshare/issues/420)
-* **trash:** preserve nested links in cross-device copies ([38c223b](https://github.com/runkids/skillshare/commit/38c223bd7404885ce6fa463fbfdab9cd3d9c80e2))
-* **trash:** record link copying in the write ratchet ([f20b7f7](https://github.com/runkids/skillshare/commit/f20b7f7f1f7e042c684b47e361d12faf1787e19d))
-* **ui:** drop the linked tag from followed-folder groups ([c455c62](https://github.com/runkids/skillshare/commit/c455c62b90326c3c596d52c4cd68362cbde74fc2))
-* **ui:** keep empty source links available to unlink ([1e7e23f](https://github.com/runkids/skillshare/commit/1e7e23f58747b531b8ec8357d71ecb081f52ce58))
-* **ui:** keep followed checkouts out of dashboard updates ([aafb7e7](https://github.com/runkids/skillshare/commit/aafb7e7e962d45fee7b70d41cb0798fd3337e2bb))
-* **ui:** keep the no-match state while filters exclude every skill ([6d600f6](https://github.com/runkids/skillshare/commit/6d600f6525a0e427203ed82e79ccc4f446eac6ee))
-* **ui:** move source-link unlink into group menus ([6a358b7](https://github.com/runkids/skillshare/commit/6a358b73a7b23f876bcbef4bead3e29c01abe088))
-* **ui:** show the link icon on a linked group until hovered ([8b1b4a3](https://github.com/runkids/skillshare/commit/8b1b4a39d34c10a13a4d1b33522b2821c191682c))
-* **ui:** simplify followed-folder actions ([370b612](https://github.com/runkids/skillshare/commit/370b612f337367d6608094dacc3f13fca3b93de3))
-* **ui:** swap a loading button's icon for the spinner ([f0d23f9](https://github.com/runkids/skillshare/commit/f0d23f9830020876b2442f2bbd7d8ec74c3b894c))
-* **ui:** uninstall linked skills individually from detail pages ([680506b](https://github.com/runkids/skillshare/commit/680506b4ff743beb51561687cdb5192814b4c2a1))
-* **uninstall:** refuse a linked root skill before the dirty preflight ([1f4a466](https://github.com/runkids/skillshare/commit/1f4a466eed7b74c3d8da5c0fb025a98731dbc54d))
-* **uninstall:** refuse skills at followed link roots ([cd6e016](https://github.com/runkids/skillshare/commit/cd6e0165ddc9b1b316ce45a9aeffa7a4eed9d0f7))
-* **uninstall:** validate linked roots before dry-run output ([e66529f](https://github.com/runkids/skillshare/commit/e66529fc7698f39080b1cd71841a116b77ca56bc))
-* **update:** exclude followed checkouts from missing repo recovery ([e8242af](https://github.com/runkids/skillshare/commit/e8242affc36283ba8e6f8b2db2e09ac9aa6be730))
-* **update:** resolve explicitly named followed source links ([942251b](https://github.com/runkids/skillshare/commit/942251b78a1524ba9b2649ec6670adb83a12dccb))
-* **update:** skip followed checkouts regardless of directory prefix ([6c76437](https://github.com/runkids/skillshare/commit/6c76437b6a64a62cac474a71678c07cdce038a0b))
-* **update:** skip followed checkouts regardless of directory prefix ([96ca1f6](https://github.com/runkids/skillshare/commit/96ca1f6d02ba70a9bc741a7cee05a39f5baca42b))
-* **utils:** accept extended-length paths as junction targets ([4b2da26](https://github.com/runkids/skillshare/commit/4b2da26f9a256c07a18a984d73a5cdca97379781)), closes [#420](https://github.com/runkids/skillshare/issues/420)
-* **utils:** create junctions through the reparse-point API ([eb359a7](https://github.com/runkids/skillshare/commit/eb359a762627c5d58cb92fe3fb985f0145ee2172)), closes [#420](https://github.com/runkids/skillshare/issues/420)
-* **utils:** detect junctions under GODEBUG=winsymlink=0 ([05b2f12](https://github.com/runkids/skillshare/commit/05b2f12023cdf9cb8bc5dc23974e426b05429db9)), closes [#420](https://github.com/runkids/skillshare/issues/420)
-* **utils:** quote junction paths passed to cmd.exe ([377eae3](https://github.com/runkids/skillshare/commit/377eae3d89501e11d90723b3e2278126d0e8fb9d)), closes [#420](https://github.com/runkids/skillshare/issues/420)
-* **utils:** refuse a network path as a junction target ([e031274](https://github.com/runkids/skillshare/commit/e031274207d4bf99b3b1daef714c85ce10923c42)), closes [#420](https://github.com/runkids/skillshare/issues/420)
+- **`update` no longer pulls a Git repository that a link points at** — a link inside the skills source to a checkout elsewhere was treated as a tracked repo, so `skillshare update` and the dashboard ran `git pull` there, and with `--force` reset it. A linked checkout is now only updated when you name it. Git worktrees and submodules, which have a `.git` file, get the same guards. Refs: #410.
+- **Option values that look like a scope flag are kept** — in commands such as `link --name -g`, the value was read as the `-g` flag, which changed the scope or reported a mode conflict. A value after an option that takes one now stays its value, and `--` ends the options. Refs: #422.
+- **Moving a Windows junction to another drive keeps it a junction** — when the skills source and the trash were on different drives, `unlink` and `trash restore` recreated a junction as a symlink, which needs Developer Mode, so they could fail after `link` had worked. Refs: #420.
+- **A plugin whose source changes without a new version shows the commits** — `plugin check` compares the source, not the version, so a repository that pushes commits without changing its version showed the same version with an **Update** button. The version tag now adds the old → new commit.
+- **Pi MCP settings with invalid OAuth client registration are rejected before sync** — `oauth.clientRegistration` accepts `dcr` or `cimd`; with `cimd`, a `clientId` or `clientName`, or a `callbackUrl` other than HTTP on `localhost` or `127.0.0.1` with path `/callback`, is reported instead of being written to Pi.
+- **Searching skills with no match shows the no-match state** — linked folders no longer appear as empty groups while a search or filter excludes every skill, so **Clear filters** is shown.
 
 ## [0.24.6] - 2026-10-05
 
