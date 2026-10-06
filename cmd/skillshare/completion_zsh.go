@@ -116,6 +116,8 @@ _skillshare() {
                         '--live[check: start or call each server]' \
                         '--timeout[check --live: per-server timeout]:duration:' \
                         '--http[serve: Streamable HTTP listen address]:address:' \
+                        '--tls-cert[serve --http: TLS certificate file]:file:_files' \
+                        '--tls-key[serve --http: TLS key file]:file:_files' \
                         '--check[serve: list skipped skills without serving]' \
                         '--no-tui[Disable interactive menus]' \
                         $global_flags \

@@ -22,7 +22,7 @@ skillshare mcp restore BACKUP_ID --dry-run --json     # Preview entry-level rest
 skillshare mcp restore BACKUP_ID --no-tui            # Apply restoration; source stays unchanged
 skillshare mcp check --json                          # Static check: variables, commands, DNS, sync state
 skillshare mcp check --live --timeout 30s --json     # Also start/call each server: serverInfo, protocol, tools
-skillshare mcp serve [--target NAME] [--http ADDR]   # Serve skills read-only over MCP (SEP-2640)
+skillshare mcp serve [--target NAME] [--http ADDR [--tls-cert F --tls-key F]]  # Serve skills read-only over MCP (SEP-2640)
 skillshare mcp serve --check [--target NAME]         # List skills serve would skip, then exit
 ```
 
@@ -56,7 +56,7 @@ skillshare mcp serve --check [--target NAME]         # List skills serve would s
   gateways): stdio by default, global unless `-p`. `--target NAME` applies that target's
   filters. Skipped skills (name not matching its directory, description missing or over 1,024
   characters, compatibility over 500, over 512 files/16 MiB) are
-  listed on stderr; `--check` lists them without serving. `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN`.
+  listed on stderr; `--check` lists them without serving. `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN` and `--tls-cert`/`--tls-key` (or bind loopback behind a TLS proxy).
   Do not connect local Agents that already sync skills; they would see each skill twice.
   Connect one with `mcp add skillshare --target CLIENT --sync -- skillshare mcp serve`, or a
   remote `url` with `bearerToken: {fromEnv: SKILLSHARE_MCP_TOKEN}`. Agents with the Skills

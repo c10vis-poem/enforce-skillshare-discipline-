@@ -53,6 +53,7 @@ skillshare sync --all
 | `--live` | With `check`: also start each local server and call each remote one. See [below](#probe-servers-live) |
 | `--timeout DURATION` | With `check --live`: time limit for each server's probe, such as `30s`; default `10s` |
 | `--http ADDR` | With `serve`: listen for Streamable HTTP on `ADDR` instead of using stdio. See [below](#serve-skills-over-mcp) |
+| `--tls-cert FILE`, `--tls-key FILE` | With `serve --http`: serve HTTPS with this PEM certificate and key; required off loopback |
 | `--check` | With `serve`: list the skills it would skip and why, then exit without serving |
 | `--no-tui` | Disable interactive menus; also disabled by `tui: false`, `--json`, or non-terminal input/output |
 | `--revision ID` | Require a matching preview for add/import/remove or `sync mcp` |
@@ -775,7 +776,8 @@ and writes no files until you choose for that entry:
 ```bash
 skillshare mcp serve                                  # stdio, every enabled skill
 skillshare mcp serve --target claude                  # only the skills the claude target selects
-SKILLSHARE_MCP_TOKEN=change-me skillshare mcp serve --http 0.0.0.0:8765
+SKILLSHARE_MCP_TOKEN=change-me skillshare mcp serve --http 0.0.0.0:8765 \
+  --tls-cert cert.pem --tls-key key.pem               # HTTPS for other machines
 ```
 
 `mcp serve` is a read-only MCP server for an Agent that cannot reach the folder
@@ -815,8 +817,10 @@ skill approval does not apply.
   in the current directory.
 - **Transport.** stdio by default, for a gateway or Agent that starts the command.
   `--http ADDR` serves Streamable HTTP. A non-loopback address requires
-  `SKILLSHARE_MCP_TOKEN`; when it is set, every request must send
-  `Authorization: Bearer <token>`.
+  `SKILLSHARE_MCP_TOKEN` and HTTPS through `--tls-cert` and `--tls-key`, so the token
+  never crosses the network in plain text; when the token is set, every request must
+  send `Authorization: Bearer <token>`. To use a TLS proxy instead, bind a loopback
+  address such as `127.0.0.1:8765` and let the proxy terminate TLS.
 - **Safety.** Only files in a skill's manifest can be read, and reads stay inside the
   skill directory. Links and `.git` are neither listed nor served. Nothing is executed or
   written.
@@ -832,14 +836,14 @@ In the dashboard, **Add server** → **Skillshare** builds the same command (wit
 project mode) from a choice of skills; tick the Agent, save and sync. Editing that server
 opens the same tab.
 
-For an Agent on another machine, run `mcp serve --http` where the skills are and point a
-remote server at it. Keep the token in an environment variable:
+For an Agent on another machine, run `mcp serve --http` with a certificate where the
+skills are and point a remote server at it. Keep the token in an environment variable:
 
 ```yaml
 mcp:
   servers:
     skillshare:
-      url: http://skills-host:8765/
+      url: https://skills-host:8765/
       bearerToken: { fromEnv: SKILLSHARE_MCP_TOKEN }
       targets: [codex]
 ```

@@ -53,6 +53,8 @@ complete -c skillshare -n '__fish_skillshare_using_command mcp' -l no-dns -d 'Sk
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l live -d 'check: start or call each server'
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l timeout -r -d 'check --live: per-server timeout'
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l http -r -d 'serve: Streamable HTTP listen address'
+complete -c skillshare -n '__fish_skillshare_using_command mcp' -l tls-cert -r -F -d 'serve --http: TLS certificate file'
+complete -c skillshare -n '__fish_skillshare_using_command mcp' -l tls-key -r -F -d 'serve --http: TLS key file'
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l check -d 'serve: list skipped skills without serving'
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l url -r -d 'MCP endpoint'
 complete -c skillshare -n '__fish_skillshare_using_command mcp' -l target -r -a 'claude codex cursor vscode opencode kilocode grok antigravity amp claude-desktop cline copilot factory gemini goose junie kiro lmstudio warp windsurf pi omp' -d 'Receiving client'

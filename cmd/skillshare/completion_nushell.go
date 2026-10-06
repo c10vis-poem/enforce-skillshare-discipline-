@@ -90,6 +90,8 @@ export extern "skillshare mcp" [
     --live # check: start or call each server
     --timeout: string # check --live: per-server timeout, such as 10s
     --http: string # serve: Streamable HTTP listen address
+    --tls-cert: string # serve --http: TLS certificate file
+    --tls-key: string # serve --http: TLS key file
     --check # serve: list skipped skills without serving
     --no-tui
     --project(-p)

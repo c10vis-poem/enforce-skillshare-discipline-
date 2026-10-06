@@ -19,7 +19,7 @@ import (
 	"skillshare/internal/ui"
 )
 
-const mcpServeUsage = "skillshare mcp serve [--target <name>] [--http <addr> | --check] [-g|-p]"
+const mcpServeUsage = "skillshare mcp serve [--target <name>] [--http <addr> [--tls-cert <file> --tls-key <file>] | --check] [-g|-p]"
 
 // mcpServeTokenEnv holds the bearer token HTTP clients must send.
 const mcpServeTokenEnv = "SKILLSHARE_MCP_TOKEN"
@@ -27,32 +27,35 @@ const mcpServeTokenEnv = "SKILLSHARE_MCP_TOKEN"
 // cmdMCPServe serves the managed skills over MCP (SEP-2640). It never writes:
 // stdout carries the protocol, so diagnostics go to stderr.
 func cmdMCPServe(args []string) error {
-	mode, rest, err := parseModeArgs(args, "--target", "--http")
+	mode, rest, err := parseModeArgs(args, "--target", "--http", "--tls-cert", "--tls-key")
 	if err != nil {
 		return err
 	}
-	var target, addr string
+	values := map[string]string{}
 	check := false
 	for i := 0; i < len(rest); i++ {
 		switch a := rest[i]; a {
 		case "--check":
 			check = true
-		case "--target", "--http":
+		case "--target", "--http", "--tls-cert", "--tls-key":
 			if i+1 == len(rest) {
 				return fmt.Errorf("%s requires a value", a)
 			}
 			i++
-			if a == "--target" {
-				target = rest[i]
-			} else {
-				addr = rest[i]
-			}
+			values[a] = rest[i]
 		default:
 			return fmt.Errorf("unknown mcp serve argument %q; usage: %s", a, mcpServeUsage)
 		}
 	}
+	target, addr, certFile, keyFile := values["--target"], values["--http"], values["--tls-cert"], values["--tls-key"]
 	if check && addr != "" {
 		return fmt.Errorf("--check starts no server; drop --http")
+	}
+	if (certFile == "") != (keyFile == "") {
+		return fmt.Errorf("--tls-cert and --tls-key go together")
+	}
+	if certFile != "" && addr == "" {
+		return fmt.Errorf("--tls-cert and --tls-key need --http")
 	}
 
 	// A gateway chooses the working directory, so only -p selects project mode.
@@ -90,9 +93,15 @@ func cmdMCPServe(args []string) error {
 		return printMCPServeCheck(b)
 	}
 
+	// Off loopback, the token must exist and must not cross the network in plain text.
 	token := os.Getenv(mcpServeTokenEnv)
-	if addr != "" && token == "" && !isLoopbackAddr(addr) {
-		return fmt.Errorf("refusing to serve on %s without authentication: set %s, or bind a loopback address such as 127.0.0.1:8765", addr, mcpServeTokenEnv)
+	if addr != "" && !isLoopbackAddr(addr) {
+		if token == "" {
+			return fmt.Errorf("refusing to serve on %s without authentication: set %s, or bind a loopback address such as 127.0.0.1:8765", addr, mcpServeTokenEnv)
+		}
+		if certFile == "" {
+			return fmt.Errorf("refusing to send %s over plain HTTP on %s: pass --tls-cert and --tls-key, or bind a loopback address behind a TLS proxy", mcpServeTokenEnv, addr)
+		}
 	}
 
 	srv, err := skillserve.NewServer(b, skillserve.Options{Version: version, Warn: os.Stderr, Refresh: 5 * time.Second})
@@ -118,8 +127,14 @@ func cmdMCPServe(args []string) error {
 		<-ctx.Done()
 		httpSrv.Close()
 	}()
-	fmt.Fprintf(os.Stderr, "Serving skills over MCP at http://%s/\n", ln.Addr())
-	if err := httpSrv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+	if certFile == "" {
+		fmt.Fprintf(os.Stderr, "Serving skills over MCP at http://%s/\n", ln.Addr())
+		err = httpSrv.Serve(ln)
+	} else {
+		fmt.Fprintf(os.Stderr, "Serving skills over MCP at https://%s/\n", ln.Addr())
+		err = httpSrv.ServeTLS(ln, certFile, keyFile)
+	}
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

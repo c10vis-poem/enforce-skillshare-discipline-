@@ -14,6 +14,7 @@ Validates the read-only SEP-2640 skills server over stdio and Streamable HTTP.
 - `resources/read` returns a listed file and rejects a URI that escapes the skill
 - Over HTTP: bearer token required, a newly added skill appears without a restart
 - A non-loopback `--http` address without `SKILLSHARE_MCP_TOKEN` is refused
+- A non-loopback `--http` address with a token but no `--tls-cert`/`--tls-key` is refused
 
 ## Environment
 
@@ -171,6 +172,18 @@ ss mcp serve -g --http 0.0.0.0:47942
 Expected:
 - exit_code: 1
 - SKILLSHARE_MCP_TOKEN
+
+### Step 8: A network listener without TLS is refused
+
+```bash
+cd "$HOME"
+export SKILLSHARE_CONFIG="$HOME/mcp-serve/config.yaml"
+SKILLSHARE_MCP_TOKEN=change-me ss mcp serve -g --http 0.0.0.0:47943
+```
+
+Expected:
+- exit_code: 1
+- --tls-cert
 
 ## Pass Criteria
 

@@ -5,12 +5,20 @@ package integration
 import (
 	"bufio"
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"skillshare/internal/testutil"
 )
@@ -92,6 +100,77 @@ func TestMCPServe_RefusesUnauthenticatedNetworkListener(t *testing.T) {
 
 	r.AssertFailure(t)
 	r.AssertAnyOutputContains(t, "SKILLSHARE_MCP_TOKEN")
+}
+
+// A token sent over plain HTTP off loopback can be read by anyone on the path.
+func TestMCPServe_RefusesPlainHTTPNetworkListener(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+
+	r := sb.RunCLIEnv(map[string]string{"SKILLSHARE_MCP_TOKEN": "secret"}, "mcp", "serve", "--http", "0.0.0.0:0")
+
+	r.AssertFailure(t)
+	r.AssertAnyOutputContains(t, "--tls-cert")
+}
+
+func TestMCPServe_RequiresBothTLSFiles(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+
+	r := sb.RunCLI("mcp", "serve", "--http", "127.0.0.1:0", "--tls-cert", "cert.pem")
+
+	r.AssertFailure(t)
+	r.AssertAnyOutputContains(t, "--tls-cert and --tls-key go together")
+}
+
+func TestMCPServe_ServesHTTPSOffLoopbackWithTokenAndCertificate(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+	certFile, keyFile := writeSelfSignedCert(t)
+
+	cmd := exec.Command(sb.BinaryPath, "mcp", "serve", "--http", "0.0.0.0:0", "--tls-cert", certFile, "--tls-key", keyFile)
+	cmd.Env = append(os.Environ(), "HOME="+sb.Home, "SKILLSHARE_CONFIG="+sb.ConfigPath, "SKILLSHARE_MCP_TOKEN=secret")
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+	line, _ := bufio.NewReader(stderr).ReadString('\n')
+	if !strings.Contains(line, "https://") {
+		t.Errorf("first stderr line = %q, want the https:// address", line)
+	}
+}
+
+func writeSelfSignedCert(t *testing.T) (string, string) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "test"}, NotBefore: time.Now(), NotAfter: time.Now().Add(time.Hour)}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	certFile, keyFile := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
+	if err := os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return certFile, keyFile
 }
 
 func TestMCPServe_RejectsUnknownTarget(t *testing.T) {
