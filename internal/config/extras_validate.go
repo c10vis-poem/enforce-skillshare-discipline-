@@ -32,9 +32,16 @@ func ValidateExtraName(name string) error {
 }
 
 // ExtraSyncModes is the authoritative list of valid extras sync modes. It is
-// its own list (not ValidSyncModes) because "import" is valid only for
-// single-file extras and must never be accepted for skills.
-var ExtraSyncModes = []string{"merge", "symlink", "copy", "import"}
+// its own list (not ValidSyncModes) because the managed modes are valid only
+// for single-file extras and must never be accepted for skills.
+var ExtraSyncModes = []string{"merge", "symlink", "copy", "import", "prepend", "append"}
+
+// ManagedExtraMode reports a mode that keeps a managed part of the target
+// file (an @path line or a content block) instead of owning the whole file.
+// Several managed targets can share one file.
+func ManagedExtraMode(mode string) bool {
+	return mode == "import" || mode == "prepend" || mode == "append"
+}
 
 // ValidateExtraMode checks that mode is a valid sync mode.
 // Empty string is allowed (defaults to "merge" at runtime).
@@ -43,7 +50,7 @@ func ValidateExtraMode(mode string) error {
 		return nil
 	}
 	if !slices.Contains(ExtraSyncModes, mode) {
-		return fmt.Errorf("invalid mode %q: must be merge, copy, symlink, or import", mode)
+		return fmt.Errorf("invalid mode %q: must be merge, copy, symlink, import, prepend, or append", mode)
 	}
 	return nil
 }
@@ -99,8 +106,8 @@ func validateExtraTarget(file string, t ExtraTargetConfig) error {
 		if t.As != "" {
 			return fmt.Errorf("as requires file")
 		}
-		if t.Mode == "import" {
-			return fmt.Errorf("import mode requires file")
+		if ManagedExtraMode(t.Mode) {
+			return fmt.Errorf("%s mode requires file", t.Mode)
 		}
 		return nil
 	}

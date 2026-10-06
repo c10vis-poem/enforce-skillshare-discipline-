@@ -137,6 +137,41 @@ func TestExtrasFile_ImportIdempotentAndRemoveKeepsOthers(t *testing.T) {
 	}
 }
 
+// prepend writes the source content itself into a managed block, so a tool
+// that does not read @ imports still gets the shared file next to its own.
+func TestExtrasFile_PrependBlockThenRemoveKeepsOwnContent(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.CreateSkill("placeholder", map[string]string{"SKILL.md": "# P"})
+	src := setupSingleFileExtra(t, sb, "instructions", "AGENTS.md", "# shared\nrule\n")
+	cursorDir := filepath.Join(sb.Home, ".cursor")
+	rules := filepath.Join(cursorDir, ".cursorrules")
+	sb.WriteFile(rules, "# My notes\n")
+	sb.WriteConfig(singleFileConfig(sb, `  - name: instructions
+    file: AGENTS.md
+    targets:
+      - path: `+cursorDir+`
+        mode: prepend
+        as: .cursorrules
+`))
+
+	sb.RunCLI("sync", "extras").AssertSuccess(t)
+	sb.RunCLI("sync", "extras").AssertSuccess(t)
+
+	got := sb.ReadFile(rules)
+	if !strings.HasPrefix(got, `<!-- skillshare:extra src="`+filepath.ToSlash(src)+`" sha256=`) || !strings.HasSuffix(got, "\n<!-- /skillshare:extra -->\n\n# My notes\n") || strings.Count(got, "# shared\nrule\n") != 1 {
+		t.Fatalf(".cursorrules =\n%s", got)
+	}
+	if got := extrasListStatuses(t, sb)["instructions"]; got != "synced" {
+		t.Errorf("list status = %q, want synced", got)
+	}
+
+	sb.RunCLI("extras", "remove", "instructions", "--force").AssertSuccess(t)
+	if got := sb.ReadFile(rules); got != "# My notes\n" {
+		t.Fatalf("after remove .cursorrules = %q, want only the user's notes", got)
+	}
+}
+
 func TestExtrasFile_BackupThenReplaceAndRestore(t *testing.T) {
 	for _, prior := range []bool{true, false} {
 		name := "without prior file"

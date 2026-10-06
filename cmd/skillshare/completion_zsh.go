@@ -662,7 +662,7 @@ _skillshare() {
                             init)
                                 extras_sub_flags=(
                                     '--target[Target directory]:path:_files -/'
-                                    '--mode[Sync mode]:mode:(merge copy symlink import)'
+                                    '--mode[Sync mode]:mode:(merge copy symlink import prepend append)'
                                     '--source[Custom source directory]:path:_files -/'
                                     '--file[Single-file extra]:file:_files'
                                     '--as[Target filename]:filename:'
@@ -695,7 +695,7 @@ _skillshare() {
                                 ;;
                             *)
                                 extras_sub_flags=(
-                                    '--mode[Change sync mode]:mode:(merge copy symlink import)'
+                                    '--mode[Change sync mode]:mode:(merge copy symlink import prepend append)'
                                     '--target[Target for --mode]:path:_files -/'
                                     '--flatten[Enable flatten]'
                                     '--no-flatten[Disable flatten]'

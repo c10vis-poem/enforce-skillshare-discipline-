@@ -420,7 +420,7 @@ complete -c skillshare -n '__fish_skillshare_using_subcommand extras memory; and
 
 # extras subcommands and extras <name>
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l target -r -F -d 'Target directory'
-complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l mode -r -a 'merge copy symlink import' -d 'Sync mode'
+complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l mode -r -a 'merge copy symlink import prepend append' -d 'Sync mode'
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l source -r -F -d 'Custom source directory'
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l file -r -F -d 'Single-file extra'
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras init' -l as -r -d 'Target filename'
@@ -433,7 +433,7 @@ complete -c skillshare -n '__fish_skillshare_using_subcommand extras remove' -l 
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras collect' -l from -r -F -d 'Target directory to collect from'
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras collect' -l dry-run -d 'Preview changes'
 complete -c skillshare -n '__fish_skillshare_using_subcommand extras collect' -l force -s f -d 'Overwrite existing files'
-complete -c skillshare -n '__fish_skillshare_using_command extras; and not __fish_seen_subcommand_from init list remove collect source memory' -l mode -r -a 'merge copy symlink import' -d 'Change sync mode'
+complete -c skillshare -n '__fish_skillshare_using_command extras; and not __fish_seen_subcommand_from init list remove collect source memory' -l mode -r -a 'merge copy symlink import prepend append' -d 'Change sync mode'
 complete -c skillshare -n '__fish_skillshare_using_command extras; and not __fish_seen_subcommand_from init list remove collect source memory' -l target -r -F -d 'Target for --mode'
 complete -c skillshare -n '__fish_skillshare_using_command extras; and not __fish_seen_subcommand_from init list remove collect source memory' -l flatten -d 'Enable flatten'
 complete -c skillshare -n '__fish_skillshare_using_command extras; and not __fish_seen_subcommand_from init list remove collect source memory' -l no-flatten -d 'Disable flatten'

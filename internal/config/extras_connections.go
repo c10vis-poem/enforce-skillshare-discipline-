@@ -48,7 +48,7 @@ func ValidateExtraConnections(extras []ExtraConfig, sourceDir func(ExtraConfig) 
 				dir = real
 			}
 			file := filepath.Clean(filepath.Join(dir, as))
-			if old, ok := owners[file]; ok && old.name != extra.Name && (old.mode != "import" || target.Mode != "import") {
+			if old, ok := owners[file]; ok && old.name != extra.Name && (!ManagedExtraMode(old.mode) || !ManagedExtraMode(target.Mode)) {
 				name := old.name
 				if len(focus) > 0 && name == focus[0] {
 					name = extra.Name
@@ -162,7 +162,7 @@ func usesSingleFileSettings(extra ExtraConfig) bool {
 		return true
 	}
 	for _, target := range extra.Targets {
-		if target.As != "" || target.Mode == "import" {
+		if target.As != "" || ManagedExtraMode(target.Mode) {
 			return true
 		}
 	}

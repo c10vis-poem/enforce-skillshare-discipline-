@@ -846,7 +846,7 @@ func (s *Server) handleExtrasMode(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusBadRequest, err.Error())
 					return
 				}
-				if extra.File != "" || newMode == "import" {
+				if extra.File != "" || config.ManagedExtraMode(newMode) {
 					changed := config.ExtraTargetConfig{Path: t.Path, Mode: newMode, Flatten: newFlatten, Extension: newExtension, As: t.As}
 					if err := config.ValidateExtraConfig(config.ExtraConfig{Name: extra.Name, File: extra.File, Targets: []config.ExtraTargetConfig{changed}}); err != nil {
 						writeError(w, http.StatusBadRequest, err.Error())

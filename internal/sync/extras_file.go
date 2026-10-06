@@ -34,7 +34,7 @@ func (r *ExtraResult) addFileWarning(code, message string, params map[string]str
 type ExtraFile struct {
 	Source string // absolute path of <source dir>/<file>
 	Target string // <target path>/<as or file>
-	Mode   string // merge (default), symlink, copy, or import
+	Mode   string // merge (default), symlink, copy, import, prepend, or append
 
 	projectRoot  string
 	linkFallback bool // Mode is copy because file links are unavailable
@@ -100,6 +100,8 @@ func SyncExtraFile(f ExtraFile, dryRun bool, projectRoot string) (*ExtraResult, 
 	switch f.Mode {
 	case "import":
 		return syncExtraImport(f, dryRun)
+	case "prepend", "append":
+		return syncExtraBlock(f, dryRun)
 	case "merge", "symlink", "copy":
 		result, err := syncExtraFileReplace(f, dryRun, projectRoot)
 		if err == nil && f.linkFallback {
@@ -591,6 +593,9 @@ func ExtraFileStatus(f ExtraFile) string {
 		}
 		return "drift"
 	}
+	if isContentBlockMode(f.Mode) {
+		return extraBlockStatus(f)
+	}
 	info, err := os.Lstat(f.Target)
 	if err != nil {
 		return "drift"
@@ -627,6 +632,9 @@ func ExtraFileStatus(f ExtraFile) string {
 func RestoreExtraTarget(f ExtraFile) (bool, error) {
 	if f.Mode == "import" {
 		return restoreExtraImport(f)
+	}
+	if isContentBlockMode(f.Mode) {
+		return restoreExtraBlock(f)
 	}
 
 	info, err := os.Lstat(f.Target)
@@ -715,6 +723,9 @@ func restoreExtraImport(f ExtraFile) (bool, error) {
 // content: it becomes the source (the old source is backed up), then the
 // target is linked again. In copy mode the target stays a copy.
 func CollectBackExtraFile(f ExtraFile, projectRoot string) error {
+	if isContentBlockMode(f.Mode) {
+		return collectExtraBlock(f)
+	}
 	info, err := os.Lstat(f.Target)
 	if err != nil {
 		return fmt.Errorf("failed to inspect target: %w", err)
@@ -748,6 +759,9 @@ func CollectBackExtraFile(f ExtraFile, projectRoot string) error {
 // ReapplyExtraFile resolves a "modified" target by keeping the source: the
 // target file is backed up and replaced by the source again.
 func ReapplyExtraFile(f ExtraFile, projectRoot string) error {
+	if isContentBlockMode(f.Mode) {
+		return reapplyExtraBlock(f)
+	}
 	return replaceDriftedTarget(f, projectRoot)
 }
 

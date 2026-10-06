@@ -154,8 +154,8 @@ func validateExtrasInit(o extrasInitOptions) error {
 		if o.file == "" && t.as != "" {
 			return fmt.Errorf("--as requires --file")
 		}
-		if o.file == "" && t.mode == "import" {
-			return fmt.Errorf("import mode requires a single-file extra: add --file <filename>")
+		if o.file == "" && config.ManagedExtraMode(t.mode) {
+			return fmt.Errorf("%s mode requires a single-file extra: add --file <filename>", t.mode)
 		}
 	}
 	return config.ValidateExtraConfig(o.extra())

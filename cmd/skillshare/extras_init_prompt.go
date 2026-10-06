@@ -15,7 +15,7 @@ var syncModes = config.ValidSyncModes // folder extras; import needs a single fi
 
 // singleFileSyncModes are offered for a single-file extra. symlink is left out:
 // for one file it does the same as merge.
-var singleFileSyncModes = []string{"merge", "copy", "import"}
+var singleFileSyncModes = []string{"merge", "copy", "import", "prepend", "append"}
 
 type extrasInitTarget struct {
 	path    string
@@ -180,6 +180,10 @@ func extrasModeDesc(mode string, singleFile bool) string {
 		return "file copy"
 	case mode == "import":
 		return "@path line in the target file"
+	case mode == "prepend":
+		return "content block at the top of the target file"
+	case mode == "append":
+		return "content block at the end of the target file"
 	case mode == "merge":
 		return "per-file symlinks, default"
 	case mode == "copy":

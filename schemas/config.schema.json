@@ -505,8 +505,8 @@
         },
         "mode": {
           "type": "string",
-          "description": "Sync mode for this extra target. Defaults to merge. import (single-file extras only) keeps an @<source file> line in a managed block of the target file.",
-          "enum": ["merge", "symlink", "copy", "import"],
+          "description": "Sync mode for this extra target. Defaults to merge. import (single-file extras only) keeps an @<source file> line in a managed block of the target file; prepend and append (single-file extras only) keep the source's content in a managed block at the top or end of the target file, for tools that do not read @ imports.",
+          "enum": ["merge", "symlink", "copy", "import", "prepend", "append"],
           "default": "merge"
         },
         "as": {

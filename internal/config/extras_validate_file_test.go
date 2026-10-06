@@ -19,6 +19,8 @@ func TestValidateExtraConfig_SingleFile(t *testing.T) {
 		{"as with separator", ExtraConfig{Name: "i", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", As: "../CLAUDE.md"}}}, "plain filename"},
 		{"as without file", ExtraConfig{Name: "i", Targets: []ExtraTargetConfig{{Path: "/t", As: "CLAUDE.md"}}}, "requires file"},
 		{"import without file", ExtraConfig{Name: "i", Targets: []ExtraTargetConfig{{Path: "/t", Mode: "import"}}}, "requires file"},
+		{"file prepend", ExtraConfig{Name: "i", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", Mode: "prepend", As: ".cursorrules"}}}, ""},
+		{"append without file", ExtraConfig{Name: "i", Targets: []ExtraTargetConfig{{Path: "/t", Mode: "append"}}}, "append mode requires file"},
 		{"flatten with file", ExtraConfig{Name: "i", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", Flatten: true}}}, "flatten"},
 		{"extension with import", ExtraConfig{Name: "i", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", Mode: "import", Extension: "x"}}}, "extension"},
 		{"extension with single-file copy", ExtraConfig{Name: "i", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", Mode: "copy", Extension: "x"}}}, "extension cannot be used with a single-file extra"},
@@ -38,6 +40,28 @@ func TestValidateExtraConfig_SingleFile(t *testing.T) {
 				t.Fatalf("error = %v, want containing %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// Managed modes (import, prepend, append) may share one target file; a mode
+// that owns the whole file may not share it with anything.
+func TestValidateExtraConnections_ManagedModesShareAFile(t *testing.T) {
+	sourceDir := func(e ExtraConfig) string { return "/src/" + e.Name }
+	targetDir := func(p string) string { return p }
+	share := func(modeA, modeB string) error {
+		return ValidateExtraConnections([]ExtraConfig{
+			{Name: "a", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: "/t", As: "CLAUDE.md", Mode: modeA}}},
+			{Name: "b", File: "TEAM.md", Targets: []ExtraTargetConfig{{Path: "/t", As: "CLAUDE.md", Mode: modeB}}},
+		}, sourceDir, targetDir)
+	}
+	if err := share("prepend", "import"); err != nil {
+		t.Errorf("prepend + import: %v", err)
+	}
+	if err := share("prepend", "append"); err != nil {
+		t.Errorf("prepend + append: %v", err)
+	}
+	if err := share("prepend", "copy"); err == nil {
+		t.Error("prepend + copy should conflict: copy owns the whole file")
 	}
 }
 

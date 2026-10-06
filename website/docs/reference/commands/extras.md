@@ -141,7 +141,7 @@ The wizard asks **What do you want to sync?** after the name: **Folder** or **Si
 | `--target <path>` | Target directory path (repeatable) |
 | `--file <filename>` | Sync only this file from the source directory, making a [single-file extra](#single-file-extras). A plain file name, without `/` or `\` |
 | `--as <filename>` | File name to write at every target (default: the `--file` name). Requires `--file` |
-| `--mode <mode>` | Sync mode: `merge` (default), `copy`, or `symlink`; `import` only with `--file` |
+| `--mode <mode>` | Sync mode: `merge` (default), `copy`, or `symlink`; `import`, `prepend` and `append` only with `--file` |
 | `--flatten` | Sync files from subdirectories directly into the target root (cannot be used with `symlink` mode or `--file`) |
 | `--source <path>` | Custom source directory for this extra (overrides `extras_source` and default; relative to the project root in project mode) |
 | `--force` | Overwrite if extra already exists |
@@ -276,7 +276,7 @@ skillshare extras <name> --help
 
 | Flag | Description |
 |------|-------------|
-| `--mode <mode>` | New sync mode: `merge`, `copy`, or `symlink`; `import` only for [single-file extras](#single-file-extras) |
+| `--mode <mode>` | New sync mode: `merge`, `copy`, or `symlink`; `import`, `prepend` and `append` only for [single-file extras](#single-file-extras) |
 | `--flatten` | Enable flatten (sync subdirectory files into target root) |
 | `--no-flatten` | Disable flatten |
 | `--add-target <path>` | Add a new target to the extra |
@@ -365,6 +365,7 @@ skillshare extras collect rules --force
 | `copy` | Per-file copies |
 | `symlink` | Entire directory symlink |
 | `import` | [Single-file extras](#single-file-extras) only: an `@<source file>` line in the target file |
+| `prepend` / `append` | [Single-file extras](#single-file-extras) only: the source's content in a managed block at the top or end of the target file |
 
 On Windows without Developer Mode, `merge` copies each file instead of linking it, and `sync` prints `file links need Windows Developer Mode; copying instead`. `extras list` and `status` then show the target as `copy`. The copies are tracked, so later syncs update and prune them, keep your own files, and replace them with links once file links work. See [Windows troubleshooting](/docs/troubleshooting/windows#file-links-need-windows-developer-mode-copying-instead).
 
@@ -597,16 +598,25 @@ extras:
 | `merge` (default) or `symlink` | A symlink to the source file (a copy on Windows without Developer Mode) |
 | `copy` | A copy of the source file |
 | `import` | Your file, with an `@<source file>` line in a managed block at the top |
+| `prepend` / `append` | Your file, with the source's content in a managed block at the top or end |
 
 `import` keeps the `@` line between `<!-- skillshare:instructions:begin -->` and
 `<!-- skillshare:instructions:end -->` and never changes the rest of the file. Use it
 only for tools that follow `@` imports, such as Claude Code.
 
+`prepend` and `append` are for tools that do not: the source's content is written
+between `<!-- skillshare:extra src="<source file>" sha256=… -->` and
+`<!-- /skillshare:extra -->`, and the rest of the file is never changed. When the
+source changes, the next sync replaces the block in place. The hash records what
+skillshare wrote: a block edited by hand is not synced, and `extras list` shows the
+target as `modified` until the edit is copied back to the source or the block is
+removed. Several shared files can share one target this way, each in its own block.
+
 Rules:
 
-- A target file in link or `copy` mode can belong to only one shared file. It cannot also import another shared file.
+- A target file in link or `copy` mode can belong to only one shared file. It cannot also hold another shared file's `import` line or block.
 - `file` and `as` must be plain file names, without `/` or `\`.
-- `as` and `import` require `file`. `flatten` and `extension` can't be used with a
+- `as`, `import`, `prepend` and `append` require `file`. `flatten` and `extension` can't be used with a
   single-file extra.
 - When a target already has a different regular file or a symlink, sync saves it
   and replaces it without `--force`. A directory in the way is skipped.
@@ -619,7 +629,7 @@ Rules:
   the pre-attach content is used. The import block is added, and an edited copy is
   kept as a drift backup first.
 - `extras remove` and `--remove-target --prune` restore each target file: the link,
-  copy or import line goes, and the file or symlink that was there before the first
+  copy, import line or block goes, and the file or symlink that was there before the first
   sync comes back (or no file, if there was none). A `modified` target is kept as a
   drift backup first. `--remove-target` without `--prune` leaves the single-file target in place and
   unmanaged, and forgets its restore point. Later syncs do not clean it up; attaching it again
@@ -631,7 +641,7 @@ Rules:
 In the dashboard, single-file extras whose `file` is `AGENTS.md` appear on the
 **AGENTS.md** tab; all other single-file extras appear on **Folders & files**. There,
 **Add extra** offers **Folder** or **Single file**, each target has a **File name**,
-and a single file can use `merge`, `copy` or `import`. A single file's **Name**
+and a single file can use `merge`, `copy`, `import`, `prepend` or `append`. A single file's **Name**
 follows its file name without the extension (`APPEND_SYSTEM.md` gives
 `APPEND_SYSTEM`) until you type one. The dashboard does not edit
 the file's content; edit the source file directly.

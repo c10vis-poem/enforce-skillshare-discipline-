@@ -161,7 +161,7 @@ func cmdExtrasMode(args []string) error {
 			return err
 		}
 	}
-	if _, updated := findExtraByName(extras, name); updated.File != "" || syncMode == "import" {
+	if _, updated := findExtraByName(extras, name); updated.File != "" || config.ManagedExtraMode(syncMode) {
 		if err := config.ValidateExtraConfig(updated); err != nil {
 			return err
 		}
