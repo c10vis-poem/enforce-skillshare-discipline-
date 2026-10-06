@@ -75,11 +75,10 @@ func cmdDiffProject(root, targetName string, kind resourceKindFilter, opts diffR
 		if !sc.IsEnabled() {
 			continue
 		}
-		filtered, err := sync.FilterSkills(discovered, sc.Include, sc.Exclude)
+		filtered, err := sync.SelectTargetSkills(discovered, entry.Name, sc)
 		if err != nil {
 			return fmt.Errorf("target %s has invalid include/exclude config: %w", entry.Name, err)
 		}
-		filtered = sync.FilterSkillsByTarget(filtered, entry.Name)
 		mode := sc.Mode
 		if mode == "" {
 			mode = "merge"

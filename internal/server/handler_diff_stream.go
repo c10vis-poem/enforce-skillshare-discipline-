@@ -98,11 +98,10 @@ func (s *Server) computeTargetDiff(name string, target config.TargetConfig, disc
 		return dt
 	}
 
-	filtered, err := ssync.FilterSkills(discovered, sc.Include, sc.Exclude)
+	filtered, err := ssync.SelectTargetSkills(discovered, name, sc)
 	if err != nil {
 		return dt
 	}
-	filtered = ssync.FilterSkillsByTarget(filtered, name)
 	resolution, err := ssync.ResolveTargetSkillsForTarget(name, config.ResourceTargetConfig{
 		Path:         sc.Path,
 		TargetNaming: sc.TargetNaming,

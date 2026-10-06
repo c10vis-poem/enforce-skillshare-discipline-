@@ -139,12 +139,11 @@ func (s *Server) handleListTargets(w http.ResponseWriter, r *http.Request) {
 			item.SkillsReadFrom = config.SkillsReadFrom(targets, name, projectRoot)
 		case mode == "merge" || mode == "copy":
 			if discoveredErr == nil {
-				filtered, err := ssync.FilterSkills(discovered, sc.Include, sc.Exclude)
+				filtered, err := ssync.SelectTargetSkills(discovered, name, sc)
 				if err != nil {
 					writeError(w, http.StatusBadRequest, "invalid include/exclude for target "+name+": "+err.Error())
 					return
 				}
-				filtered = ssync.FilterSkillsByTarget(filtered, name)
 				resolution, resErr := ssync.ResolveTargetSkillsForTarget(name, config.ResourceTargetConfig{
 					Path:         sc.Path,
 					TargetNaming: sc.TargetNaming,

@@ -744,13 +744,12 @@ func checkSyncDrift(cfg *config.Config, result *doctorResult, discovered []sync.
 			continue
 		}
 		sc := target.SkillsConfig()
-		filtered, err := sync.FilterSkills(discovered, sc.Include, sc.Exclude)
+		filtered, err := sync.SelectTargetSkills(discovered, name, sc)
 		if err != nil {
 			ui.Row(ui.MarkFail, name, fmt.Sprintf("invalid include/exclude config: %v", err), width)
 			result.addError()
 			continue
 		}
-		filtered = sync.FilterSkillsByTarget(filtered, name)
 		expectedCount := len(filtered)
 		if expectedCount == 0 {
 			continue

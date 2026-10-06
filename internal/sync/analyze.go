@@ -3,7 +3,6 @@ package sync
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"skillshare/internal/config"
@@ -33,12 +32,10 @@ func TargetSkills(name string, target config.TargetConfig, defaultMode, sourcePa
 		return discovered, nil
 	}
 
-	enabled := slices.DeleteFunc(slices.Clone(discovered), func(s DiscoveredSkill) bool { return s.Disabled })
-	skills, err := FilterSkills(enabled, sc.Include, sc.Exclude)
+	skills, err := SelectTargetSkills(discovered, name, sc)
 	if err != nil {
 		return nil, err
 	}
-	skills = FilterSkillsByTarget(skills, name)
 	return append(skills, localTargetSkills(sc.Path, sourcePath)...), nil
 }
 
