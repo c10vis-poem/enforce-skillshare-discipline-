@@ -276,6 +276,82 @@ func TestSyncExtraFile_SwitchingPrependToImportDropsTheBlockAndKeepsAnEdit(t *te
 	}
 }
 
+// A block whose end marker was deleted is damaged: switching to import and
+// detaching must both refuse rather than leave it behind as user content.
+func TestSyncExtraFile_DamagedBlockRefusesImportAndDetach(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	f := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend")
+	if _, err := SyncExtraFile(f, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	damaged := strings.Replace(readFile(t, target), contentBlockEnd+"\n", "", 1)
+	os.WriteFile(target, []byte(damaged), 0644)
+
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "import"), false, ""); err == nil || !strings.Contains(err.Error(), "damaged") {
+		t.Fatalf("switch to import err = %v, want a damaged-block refusal", err)
+	}
+	if _, err := RestoreExtraTarget(f); err == nil || !strings.Contains(err.Error(), "damaged") {
+		t.Fatalf("detach err = %v, want a damaged-block refusal", err)
+	}
+	if got := readFile(t, target); got != damaged {
+		t.Fatalf("a refused change must leave the file alone:\n%s", got)
+	}
+}
+
+// A block that created its file, then had the user's own lines added around
+// it, leaves those lines on detach; the file is the user's from then on, so a
+// later link attach and restore must put it back rather than delete it.
+func TestRestoreExtraTarget_LastBlockLeavingHandsTheFileToTheUser(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	block := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "append")
+	if _, err := SyncExtraFile(block, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(target, []byte("# Mine\n\n"+readFile(t, target)), 0644)
+	if _, err := RestoreExtraTarget(block); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, target); got != "# Mine\n" {
+		t.Fatalf("after detach =\n%s\nwant the user's lines", got)
+	}
+
+	linked := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "symlink")
+	if _, err := SyncExtraFile(linked, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RestoreExtraTarget(linked); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, target); got != "# Mine\n" {
+		t.Fatalf("after link restore =\n%s\nwant the user's file back", got)
+	}
+}
+
+// A source whose fence never closes still gets a block that parses on the next sync.
+func TestSyncExtraFile_SourceWithUnclosedFenceStaysSynced(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "Example:\n\n```sh\necho hi\n")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	f := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend")
+	for i := 0; i < 2; i++ {
+		if _, err := SyncExtraFile(f, false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := ExtraFileStatus(f); got != "synced" {
+		t.Errorf("status = %q, want synced", got)
+	}
+	if _, err := RestoreExtraTarget(f); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, target); got != "# Mine\n" {
+		t.Fatalf("after detach =\n%s\nwant only the user's lines", got)
+	}
+}
+
 func TestSyncExtraFile_ChangingPrependToAppendMovesTheBlock(t *testing.T) {
 	src, tgt := setupExtraFileTest(t, "rule")
 	target := filepath.Join(tgt, "CLAUDE.md")

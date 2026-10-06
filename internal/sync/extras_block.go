@@ -62,6 +62,11 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 				}
 			}
 		}
+		// Inside a fence a marker is text, except the end marker of an open block
+		// when the fence never closes: then the source itself left it open.
+		if fenceLen > 0 && open != nil && line == contentBlockEnd && !fenceCloses(lines[i+1:], fenceChar, fenceLen) {
+			fenceChar, fenceLen = 0, 0
+		}
 		if fenceLen > 0 || indent >= 4 || strings.HasPrefix(raw, "\t") {
 			continue
 		}
@@ -87,6 +92,18 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 		}
 	}
 	return out, open == nil
+}
+
+// fenceCloses reports whether a fence of c repeated at least n times is closed
+// somewhere in lines.
+func fenceCloses(lines []string, c byte, n int) bool {
+	for _, raw := range lines {
+		line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
+		if fc, fn := fenceRun(line); fc == c && fn >= n && strings.TrimLeft(line, string(c)) == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // fenceRun returns the fence character and run length a line starts with.
@@ -389,7 +406,10 @@ func restoreExtraBlock(f ExtraFile) (bool, error) {
 		return false, fmt.Errorf("failed to read target: %w", err)
 	}
 	found, err := f.findContentBlock(strings.Split(string(data), "\n"))
-	if err != nil || found == nil {
+	if err != nil {
+		return false, err // a damaged block stays configured until it is repaired, so it can still be removed
+	}
+	if found == nil {
 		return false, nil
 	}
 	// A hand-edited block is kept as a drift backup, as an edited copy or link would be.
@@ -411,6 +431,12 @@ func restoreExtraBlock(f ExtraFile) (bool, error) {
 	}
 	if err := os.WriteFile(f.Target, []byte(updated), info.Mode().Perm()); err != nil {
 		return false, fmt.Errorf("failed to write target: %w", err)
+	}
+	// What is left is the user's own file once no managed part remains; a
+	// later attach must take its restore point from that, not from this one.
+	blocks, _ := parseContentBlocks(strings.Split(updated, "\n"))
+	if _, imports := splitImportBlock(updated); len(blocks) == 0 && len(imports) == 0 {
+		clearExtraAttach(f.Target)
 	}
 	return true, nil
 }

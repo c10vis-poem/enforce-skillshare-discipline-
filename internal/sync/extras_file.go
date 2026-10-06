@@ -368,7 +368,11 @@ func syncExtraImport(f ExtraFile, dryRun bool) (*ExtraResult, error) {
 	exists := ourLink || err == nil
 	// This extra's content block is left over from prepend or append mode; the
 	// import line takes its place. A hand-edited block is kept as a drift backup.
-	if block, findErr := f.findContentBlock(strings.Split(string(data), "\n")); findErr == nil && block != nil {
+	block, err := f.findContentBlock(strings.Split(string(data), "\n"))
+	if err != nil {
+		return nil, err // a damaged block must be repaired first, or the import line would double it
+	}
+	if block != nil {
 		if contentBlockHash(block.body) != block.hash && !dryRun {
 			if err := backupExtraDrift(f.Target, DriftReasonMode); err != nil {
 				return nil, err
