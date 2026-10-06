@@ -214,6 +214,9 @@ func TestHandleUninstallRepo_DirtyRepoNeedsForce(t *testing.T) {
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("expected 409 for a dirty repo, got %d: %s", rr.Code, rr.Body.String())
 	}
+	if !strings.Contains(rr.Body.String(), `"error_code":"repo_dirty"`) {
+		t.Fatalf("the dashboard tells a dirty repo by its code, got %s", rr.Body.String())
+	}
 	if _, err := os.Stat(repoDir); err != nil {
 		t.Fatalf("dirty repo must stay in place: %v", err)
 	}
@@ -230,8 +233,9 @@ func TestHandleUninstallRepo_GitStatusErrorNeedsForce(t *testing.T) {
 	s, src := newTestServer(t)
 	repoDir := addTrackedRepoWithBrokenIndex(t, src, "_team")
 
-	if rr := deleteRepo(t, s, "_team", ""); rr.Code != http.StatusConflict {
-		t.Fatalf("expected 409 when git status fails, got %d: %s", rr.Code, rr.Body.String())
+	rr := deleteRepo(t, s, "_team", "")
+	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), `"error_code":"repo_status_failed"`) {
+		t.Fatalf("expected 409 repo_status_failed when git status fails, got %d: %s", rr.Code, rr.Body.String())
 	}
 	if _, err := os.Stat(repoDir); err != nil {
 		t.Fatalf("repo must stay in place: %v", err)
@@ -258,6 +262,9 @@ func TestHandleUninstallRepo_FollowedLinkRootSkillRefused(t *testing.T) {
 
 	rr := deleteRepo(t, s, "_dev", "?force=true")
 
+	if !strings.Contains(rr.Body.String(), `"error_code":"conflict"`) {
+		t.Fatalf("force cannot override a linked skill root, so it gets no force code: %s", rr.Body.String())
+	}
 	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "use unlink to remove the link") {
 		t.Fatalf("expected 409 pointing at unlink, got %d: %s", rr.Code, rr.Body.String())
 	}

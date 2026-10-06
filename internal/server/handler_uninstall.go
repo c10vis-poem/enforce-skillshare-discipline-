@@ -272,6 +272,19 @@ func uninstallErrorStatus(err error) int {
 	return http.StatusConflict
 }
 
+// uninstallForceCode names the refusals force overrides, so the dashboard
+// offers the override for these and nothing else; "" for any other error.
+func uninstallForceCode(err error) string {
+	var statusErr *uninstall.StatusError
+	switch {
+	case errors.Is(err, uninstall.ErrDirty):
+		return "repo_dirty"
+	case errors.As(err, &statusErr):
+		return "repo_status_failed"
+	}
+	return ""
+}
+
 // uninstallErrorMessage words a failed result for the dashboard.
 func uninstallErrorMessage(r uninstall.Result) string {
 	var trashErr *uninstall.TrashError

@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} Skills",
   "dashboard.trackedRepos.title": "Getrackte Repositories",
   "dashboard.trackedRepos.uninstall": "Deinstallieren",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" hat nicht committete Änderungen. Beim Deinstallieren werden sie mit dem Repo in den Papierkorb verschoben.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "Der Git-Status von \"{name}\" konnte nicht gelesen werden, es kann also nicht committete Änderungen geben. Beim Deinstallieren wird das Repo unverändert in den Papierkorb verschoben.",
   "dashboard.trackedRepos.uninstallConfirm.message": "Repository \"{name}\" entfernen? Alle Skills im Repo werden in den Papierkorb verschoben.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Repository deinstallieren",
   "dashboard.trackedRepos.update": "Aktualisieren",

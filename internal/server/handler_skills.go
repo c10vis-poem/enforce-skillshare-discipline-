@@ -428,6 +428,10 @@ func (s *Server) handleUninstallRepo(w http.ResponseWriter, r *http.Request) {
 
 	force := r.URL.Query().Get("force") == "true"
 	res := s.uninstallSkills([]uninstall.Item{s.repoUninstallItem(repoName, repoPath)}, force)[0]
+	if code := uninstallForceCode(res.Err); code != "" {
+		writeCodedError(w, http.StatusConflict, code, uninstallErrorMessage(res), nil)
+		return
+	}
 	if res.Err != nil {
 		writeError(w, uninstallErrorStatus(res.Err), uninstallErrorMessage(res))
 		return

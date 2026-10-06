@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} skills",
   "dashboard.trackedRepos.title": "Dépôts suivis",
   "dashboard.trackedRepos.uninstall": "Désinstaller",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "« {name} » contient des modifications non commitées. La désinstallation les déplace dans la corbeille avec le repo.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "Impossible de lire le statut git de \"{name}\" : il contient peut-être des modifications non commitées. La désinstallation déplace le repo tel quel dans la corbeille.",
   "dashboard.trackedRepos.uninstallConfirm.message": "Supprimer le dépôt « {name} » ? Tous les skills du dépôt seront déplacés dans la corbeille.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Désinstaller le dépôt",
   "dashboard.trackedRepos.update": "Mettre à jour",

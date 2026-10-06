@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} 件のスキル",
   "dashboard.trackedRepos.title": "追跡リポジトリ",
   "dashboard.trackedRepos.uninstall": "アンインストール",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "「{name}」にはコミットされていない変更があります。アンインストールすると、変更も repo と一緒にゴミ箱へ移動します。",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "「{name}」の git ステータスを読み取れなかったため、コミットされていない変更がある可能性があります。アンインストールすると、repo はそのままゴミ箱へ移動します。",
   "dashboard.trackedRepos.uninstallConfirm.message": "リポジトリ「{name}」を削除しますか？リポジトリ内のすべてのスキルがゴミ箱に移動されます。",
   "dashboard.trackedRepos.uninstallConfirm.title": "リポジトリをアンインストール",
   "dashboard.trackedRepos.update": "更新",
