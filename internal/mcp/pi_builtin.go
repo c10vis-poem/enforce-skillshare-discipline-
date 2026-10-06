@@ -55,7 +55,7 @@ func validPiExposure(value any) bool {
 	return false
 }
 
-// Known fields follow Pi 1.0.0; unknown per-server fields stay available to custom builds.
+// Known fields follow Pi 1.0.4; unknown per-server fields stay available to custom builds.
 func validatePiBuiltinOptions(name string, options map[string]any) error {
 	if value, ok := options["enabled"]; ok {
 		if _, ok := value.(bool); !ok {
@@ -117,6 +117,24 @@ func validatePiBuiltinOptions(name string, options map[string]any) error {
 			}
 			if port, exists := oauth["callbackPort"]; exists && u.Port() != "" && fmt.Sprint(port) != u.Port() {
 				return bad("oauth.callbackPort")
+			}
+		}
+		if registration, exists := oauth["clientRegistration"]; exists {
+			if registration != "dcr" && registration != "cimd" {
+				return bad("oauth.clientRegistration (dcr or cimd)")
+			}
+			if registration == "cimd" {
+				for _, key := range []string{"clientId", "clientName"} {
+					if _, exists := oauth[key]; exists {
+						return bad("oauth." + key + " (cannot be combined with cimd)")
+					}
+				}
+				if callback, exists := oauth["callbackUrl"].(string); exists {
+					u, _ := url.Parse(callback) // Already validated above.
+					if u.Hostname() == "::1" || u.Path != "/callback" {
+						return bad("oauth.callbackUrl (cimd requires localhost or 127.0.0.1 with path /callback)")
+					}
+				}
 			}
 		}
 		// Pi 1.0 trusts this document instead of discovery, so it requires https except on loopback.

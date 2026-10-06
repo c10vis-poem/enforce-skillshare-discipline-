@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -135,6 +136,38 @@ func TestPiOAuthMetadataURLNeedsHTTPS(t *testing.T) {
 		if (err == nil) != ok {
 			t.Errorf("%s: want accepted=%v, got %v", metadata, ok, err)
 		}
+	}
+}
+
+func TestPiOAuthClientRegistration(t *testing.T) {
+	for _, tc := range []struct {
+		options string
+		valid   bool
+	}{
+		{`{"clientRegistration":"dcr","clientId":"registered"}`, true},
+		{`{"clientRegistration":"cimd"}`, true},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://localhost:8765/callback"}`, true},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://127.0.0.1/callback"}`, true},
+		{`{"clientRegistration":"other"}`, false},
+		{`{"clientRegistration":null}`, false},
+		{`{"clientRegistration":"cimd","clientId":""}`, false},
+		{`{"clientRegistration":"cimd","clientName":"Pi"}`, false},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://[::1]/callback"}`, false},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://localhost/other"}`, false},
+		{`{"clientRegistration":"cimd","callbackUrl":"https://localhost/callback"}`, false},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://example.com/callback"}`, false},
+		{`{"clientRegistration":"cimd","callbackUrl":"http://localhost/callback?x=1"}`, false},
+	} {
+		t.Run(tc.options, func(t *testing.T) {
+			var oauth map[string]any
+			if err := json.Unmarshal([]byte(tc.options), &oauth); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Render("pi", Server{URL: "https://example.com/mcp", PiOptions: PiOptions{"oauth": oauth}})
+			if (err == nil) != tc.valid {
+				t.Fatalf("want accepted=%v, got %v", tc.valid, err)
+			}
+		})
 	}
 }
 
