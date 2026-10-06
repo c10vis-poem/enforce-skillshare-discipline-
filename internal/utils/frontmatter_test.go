@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -305,5 +307,20 @@ enabled: true
 				}
 			}
 		})
+	}
+}
+
+// A newline-heavy body must not cost memory per line: only the frontmatter is kept.
+func TestParseFrontmatterMap_MemoryDoesNotGrowWithBodyLines(t *testing.T) {
+	content := append([]byte("---\nname: a\n---\n"), bytes.Repeat([]byte("\n"), 16<<20)...)
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	if _, err := ParseFrontmatterMap(content); err != nil {
+		t.Fatal(err)
+	}
+	runtime.ReadMemStats(&after)
+	if got := after.TotalAlloc - before.TotalAlloc; got > 1<<20 {
+		t.Errorf("parsing allocated %d bytes, want under 1 MiB", got)
 	}
 }

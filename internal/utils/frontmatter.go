@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -218,16 +217,30 @@ func extractFrontmatterRaw(filePath string) string {
 // The Agent Skills format requires the file to begin with it, closed by a second ---.
 func ParseFrontmatterMap(content []byte) (map[string]any, error) {
 	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
-	lines := strings.Split(string(content), "\n")
-	// Exactly ---: an indented delimiter does not open frontmatter. A CRLF file keeps its \r.
-	if strings.TrimSuffix(lines[0], "\r") != "---" {
+	// Scan line by line up to the closing ---, keeping only offsets, so memory does
+	// not grow with the line count of a large body.
+	start, end := -1, -1
+	pos := 0
+	for line := range bytes.Lines(content) {
+		if start < 0 {
+			// Exactly ---: an indented delimiter does not open frontmatter. CRLF is fine.
+			if string(bytes.TrimRight(line, "\r\n")) != "---" {
+				return nil, fmt.Errorf("no frontmatter at the start")
+			}
+			start = len(line)
+		} else if string(bytes.TrimSpace(line)) == "---" {
+			end = pos
+			break
+		}
+		pos += len(line)
+	}
+	if start < 0 {
 		return nil, fmt.Errorf("no frontmatter at the start")
 	}
-	end := slices.IndexFunc(lines[1:], func(l string) bool { return strings.TrimSpace(l) == "---" })
 	if end < 0 {
 		return nil, fmt.Errorf("unclosed frontmatter: no closing ---")
 	}
-	raw := strings.Join(lines[1:end+1], "\n")
+	raw := string(content[start:end])
 	if strings.TrimSpace(raw) == "" {
 		return nil, fmt.Errorf("no frontmatter")
 	}
