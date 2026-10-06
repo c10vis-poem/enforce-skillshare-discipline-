@@ -81,7 +81,16 @@ func main() {
 
 	// Migrate legacy dirs (backups/trash/logs) to XDG data/state dirs
 	results = append(results, config.MigrateXDGDirs()...)
-	reportMigrationResults(results)
+	// mcp serve speaks the protocol on stdout, so its errors, notices and trailers stay off it.
+	serving := len(os.Args) > 2 && os.Args[1] == "mcp" && os.Args[2] == "serve"
+	if serving {
+		stdout := os.Stdout
+		os.Stdout = os.Stderr
+		reportMigrationResults(results)
+		os.Stdout = stdout
+	} else {
+		reportMigrationResults(results)
+	}
 
 	// Set version for other packages to use
 	versioncheck.Version = version
@@ -124,8 +133,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// mcp serve speaks the protocol on stdout, so its errors and trailers stay off it.
-	serving := cmd == "mcp" && len(args) > 0 && args[0] == "serve"
 	if err := handler(args); err != nil {
 		// jsonSilentError means JSON output was already written to stdout;
 		// exit non-zero without adding plain-text noise.

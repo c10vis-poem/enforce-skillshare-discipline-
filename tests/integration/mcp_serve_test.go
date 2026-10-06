@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -103,6 +104,26 @@ func TestMCPServe_RejectsUnknownTarget(t *testing.T) {
 	// stdout is the protocol stream, so the error goes to stderr alone.
 	r.AssertFailure(t)
 	r.AssertErrorContains(t, `unknown target "nope"`)
+	if r.Stdout != "" {
+		t.Errorf("stdout = %q, want nothing", r.Stdout)
+	}
+}
+
+func TestMCPServe_ReportsLegacyMigrationOnStderr(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+	// A legacy trash folder in the config dir is moved to the data dir by the first command.
+	if err := os.MkdirAll(filepath.Join(sb.Home, ".config", "skillshare", "trash"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(sb.Home, ".local", "share", "skillshare", "trash")); err != nil {
+		t.Fatal(err)
+	}
+
+	r := sb.RunCLI("mcp", "serve", "--target", "nope")
+
+	r.AssertErrorContains(t, "Moved legacy data")
 	if r.Stdout != "" {
 		t.Errorf("stdout = %q, want nothing", r.Stdout)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -214,10 +215,14 @@ func extractFrontmatterRaw(filePath string) string {
 }
 
 // ParseFrontmatterMap returns the complete YAML frontmatter of SKILL.md content.
-// The Agent Skills format requires the file to begin with it.
+// The Agent Skills format requires the file to begin with it, closed by a second ---.
 func ParseFrontmatterMap(content []byte) (map[string]any, error) {
-	if first, _, _ := strings.Cut(string(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))), "\n"); strings.TrimSpace(first) != "---" {
+	lines := strings.Split(string(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))), "\n")
+	if strings.TrimSpace(lines[0]) != "---" {
 		return nil, fmt.Errorf("no frontmatter at the start")
+	}
+	if !slices.ContainsFunc(lines[1:], func(l string) bool { return strings.TrimSpace(l) == "---" }) {
+		return nil, fmt.Errorf("unclosed frontmatter: no closing ---")
 	}
 	raw := extractFrontmatterRawFromBytes(content)
 	if raw == "" {

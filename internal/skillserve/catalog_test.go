@@ -155,13 +155,14 @@ func TestBuild_SkipsSkillWhoseFrontmatterJSONCannotCarry(t *testing.T) {
 func TestBuild_SkipsSkillWhoseFrontmatterIsNotAtTheStart(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "late/SKILL.md"), "# intro\n"+skillMD("late"))
+	writeFile(t, filepath.Join(src, "open/SKILL.md"), "---\nname: open\ndescription: Use when testing open\n# open\n")
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") {
-		t.Errorf("skills=%v warnings=%v, want late skipped", c.Skills, c.Skipped)
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") || !hasWarning(c, "skipped open") {
+		t.Errorf("skills=%v warnings=%v, want late and unclosed open skipped", c.Skills, c.Skipped)
 	}
 }
 
