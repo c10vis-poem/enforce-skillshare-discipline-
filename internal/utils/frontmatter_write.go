@@ -100,41 +100,11 @@ func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte,
 // splitFrontmatterAndBody splits SKILL.md content into raw frontmatter YAML
 // and the remaining body. Returns ("", fullContent) if no frontmatter found.
 func splitFrontmatterAndBody(content string) (string, string) {
-	if !strings.HasPrefix(strings.TrimSpace(content), "---") {
+	block := locateFrontmatter([]byte(content), rewriteBlock)
+	if !block.closed {
 		return "", content
 	}
-
-	lines := strings.Split(content, "\n")
-	inFrontmatter := false
-	fmStart := -1
-	fmEnd := -1
-
-	for i, line := range lines {
-		// Only match "---" at column 0 (with optional trailing whitespace).
-		// TrimRight preserves leading whitespace so indented "---" inside
-		// a YAML block scalar is not mistaken for the frontmatter delimiter.
-		if strings.TrimRight(line, " \t") == "---" {
-			if !inFrontmatter {
-				inFrontmatter = true
-				fmStart = i + 1
-			} else {
-				fmEnd = i
-				break
-			}
-		}
-	}
-
-	if fmEnd < 0 {
-		return "", content
-	}
-
-	fmRaw := strings.Join(lines[fmStart:fmEnd], "\n")
-	body := ""
-	if fmEnd+1 < len(lines) {
-		body = strings.Join(lines[fmEnd+1:], "\n")
-	}
-
-	return fmRaw, body
+	return string(block.joined()), string(block.body)
 }
 
 // ToggleFrontmatterFlag flips a top-level boolean frontmatter key and reports the new state.

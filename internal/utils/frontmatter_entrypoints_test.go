@@ -258,3 +258,44 @@ func TestFrontmatterEntryPoints_CRLFValues(t *testing.T) {
 		t.Errorf("ParseFrontmatterListFromBytes = %q", got)
 	}
 }
+
+// A block scalar on the last frontmatter line: the readers that rebuilt the block from
+// lines dropped its final newline, ParseFrontmatterMap decodes the block as written.
+func TestFrontmatterEntryPoints_BlockScalarOnLastLine(t *testing.T) {
+	content := "---\nname: a\ndescription: |\n  text\n---\nbody\n"
+	path := filepath.Join(t.TempDir(), "SKILL.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := ParseFrontmatterFields(path, []string{"description"})["description"]; got != "text" {
+		t.Errorf("ParseFrontmatterFields = %q, want %q", got, "text")
+	}
+	fm, err := ParseFrontmatterMap([]byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fm["description"]; got != "text\n" {
+		t.Errorf("ParseFrontmatterMap = %q, want %q", got, "text\n")
+	}
+}
+
+// The path readers drop one \r per line before decoding, so \r\r\n is a single line break
+// for them and two for the bytes reader.
+func TestFrontmatterEntryPoints_DoubleCarriageReturn(t *testing.T) {
+	content := "---\r\r\ntargets:\r\r\n  - |\r\r\n    t\r\r\n    u\r\r\n---\r\r\nbody\r\r\n"
+	path := filepath.Join(t.TempDir(), "SKILL.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := ParseFrontmatterList(path, "targets"); len(got) != 1 || got[0] != "t\nu\n" {
+		t.Errorf("ParseFrontmatterList = %q", got)
+	}
+	if got := ParseFrontmatterListFromBytes([]byte(content), "targets"); len(got) != 1 || got[0] != "\nt\n\nu\n" {
+		t.Errorf("ParseFrontmatterListFromBytes = %q", got)
+	}
+	if got := ReadSkillBody(path); got != "body" {
+		t.Errorf("ReadSkillBody = %q", got)
+	}
+}
