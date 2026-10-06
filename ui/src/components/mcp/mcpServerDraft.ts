@@ -38,6 +38,29 @@ export function initialServerDraft(server: MCPServer | undefined, name: string, 
   };
 }
 
+/** How a new server is entered: fields, a pasted configuration, or Skillshare itself (`skillshare mcp serve`). */
+export type AddMode = 'form' | 'paste' | 'serve';
+
+/** The command that serves skills over MCP: every enabled skill, or those of one skills target. */
+export const serveSkillsCommand = (target: string, project: boolean) =>
+  ['skillshare mcp serve', target && `--target ${target}`, project && '-p'].filter(Boolean).join(' ');
+
+/** The skills target a `skillshare mcp serve` command serves ('' for every skill), or undefined for any other command. */
+export function serveSkillsTarget(words: string[]): string | undefined {
+  if (words[0] !== 'skillshare' || words[1] !== 'mcp' || words[2] !== 'serve') return undefined;
+  let target = '';
+  for (let i = 3; i < words.length; i++) {
+    if (words[i] === '-p' || words[i] === '--project') continue;
+    if (words[i] === '--target' && i + 1 < words.length) { target = words[++i]; continue; }
+    return undefined;
+  }
+  return target;
+}
+
+/** Whether a source server runs `skillshare mcp serve`, so the dialog edits it in the Skillshare tab. */
+export const isServeCommand = (server?: MCPServer) =>
+  Boolean(server?.command && !server.url && serveSkillsTarget([server.command, ...(server.args ?? [])]) !== undefined);
+
 /** Why Pi's other settings cannot be saved, or '' when they can. */
 export const piOptionsError = (options: ReturnType<typeof parsePiOptions>, t: ReturnType<typeof useT>) =>
   options.invalid ? t('mcp.piOptionsInvalid')

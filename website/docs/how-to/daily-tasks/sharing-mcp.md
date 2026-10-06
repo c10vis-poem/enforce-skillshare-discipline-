@@ -52,7 +52,10 @@ a configuration. The paste side also loads a file, which is the browser's
 equivalent of `mcp import --file`. Pasted JSON is recognized automatically; for
 TOML, choose whether it came from Codex or Grok. When the paste holds one server
 and Pi is ticked, the dialog also shows the Pi settings of the form: tool exposure and
-other Pi settings. **Import from a target** is
+other Pi settings. The **Skillshare** tab adds `skillshare mcp serve`, which
+[serves your skills over MCP](/docs/reference/commands/mcp#serve-skills-over-mcp) to an
+Agent that does not get them by sync: choose which skills, tick the Agents, and it marks
+the Agents that already sync skills and would see them twice. **Import from a target** is
 separate and reads the servers an installed Agent already has. Either way the
 dashboard uses the same source, validation, preview and conflict rules as the
 CLI. **Sync MCP**, in the MCP page's Sync box, writes the MCP config files only. The

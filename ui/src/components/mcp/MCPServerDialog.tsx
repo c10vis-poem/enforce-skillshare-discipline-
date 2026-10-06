@@ -1,6 +1,10 @@
 import { useContext, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Check, KeyRound, Link2, Plus, SquareTerminal, X } from 'lucide-react';
+import { api } from '../../api/client';
 import { mcpApi, mcpOffTargets, type MCPMutation, type MCPServer } from '../../api/mcp';
+import { useAvailableTargetsQuery } from '../../hooks/useSharedQueries';
+import { queryKeys, staleTimes } from '../../lib/queryKeys';
 import AgentIcon from '../AgentIcon';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
@@ -13,7 +17,17 @@ import ToolPolicyFields from './ToolPolicyFields';
 import MCPConfigView from './MCPConfigView';
 import { cleanToolPolicy, describeError, hasToolPolicy, targetLabel } from './mcpView';
 import { MCPTargetOrder } from './targetOrder';
-import { initialServerDraft, validateServerDraft, type DraftPatch, type EnvRow, type ServerDraft, type ServerValidation } from './mcpServerDraft';
+import { initialServerDraft, serveSkillsCommand, serveSkillsTarget, validateServerDraft, type AddMode, type DraftPatch, type EnvRow, type ServerDraft, type ServerValidation } from './mcpServerDraft';
+
+/** For the Skillshare tab: the skills targets that can be served, and the Agents that already get skills by sync. */
+function useSkillTargets(enabled: boolean) {
+  const own = useQuery({ queryKey: queryKeys.targets.all, queryFn: () => api.listTargets(), staleTime: staleTimes.targets, enabled });
+  const tools = useAvailableTargetsQuery({ enabled });
+  const on = (own.data?.targets ?? []).filter((x) => x.skillsEnabled);
+  // A target syncs skills to its Agent; a tool also reads other targets' folders (universal's ~/.agents/skills).
+  const synced = new Set([...on.map((x) => x.agent ?? x.name), ...(tools.data?.targets ?? []).filter((x) => x.readsFrom?.length).map((x) => x.name)]);
+  return { names: on.map((x) => x.name), synced };
+}
 
 const valueMap = (rows: EnvRow[]) => Object.fromEntries(rows.filter((r) => r.key.trim()).map((r) => [r.key.trim(), r.fromEnv ? { fromEnv: r.value.trim() } : r.value]));
 
@@ -68,7 +82,9 @@ interface Props {
   /** Adds a switch that turns off a server the Agent defines globally, not a server. */
   off?: boolean;
   /** Present when adding, so the user can swap to pasting a snippet instead of filling the fields. */
-  onMode?: (mode: 'form' | 'paste') => void;
+  onMode?: (mode: AddMode) => void;
+  /** The server is `skillshare mcp serve`: ask what to serve instead of a command. */
+  serve?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -83,6 +99,7 @@ interface ServerFormProps {
   order: readonly string[];
   visibleTargets: Set<string>;
   isProject: boolean;
+  serve: boolean;
   onMode: Props['onMode'];
   onSave: () => Promise<void>;
   error: string;
@@ -92,23 +109,27 @@ interface ServerFormProps {
   mutation?: MCPMutation;
 }
 
-function ServerForm({ draft, validation, patch, off, saving, editing, order, visibleTargets, isProject, onMode, onSave, error, probe, mutation }: ServerFormProps) {
+function ServerForm({ draft, validation, patch, off, saving, editing, order, visibleTargets, isProject, serve, onMode, onSave, error, probe, mutation }: ServerFormProps) {
   const t = useT();
   const { name, http, targets } = draft;
   const { nameError } = validation;
   const selectedTargets = new Set(targets);
+  const skillTargets = useSkillTargets(serve);
+  const served = serveSkillsTarget(validation.words) ?? '';
+  const twice = serve ? order.filter((x) => selectedTargets.has(x) && skillTargets.synced.has(x)) : [];
   return (
     <form id="mcp-server" className="db" onSubmit={(e) => { e.preventDefault(); void onSave(); }}>
       {/* Pasting a snippet only makes sense for a server, not for an off switch. */}
       {onMode && !off && (
-        <SegmentedControl<'form' | 'paste'>
+        <SegmentedControl<AddMode>
           className="self-start"
-          value="form"
+          value={serve ? 'serve' : 'form'}
           onChange={onMode}
-          options={[{ value: 'form', label: t('mcp.manualTab') }, { value: 'paste', label: t('mcp.pasteTab') }]}
+          options={[{ value: 'form', label: t('mcp.manualTab') }, { value: 'paste', label: t('mcp.pasteTab') }, { value: 'serve', label: 'Skillshare' }]}
         />
       )}
       {off && <div className="ss-note inf"><span className="flex-1">{t('mcp.offHint')}</span></div>}
+      {serve && <p className="m-0 text-[13px] text-ink-2">{t('mcp.serve.intro')}</p>}
       <div className="grid grid-cols-2 gap-3.5">
         <div className="ss-fld">
           <label htmlFor="mcp-name">{off ? t('mcp.offName') : t('mcp.name')}</label>
@@ -117,7 +138,16 @@ function ServerForm({ draft, validation, patch, off, saving, editing, order, vis
           </span>
           {nameError && <span className="hp !text-bad">{nameError}</span>}
         </div>
-        {!off && (
+        {serve && (
+          <Select
+            label={t('mcp.serve.which')}
+            value={served}
+            onChange={(v) => patch({ command: serveSkillsCommand(v, isProject) })}
+            options={[{ value: '', label: t('mcp.serve.all') }, ...[...new Set([...skillTargets.names, ...(served ? [served] : [])])].map((x) => ({ value: x, label: t('mcp.serve.like', { name: x }) }))]}
+            disabled={saving}
+          />
+        )}
+        {!off && !serve && (
           <div className="ss-fld">
             <span className="text-[13px] font-semibold">{t('mcp.transport')}</span>
             <SegmentedControl
@@ -130,7 +160,17 @@ function ServerForm({ draft, validation, patch, off, saving, editing, order, vis
         )}
       </div>
 
-      {!off && <ConnectionFields draft={draft} patch={patch} saving={saving} />}
+      {!off && !serve && <ConnectionFields draft={draft} patch={patch} saving={saving} />}
+      {serve && (
+        <div className="ss-fld">
+          <span className="text-[13px] font-semibold">{t('mcp.serve.runs')}</span>
+          <span className="ss-inp font-mono !bg-sunken">
+            <SquareTerminal size={15} className="shrink-0 text-ink-3" />
+            <code>{draft.command}</code>
+          </span>
+          <span className="hp">{t('mcp.serve.runsHint')}</span>
+        </div>
+      )}
 
       <div className="ss-fld">
         <span className="text-[13px] font-semibold">{off ? t('mcp.offTargets') : t('mcp.targets')}</span>
@@ -149,14 +189,16 @@ function ServerForm({ draft, validation, patch, off, saving, editing, order, vis
               >
                 <span className="ic"><AgentIcon target={target} size={20} /><i><Check size={9} strokeWidth={3.5} /></i></span>
                 {targetLabel(target)}{target === 'claude-desktop' && <span className="ss-tag">stdio</span>}
+                {serve && skillTargets.synced.has(target) && <span className="ss-tag">{t('mcp.serve.synced')}</span>}
               </button>
             );
           })}
         </div>
       </div>
-      {/* A switch-only entry only turns a server off, so it has no tools to choose. */}
-      {!off && <ToolPolicyFields tools={draft.tools} onChange={(tools) => patch({ tools })} error={validation.toolsError} disabled={saving} probe={probe} mutation={mutation} />}
-      {targets.includes('pi') && !off && <PiSettingsFields optionsText={draft.piOptions} options={validation.options} optionsError={validation.optionsError} onOptions={(piOptions) => patch({ piOptions })} disabled={saving} project={isProject} toolsSet={hasToolPolicy(draft.tools)} />}
+      {twice.length > 0 && <div className="ss-note warn"><span className="flex-1">{t('mcp.serve.twice', { names: twice.map(targetLabel).join(', ') })}</span></div>}
+      {/* A switch-only entry only turns a server off, so it has no tools to choose; skillshare mcp serve offers none. */}
+      {!off && !serve && <ToolPolicyFields tools={draft.tools} onChange={(tools) => patch({ tools })} error={validation.toolsError} disabled={saving} probe={probe} mutation={mutation} />}
+      {targets.includes('pi') && !off && !serve && <PiSettingsFields optionsText={draft.piOptions} options={validation.options} optionsError={validation.optionsError} onOptions={(piOptions) => patch({ piOptions })} disabled={saving} project={isProject} toolsSet={hasToolPolicy(draft.tools)} />}
       {error && <div className="ss-note bad"><span className="flex-1">{error}</span></div>}
     </form>
   );
@@ -219,7 +261,7 @@ function ServerFooter({ targets, off, complete, canSave, saving, onView, onClose
 }
 
 /** Add or edit one source server. Saving only changes the source; Sync writes the config files. */
-export default function MCPServerDialog({ initial, defaultTargets, existingNames, availableTargets: offered, project, off: offKind = false, onMode, onClose, onSaved }: Props) {
+export default function MCPServerDialog({ initial, defaultTargets, existingNames, availableTargets: offered, project, off: offKind = false, onMode, serve = false, onClose, onSaved }: Props) {
   const t = useT();
   const { isProjectMode } = useAppContext();
   const order = useContext(MCPTargetOrder);
@@ -228,7 +270,11 @@ export default function MCPServerDialog({ initial, defaultTargets, existingNames
   // The entry point already chose which kind of entry this is, so the dialog never asks again.
   const off = initial ? Boolean(server?.disabled) : offKind;
   const offTargets = mcpOffTargets;
-  const [draft, setDraft] = useState(() => initialServerDraft(server, initial?.name ?? '', defaultTargets, off));
+  const isProject = Boolean(project) || isProjectMode;
+  const [draft, setDraft] = useState(() => {
+    const start = initialServerDraft(server, initial?.name ?? '', defaultTargets, off);
+    return serve && !server ? { ...start, name: 'skillshare', command: serveSkillsCommand('', isProject) } : start;
+  });
   const patch: DraftPatch = (change) => setDraft((prev) => ({ ...prev, ...change }));
   const { http, url, tokenEnv, headers, env, targets } = draft;
   const [viewing, setViewing] = useState(false);
@@ -295,7 +341,7 @@ export default function MCPServerDialog({ initial, defaultTargets, existingNames
         <button type="button" className="ss-ib" aria-label={t('common.close')} onClick={onClose} disabled={saving}><X size={16} /></button>
       </div>
       {/* The view takes the whole body, so a long file has room; the fields live in state and come back as they were. */}
-      {viewing ? <div className="db"><MCPConfigView mutation={mutation} /></div> : <ServerForm draft={draft} validation={validation} patch={patch} off={off} saving={saving} editing={Boolean(initial)} order={order} visibleTargets={visibleTargets} isProject={Boolean(project) || isProjectMode} onMode={onMode} onSave={save} error={error} probe={probe} mutation={complete ? mutation : undefined} />}
+      {viewing ? <div className="db"><MCPConfigView mutation={mutation} /></div> : <ServerForm draft={draft} validation={validation} patch={patch} off={off} saving={saving} editing={Boolean(initial)} order={order} visibleTargets={visibleTargets} isProject={isProject} serve={serve} onMode={onMode} onSave={save} error={error} probe={probe} mutation={complete ? mutation : undefined} />}
       {viewing ? <div className="df"><Button variant="secondary" onClick={() => setViewing(false)}>{t('common.back')}</Button></div> : <ServerFooter targets={targets} off={off} complete={complete} canSave={canSave} saving={saving} onView={() => setViewing(true)} onClose={onClose} />}
     </DialogShell>
   );
