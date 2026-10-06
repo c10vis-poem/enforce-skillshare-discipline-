@@ -28,12 +28,11 @@ func SetFrontmatterList(filePath string, field string, values []string) error {
 // RewriteFrontmatterList returns updated frontmatter while preserving the body.
 // It has the same field and removal semantics as SetFrontmatterList.
 func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte, error) {
-	content := string(data)
-	fmRaw, body := splitFrontmatterAndBody(content)
+	fmRaw, body := splitFrontmatterAndBody(data)
 
 	var fm map[string]any
-	if fmRaw != "" {
-		if err := yaml.Unmarshal([]byte(fmRaw), &fm); err != nil {
+	if len(fmRaw) > 0 {
+		if err := yaml.Unmarshal(fmRaw, &fm); err != nil {
 			return nil, err
 		}
 	}
@@ -90,21 +89,19 @@ func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte,
 	sb.WriteString("---\n")
 	sb.Write(fmBytes)
 	sb.WriteString("---\n")
-	if body != "" {
-		sb.WriteString(body)
-	}
+	sb.Write(body)
 
 	return []byte(sb.String()), nil
 }
 
 // splitFrontmatterAndBody splits SKILL.md content into raw frontmatter YAML
-// and the remaining body. Returns ("", fullContent) if no frontmatter found.
-func splitFrontmatterAndBody(content string) (string, string) {
-	block := locateFrontmatter([]byte(content), rewriteBlock)
+// and the remaining body. Returns (nil, content) if no frontmatter found.
+func splitFrontmatterAndBody(content []byte) (fmRaw, body []byte) {
+	block := locateFrontmatter(content, rewriteBlock)
 	if !block.closed {
-		return "", content
+		return nil, content
 	}
-	return string(block.joined()), string(block.body)
+	return block.withoutLastNewline(), block.body
 }
 
 // ToggleFrontmatterFlag flips a top-level boolean frontmatter key and reports the new state.

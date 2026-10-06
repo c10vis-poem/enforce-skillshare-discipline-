@@ -13,7 +13,7 @@ import (
 
 // ParseSkillName reads the SKILL.md and extracts the "name" from frontmatter.
 func ParseSkillName(skillPath string) (string, error) {
-	data, err := readScannable(filepath.Join(skillPath, "SKILL.md"))
+	data, err := readHead(filepath.Join(skillPath, "SKILL.md"))
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +66,7 @@ func resolveField(fm map[string]any, field string) any {
 // Supports both inline [a, b] and block (- a\n- b) formats.
 // Returns nil when the field is absent or the file cannot be read.
 func ParseFrontmatterList(filePath, field string) []string {
-	data, err := readScannable(filePath)
+	data, err := readHead(filePath)
 	if err != nil {
 		return nil
 	}
@@ -90,7 +90,7 @@ func ParseFrontmatterListFromBytes(content []byte, field string) []string {
 // is no block or the block is not a YAML mapping.
 func lenientFrontmatterMap(content []byte) map[string]any {
 	var fm map[string]any
-	if err := yaml.Unmarshal(locateFrontmatter(content, lenientBlock).joined(), &fm); err != nil {
+	if err := yaml.Unmarshal(locateFrontmatter(content, lenientBlock).withoutLastNewline(), &fm); err != nil {
 		return nil
 	}
 	return fm
@@ -130,7 +130,7 @@ func ParseFrontmatterFields(filePath string, fields []string) map[string]string 
 		return result
 	}
 
-	data, err := readScannable(filePath)
+	data, err := readHead(filePath)
 	if err != nil {
 		return result
 	}
@@ -165,7 +165,7 @@ func ReadSkillBody(filePath string) string {
 		return ""
 	}
 
-	block := locateFrontmatter(scannable(data), bodyBlock)
+	block := locateFrontmatter(scanLines(data), bodyBlock)
 	if !block.open {
 		return strings.TrimSpace(string(data))
 	}
@@ -178,7 +178,7 @@ func ReadSkillBody(filePath string) string {
 // ParseFrontmatterField reads a SKILL.md file and extracts the value of a given frontmatter field.
 // It supports both inline values and YAML block scalars (>, >-, |, |-).
 func ParseFrontmatterField(filePath, field string) string {
-	data, err := readScannable(filePath)
+	data, err := readHead(filePath)
 	if err != nil {
 		return ""
 	}
@@ -186,8 +186,8 @@ func ParseFrontmatterField(filePath, field string) string {
 	lines := strings.Split(string(locateFrontmatter(data, lenientBlock).raw), "\n")
 	prefix := field + ":"
 
-	for i := 0; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
 
 		if strings.HasPrefix(line, prefix) {
 			parts := strings.SplitN(line, ":", 2)
@@ -196,8 +196,7 @@ func ParseFrontmatterField(filePath, field string) string {
 				// Handle YAML block scalar indicators — read indented continuation lines
 				if isYAMLBlockIndicator(val) {
 					var blockParts []string
-					for i++; i < len(lines); i++ {
-						next := lines[i]
+					for _, next := range lines[i+1:] {
 						// Block continues while lines are indented
 						if len(next) > 0 && (next[0] == ' ' || next[0] == '\t') {
 							blockParts = append(blockParts, strings.TrimSpace(next))

@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"os"
 )
 
@@ -54,11 +53,11 @@ type frontmatterBlock struct {
 	body   []byte // everything after the closing delimiter line; nil when unclosed
 }
 
-// joined returns raw the way the readers that split the content into lines rebuilt it:
-// joined with "\n", which leaves a closed block without its final newline. A block
-// scalar on the last line decodes with or without a trailing newline accordingly, so
-// ParseFrontmatterMap, which never split, decodes raw instead.
-func (b frontmatterBlock) joined() []byte {
+// withoutLastNewline returns raw without the newline before the closing delimiter, which
+// is what the readers that used to split the content into lines decode. A block scalar
+// on the last line loses its final newline that way; ParseFrontmatterMap decodes raw and
+// keeps it.
+func (b frontmatterBlock) withoutLastNewline() []byte {
 	if b.closed {
 		return bytes.TrimSuffix(b.raw, []byte("\n"))
 	}
@@ -96,39 +95,47 @@ func locateFrontmatter(content []byte, p frontmatterPolicy) frontmatterBlock {
 	return frontmatterBlock{open: true, raw: content[start:]}
 }
 
-// readScannable opens a file for the readers that take a path. Only a failed open is an
-// error: a failed read ends the content early, as it did when they read through a
-// bufio.Scanner.
-func readScannable(path string) ([]byte, error) {
+// readHead reads a file for the readers that take a path, all of which use lenientBlock.
+// It keeps the lines from the opening delimiter to the closing one and nothing else, so
+// neither the body nor a file without frontmatter costs memory; an unclosed block is kept
+// to the end of the file. The lines come from a default bufio.Scanner, see scanLines; a
+// failed read ends them early. Only a failed open is an error.
+func readHead(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	data, _ := io.ReadAll(f)
-	return scannable(data), nil
+
+	var head bytes.Buffer
+	scanner := bufio.NewScanner(f)
+	for delims := 0; delims < 2 && scanner.Scan(); {
+		if lenientBlock.delim(scanner.Bytes()) {
+			delims++
+		} else if delims == 0 {
+			continue
+		}
+		if head.Len() > 0 {
+			head.WriteByte('\n')
+		}
+		head.Write(scanner.Bytes())
+	}
+	return head.Bytes(), nil
 }
 
-// scannable returns the text a default bufio.Scanner delivers from data line by line,
-// joined with "\n": it stops, without an error, before the first line of
-// bufio.MaxScanTokenSize bytes or more, each line loses one trailing "\r", and the last
-// line has no newline. The readers that take a path have always seen only this; the ones
-// that take bytes (ParseFrontmatterListFromBytes, ParseFrontmatterMap,
-// RewriteFrontmatterList) see the content as it is.
-func scannable(data []byte) []byte {
-	pos := 0
-	for line := range bytes.Lines(data) {
-		if len(bytes.TrimSuffix(line, []byte("\n"))) >= bufio.MaxScanTokenSize {
-			data = data[:pos]
-			break
+// scanLines returns data as a default bufio.Scanner delivers it: the lines joined with
+// "\n", one trailing "\r" dropped per line, ending without an error before the first line
+// of bufio.MaxScanTokenSize bytes or more. The readers that take a path have always read
+// this way; the ones that take bytes see the content as it is.
+func scanLines(data []byte) []byte {
+	var out bytes.Buffer
+	out.Grow(len(data))
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for n := 0; scanner.Scan(); n++ {
+		if n > 0 {
+			out.WriteByte('\n')
 		}
-		pos += len(line)
+		out.Write(scanner.Bytes())
 	}
-	if bytes.IndexByte(data, '\r') >= 0 {
-		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
-	}
-	if rest, ok := bytes.CutSuffix(data, []byte("\n")); ok {
-		return rest
-	}
-	return bytes.TrimSuffix(data, []byte("\r"))
+	return out.Bytes()
 }

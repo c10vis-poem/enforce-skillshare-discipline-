@@ -2,8 +2,10 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -20,13 +22,20 @@ type fmSnapshot struct {
 	Rewrite   string // RewriteFrontmatterList(targets=[x]), which runs splitFrontmatterAndBody
 }
 
-func snapshotFrontmatter(t *testing.T, content string) fmSnapshot {
+// writeSkill writes content as SKILL.md in a new directory.
+func writeSkill(t *testing.T, content []byte) (dir, path string) {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "SKILL.md")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	dir = t.TempDir()
+	path = filepath.Join(dir, "SKILL.md")
+	if err := os.WriteFile(path, content, 0644); err != nil {
 		t.Fatal(err)
 	}
+	return dir, path
+}
+
+func snapshotFrontmatter(t *testing.T, content string) fmSnapshot {
+	t.Helper()
+	dir, path := writeSkill(t, []byte(content))
 
 	var s fmSnapshot
 	name, err := ParseSkillName(dir)
@@ -162,10 +171,7 @@ func TestFrontmatterEntryPoints_OverlongLine(t *testing.T) {
 		}
 
 		content := "---\nlicense: MIT\ndescription: " + overlong[:len(overlong)-len("description: ")] + "\nname: a\ntargets: [t]\n---\nbody\n"
-		path := filepath.Join(t.TempDir(), "SKILL.md")
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatal(err)
-		}
+		_, path := writeSkill(t, []byte(content))
 		if got := ParseFrontmatterFields(path, []string{"license"})["license"]; got != "MIT" {
 			t.Errorf("the lines before the overlong one must still be read, got license %q", got)
 		}
@@ -236,10 +242,7 @@ func TestParseSkillName_MissingFile(t *testing.T) {
 // it to the YAML decoder. Both must give the same values.
 func TestFrontmatterEntryPoints_CRLFValues(t *testing.T) {
 	content := "---\r\nname: a\r\ndescription: |\r\n  one\r\n  two\r\nsummary: >-\r\n  three\r\n  four\r\nquoted: \"five\r\n  six\"\r\ntargets:\r\n  - t\r\n  - u\r\n---\r\nbody\r\n"
-	path := filepath.Join(t.TempDir(), "SKILL.md")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
+	_, path := writeSkill(t, []byte(content))
 
 	got := ParseFrontmatterFields(path, []string{"description", "summary", "quoted"})
 	want := map[string]string{"description": "one\ntwo\n", "summary": "three four", "quoted": "five six"}
@@ -263,10 +266,7 @@ func TestFrontmatterEntryPoints_CRLFValues(t *testing.T) {
 // lines dropped its final newline, ParseFrontmatterMap decodes the block as written.
 func TestFrontmatterEntryPoints_BlockScalarOnLastLine(t *testing.T) {
 	content := "---\nname: a\ndescription: |\n  text\n---\nbody\n"
-	path := filepath.Join(t.TempDir(), "SKILL.md")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
+	_, path := writeSkill(t, []byte(content))
 
 	if got := ParseFrontmatterFields(path, []string{"description"})["description"]; got != "text" {
 		t.Errorf("ParseFrontmatterFields = %q, want %q", got, "text")
@@ -284,10 +284,7 @@ func TestFrontmatterEntryPoints_BlockScalarOnLastLine(t *testing.T) {
 // for them and two for the bytes reader.
 func TestFrontmatterEntryPoints_DoubleCarriageReturn(t *testing.T) {
 	content := "---\r\r\ntargets:\r\r\n  - |\r\r\n    t\r\r\n    u\r\r\n---\r\r\nbody\r\r\n"
-	path := filepath.Join(t.TempDir(), "SKILL.md")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
+	_, path := writeSkill(t, []byte(content))
 
 	if got := ParseFrontmatterList(path, "targets"); len(got) != 1 || got[0] != "t\nu\n" {
 		t.Errorf("ParseFrontmatterList = %q", got)
@@ -297,5 +294,41 @@ func TestFrontmatterEntryPoints_DoubleCarriageReturn(t *testing.T) {
 	}
 	if got := ReadSkillBody(path); got != "body" {
 		t.Errorf("ReadSkillBody = %q", got)
+	}
+}
+
+// The readers that take a path keep only the frontmatter block: neither the body after
+// it nor the text of a file without one costs them memory.
+func TestFrontmatterEntryPoints_PathReadersKeepOnlyTheBlock(t *testing.T) {
+	filler := bytes.Repeat([]byte("body\n"), 1<<19)
+	tests := []struct {
+		name    string
+		content []byte
+		want    string
+	}{
+		{"large body after the block", append([]byte("---\nname: a\ntargets: [a]\n---\n"), filler...), "a"},
+		{"large file without frontmatter", filler, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, path := writeSkill(t, tt.content)
+
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			name, err := ParseSkillName(dir)
+			field := ParseFrontmatterField(path, "name")
+			fields := ParseFrontmatterFields(path, []string{"name"})["name"]
+			list := strings.Join(ParseFrontmatterList(path, "targets"), ",")
+			runtime.ReadMemStats(&after)
+
+			if err != nil || name != tt.want || field != tt.want || fields != tt.want || list != tt.want {
+				t.Fatalf("got %q, %v, %q, %q, %q; want %q from each", name, err, field, fields, list, tt.want)
+			}
+			if got := after.TotalAlloc - before.TotalAlloc; got > 1<<20 {
+				t.Errorf("the readers allocated %d bytes, want under 1 MiB", got)
+			}
+		})
 	}
 }
