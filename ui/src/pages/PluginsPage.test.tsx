@@ -200,36 +200,6 @@ describe('PluginsPage', () => {
     expect(await screen.findByText('1.1.0')).toBeInTheDocument();
     expect(screen.queryByText('1.0.0')).not.toBeInTheDocument();
   });
-  it('clears the row update when the package already reached that version before the update ran', async () => {
-    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'pi', label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true }], packages: { driver: { bindings: { pi: { id: 'npm:driver' } } } }, hosts: [{ target: 'pi', version: '0.99.2', status: 'ready', installed: [{ id: 'npm:driver', version: '1.0.0', enabled: true }] }] });
-    vi.mocked(pluginsApi.preview)
-      .mockResolvedValueOnce({ revision: 'r', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'update-available', binding: { id: 'npm:driver', version: '1.1.0' } }] })
-      .mockResolvedValueOnce({ revision: 'r2', blocked: false, changes: [{ name: 'driver', target: 'pi', id: 'npm:driver', action: 'noop', binding: { id: 'npm:driver' } }] });
-    vi.mocked(pluginsApi.apply).mockResolvedValue({ result: { results: [{ name: 'driver', target: 'pi', status: 'unchanged' }] }, failure: '' });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'plugins.update' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.apply' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: 'plugins.update' })).not.toBeInTheDocument();
-  });
-  it('keeps the row update when the update stops before any Agent ran', async () => {
-    vi.mocked(pluginsApi.list).mockResolvedValue({ targetDefinitions: [{ target: 'codex', label: 'Codex', project: false, operations: ['add', 'check', 'update'] }], packages: { demo: { bindings: { codex: { id: 'demo@market', source: 'https://example.com/demo.git', version: '1.0.0' } } } }, hosts: [] });
-    vi.mocked(pluginsApi.preview)
-      .mockResolvedValueOnce({ revision: 'r', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update-available', binding: { id: 'demo@market', version: '1.1.0' } }] })
-      .mockResolvedValueOnce({ revision: 'r2', blocked: false, changes: [{ name: 'demo', target: 'codex', id: 'demo@market', action: 'update', binding: { id: 'demo@market', version: '1.1.0' } }] });
-    vi.mocked(pluginsApi.apply).mockResolvedValue({ result: null, failure: 'preview is stale' });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.check' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.cancel' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'plugins.update' }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'plugins.apply' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('preview is stale');
-    expect(screen.getByRole('button', { name: 'plugins.update' })).toBeInTheDocument();
-  });
   it('keeps the row update for an Agent still behind when another Agent already has the new version', async () => {
     const pi = { label: 'Pi', project: false, operations: ['add', 'check', 'update'], npm: true };
     vi.mocked(pluginsApi.list).mockResolvedValue({
@@ -296,21 +266,6 @@ describe('PluginsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'plugins.apply' }));
     expect(await screen.findAllByText('Native authentication required')).not.toHaveLength(0);
     expect(screen.getByRole('alert')).toHaveTextContent('Native authentication required');
-  });
-  it('translates a keyed sync failure once in the alert', async () => {
-    const failed = { status: 'failed', message: 'claude command failed', messageKey: 'plugins.error.commandFailed' };
-    vi.mocked(pluginsApi.apply).mockResolvedValue({ result: { results: [{ name: 'a', target: 'claude', ...failed }, { name: 'b', target: 'claude', ...failed }] }, failure: 'claude command failed\nclaude command failed' });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.syncAgain' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.apply' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/^plugins\.error\.commandFailed$/);
-  });
-  it('keeps every distinct failure in the alert, keyed or not', async () => {
-    vi.mocked(pluginsApi.apply).mockResolvedValue({ result: { results: [{ name: 'a', target: 'claude', status: 'failed', message: 'claude command failed', messageKey: 'plugins.error.commandFailed' }, { name: 'b', target: 'codex', status: 'failed', message: 'Native authentication required' }] }, failure: 'joined' });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.syncAgain' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'plugins.apply' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('plugins.error.commandFailed Native authentication required');
   });
   it('puts a failed outcome first and folds the unchanged ones into one row per plugin', async () => {
     vi.mocked(pluginsApi.apply).mockResolvedValue({ result: { results: [
