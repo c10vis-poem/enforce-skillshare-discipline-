@@ -59,6 +59,7 @@ export interface DiscoverResult {
   needsSelection: boolean;
   skills: DiscoveredSkill[];
   agents: DiscoveredAgent[];
+  warnings?: string[];
 }
 
 export interface BatchInstallResultItem {

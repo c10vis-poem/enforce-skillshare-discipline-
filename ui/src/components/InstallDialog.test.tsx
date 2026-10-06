@@ -63,6 +63,22 @@ describe('InstallDialog', () => {
     ));
   });
 
+  it('shows discovery warnings such as skipped submodules', async () => {
+    vi.mocked(api.discover).mockResolvedValue({
+      needsSelection: true,
+      skills: [{ name: 'pdf', path: 'pdf' }, { name: 'docx', path: 'docx' }],
+      agents: [],
+      warnings: ["skipped git submodule 'vendor/up' (pinned at abc from https://example.com/up.git): skillshare does not fetch submodules"],
+    });
+    const user = userEvent.setup();
+    renderDialog('url');
+
+    await user.type(screen.getByLabelText(/git url/i), 'owner/hub');
+    await user.click(screen.getByRole('button', { name: /find skills/i }));
+
+    expect(await screen.findByText(/skipped git submodule 'vendor\/up'/)).toBeInTheDocument();
+  });
+
   it('force installs only the skill the audit blocked', async () => {
     vi.mocked(api.discover).mockResolvedValue({ needsSelection: true, skills: [{ name: 'deploy', path: 'deploy' }], agents: [] });
     vi.mocked(api.installBatch)

@@ -3,7 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -25,15 +25,28 @@ func (l gitlink) String() string {
 }
 
 // displayURL drops userinfo, query and fragment from a .gitmodules URL, which
-// may carry a token, before it reaches terminal output or an API error.
-// url.Redacted is not enough: a token is often the username alone.
+// may carry a token, before it reaches terminal output or an API error. It
+// works on the text rather than net/url so relative, scp-style and malformed
+// URLs are stripped too; a token is often the username alone.
 func displayURL(raw string) string {
-	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" {
-		return raw // scp-style or relative URL: no userinfo to strip
+	raw, _, _ = strings.Cut(raw, "#")
+	raw, _, _ = strings.Cut(raw, "?")
+	scheme, rest, ok := strings.Cut(raw, "://")
+	if !ok {
+		// scp-style user@host:path; a relative path has a "/" before any "@".
+		if at := strings.Index(raw, "@"); at >= 0 && !strings.Contains(raw[:at], "/") {
+			return raw[at+1:]
+		}
+		return raw
 	}
-	u.User, u.RawQuery, u.Fragment = nil, "", ""
-	return u.String()
+	authority, tail, hasPath := strings.Cut(rest, "/")
+	if i := strings.LastIndex(authority, "@"); i >= 0 {
+		authority = authority[i+1:]
+	}
+	if hasPath {
+		authority += "/" + tail
+	}
+	return scheme + "://" + authority
 }
 
 // repoGitlinks lists the submodules recorded in HEAD of repoPath. extraEnv
@@ -51,10 +64,10 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 	}
 	var links []gitlink
 	for _, entry := range strings.Split(string(out), "\x00") {
-		meta, path, ok := strings.Cut(entry, "\t")
+		meta, p, ok := strings.Cut(entry, "\t")
 		fields := strings.Fields(meta)
 		if ok && len(fields) == 3 && fields[0] == "160000" {
-			links = append(links, gitlink{Path: path, Commit: fields[2]})
+			links = append(links, gitlink{Path: p, Commit: fields[2]})
 		}
 	}
 	if len(links) == 0 {
@@ -77,9 +90,9 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 			urls[name] = val
 		}
 	}
-	for name, path := range paths {
+	for name, p := range paths {
 		for i := range links {
-			if links[i].Path == path {
+			if links[i].Path == p {
 				links[i].URL = urls[name]
 			}
 		}
@@ -90,7 +103,7 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 // submoduleError refuses a subdir that is a submodule or lies inside one,
 // which would otherwise install an empty directory or report a missing path.
 func submoduleError(repoPath, subdir string, extraEnv []string) error {
-	subdir = strings.Trim(filepath.ToSlash(subdir), "/")
+	subdir = strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(subdir)), "/")
 	for _, l := range repoGitlinks(repoPath, extraEnv) {
 		if subdir == l.Path || strings.HasPrefix(subdir, l.Path+"/") {
 			return fmt.Errorf("'%s' is in git submodule %s, and skillshare does not fetch submodules; install from that repository instead, or copy the files into this one", subdir, l)

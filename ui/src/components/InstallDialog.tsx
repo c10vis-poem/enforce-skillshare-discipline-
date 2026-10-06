@@ -284,6 +284,7 @@ export default function InstallDialog({ kind, initialTab, initialSource, onClose
     withBusy('force', () => ('skills' in b.retry ? runBatch({ ...b.retry, force: true }) : runSingle({ ...b.retry, force: true })));
 
   const applyDiscovery = (from: string, d: DiscoverResult) => {
+    for (const w of d.warnings ?? []) toast(w, 'warning');
     const skills = d.skills.map((s) => ({ ...s, kind: 'skill' as const }));
     const agents = (d.agents ?? []).map((a) => ({ name: a.name, path: a.path, kind: 'agent' as const }));
     const show = (items: DiscoveredSkill[]) => {

@@ -60,7 +60,7 @@ func hubSource(hubURL, subdir string) *Source {
 func TestDiscoverFromGitSubdir_RefusesSubmodulePaths(t *testing.T) {
 	hubURL, upURL := newHubWithSubmodule(t)
 
-	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a"} {
+	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a", "vendor//up"} {
 		t.Run(subdir, func(t *testing.T) {
 			result, err := DiscoverFromGitSubdir(hubSource(hubURL, subdir))
 			if err == nil {
@@ -88,13 +88,16 @@ func TestInstall_RefusesSubmoduleSubdir(t *testing.T) {
 }
 
 func TestGitlinkString_HidesURLCredentials(t *testing.T) {
-	for _, raw := range []string{
-		"https://user:s3cret@example.com/org/up.git",
-		"https://s3cret@example.com/org/up.git?token=s3cret",
+	for raw, want := range map[string]string{
+		"https://user:s3cret@example.com/org/up.git":         "https://example.com/org/up.git",
+		"https://s3cret@example.com/org/up.git?token=s3cret": "https://example.com/org/up.git",
+		"https://user:s3 cret@example.com/org/up.git#s3cret": "https://example.com/org/up.git",
+		"../up.git?token=s3cret":                             "../up.git",
+		"s3cret@example.com:org/up.git":                      "example.com:org/up.git",
 	} {
 		got := gitlink{Path: "vendor/up", Commit: "abc", URL: raw}.String()
-		if strings.Contains(got, "s3cret") || !strings.Contains(got, "https://example.com/org/up.git") {
-			t.Errorf("String() = %q, want the URL without credentials", got)
+		if strings.Contains(got, "s3cret") || !strings.Contains(got, want) {
+			t.Errorf("String() for %q = %q, want %q without credentials", raw, got, want)
 		}
 	}
 }
