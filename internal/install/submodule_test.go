@@ -87,6 +87,19 @@ func TestInstall_RefusesSubmoduleSubdir(t *testing.T) {
 	}
 }
 
+func TestInstall_WholeRepoWarnsSkippedSubmodule(t *testing.T) {
+	hubURL, _ := newHubWithSubmodule(t)
+	dest := filepath.Join(t.TempDir(), "hub")
+
+	result, err := Install(&Source{Type: SourceTypeGitHTTPS, Raw: hubURL, CloneURL: hubURL, Name: "hub"}, dest, InstallOptions{SkipAudit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(result.Warnings, "\n"), `skipped git submodule "vendor/up"`) {
+		t.Fatalf("expected a submodule warning, got %q", result.Warnings)
+	}
+}
+
 func TestSubmoduleError_CaseVariantFollowsFilesystem(t *testing.T) {
 	hubURL, _ := newHubWithSubmodule(t)
 	repo := filepath.Join(t.TempDir(), "repo")
