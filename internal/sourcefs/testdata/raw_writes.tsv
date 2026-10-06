@@ -211,9 +211,10 @@ internal/mcp/write.go	atomicWrite	os.MkdirAll	filepath.Dir(path)	plugin
 internal/mcp/write.go	atomicWrite	os.Remove	file.Name()	plugin
 internal/mcp/write.go	atomicWrite	os.Rename	file.Name(), path	plugin
 internal/memory/commit.go	commitNote	os.Rename	draft, path	extras
-internal/memory/commit.go	createNote	os.OpenFile	path	extras
-internal/memory/commit.go	createNote	os.Remove	path	extras
+internal/memory/commit.go	createExclusive	os.OpenFile	path	extras
+internal/memory/commit.go	createExclusive	os.Remove	path	extras
 internal/memory/commit.go	removeNote	os.Remove	path	extras
+internal/memory/guidance_plan.go	commitGuidanceChange	os.MkdirAll	filepath.Dir(c.Path)	plugin
 internal/memory/move.go	Move	os.MkdirAll	filepath.Dir(destination)	extras
 internal/memory/move.go	Move	os.OpenFile	destination	extras
 internal/memory/move.go	Move	os.Remove	destination	extras
@@ -303,9 +304,6 @@ internal/server/handler_create_skill.go	(*Server).handleCreateSkill	os.WriteFile
 internal/server/handler_extensions.go	(*Server).handleExtensionsOpen	os.MkdirAll	dir	plugin
 internal/server/handler_extensions.go	(*Server).handleExtensionsRemove	os.RemoveAll	path	plugin
 internal/server/handler_extras.go	(*Server).handleExtrasCreate	os.MkdirAll	sourceDir	extras
-internal/server/handler_memory_guidance.go	commitGuidanceChange	os.MkdirAll	filepath.Dir(c.Path)	plugin
-internal/server/handler_memory_guidance.go	commitGuidanceChange	os.OpenFile	c.Path	plugin
-internal/server/handler_memory_guidance.go	commitGuidanceChange	os.Remove	c.Path	plugin
 internal/server/handler_skill_content.go	writeFileAtomic	os.CreateTemp	dir	agents
 internal/server/handler_skill_content.go	writeFileAtomic	os.Remove	tmpPath	agents
 internal/server/handler_skill_content.go	writeFileAtomic	os.Rename	tmpPath, path	agents
