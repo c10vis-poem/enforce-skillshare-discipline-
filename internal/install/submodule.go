@@ -102,10 +102,13 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 
 // submoduleError refuses a subdir that is a submodule or lies inside one,
 // which would otherwise install an empty directory or report a missing path.
+// Case is ignored: on Windows and macOS "Vendor/Up" opens the empty
+// "vendor/up" checkout, and on Linux such a near-twin path does not exist.
 func submoduleError(repoPath, subdir string, extraEnv []string) error {
 	subdir = strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(subdir)), "/")
 	for _, l := range repoGitlinks(repoPath, extraEnv) {
-		if subdir == l.Path || strings.HasPrefix(subdir, l.Path+"/") {
+		n := len(l.Path)
+		if len(subdir) >= n && strings.EqualFold(subdir[:n], l.Path) && (len(subdir) == n || subdir[n] == '/') {
 			return fmt.Errorf("'%s' is in git submodule %s, and skillshare does not fetch submodules; install from that repository instead, or copy the files into this one", subdir, l)
 		}
 	}

@@ -156,7 +156,12 @@ describe('InstallDialog', () => {
     vi.mocked(api.searchHub).mockResolvedValue({
       results: [{ name: 'pdf', description: 'Read PDFs', source: 'anthropics/skills', skill: 'pdf', stars: 0, owner: 'anthropics', repo: 'skills' }],
     });
-    vi.mocked(api.discover).mockResolvedValue({ needsSelection: true, skills: [{ name: 'pdf', path: 'pdf' }, { name: 'docx', path: 'docx' }], agents: [] });
+    vi.mocked(api.discover).mockResolvedValue({
+      needsSelection: true,
+      skills: [{ name: 'pdf', path: 'pdf' }, { name: 'docx', path: 'docx' }],
+      agents: [],
+      warnings: ["skipped git submodule 'vendor/up'"],
+    });
     vi.mocked(api.installBatch).mockResolvedValue({ results: [{ name: 'pdf', action: 'installed' }], summary: 'Installed 1' });
     const user = userEvent.setup();
     renderDialog('search');
@@ -169,5 +174,6 @@ describe('InstallDialog', () => {
       expect.objectContaining({ source: 'anthropics/skills', skills: [expect.objectContaining({ name: 'pdf' })] }),
     ));
     expect(api.searchHub).toHaveBeenCalledWith('pdf', 'https://acme.dev/hub.json');
+    expect(screen.getByText(/skipped git submodule 'vendor\/up'/)).toBeInTheDocument();
   });
 });

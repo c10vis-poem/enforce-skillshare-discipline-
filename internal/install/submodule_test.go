@@ -60,7 +60,7 @@ func hubSource(hubURL, subdir string) *Source {
 func TestDiscoverFromGitSubdir_RefusesSubmodulePaths(t *testing.T) {
 	hubURL, upURL := newHubWithSubmodule(t)
 
-	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a", "vendor//up"} {
+	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a", "vendor//up", "Vendor/Up"} {
 		t.Run(subdir, func(t *testing.T) {
 			result, err := DiscoverFromGitSubdir(hubSource(hubURL, subdir))
 			if err == nil {
