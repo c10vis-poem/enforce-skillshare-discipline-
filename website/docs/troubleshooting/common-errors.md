@@ -178,6 +178,36 @@ See [Backups & Disk Space](/docs/reference/commands/backup#backups--disk-space) 
 
 ---
 
+## Extras Errors
+
+These come from single-file extras in `prepend` or `append` mode, which keep the source's content in a managed block of the target file. See [single-file extras](/docs/reference/commands/extras#single-file-extras).
+
+### `the managed block of <source> in <target> was edited by hand`
+
+**Cause:** The text between the block's markers no longer matches what skillshare wrote. Sync does not overwrite it.
+
+**Solution:** On the dashboard's **AGENTS.md** tab, use **Collect block into** to keep the edit in the shared file, or **Rewrite block from** to drop it (it is kept as a drift backup). For other single-file extras, copy the edit back to the source file, or delete the block from the target, then sync again.
+
+### `<target> has a damaged managed block`
+
+**Cause:** A block marker was removed or changed by hand, for example the `<!-- /skillshare:extra -->` end marker was deleted. skillshare cannot tell the block from your own lines, so sync, mode changes and restore all stop for that target.
+
+**Solution:** Put the missing marker back, or delete the whole block including its begin marker, then sync again.
+
+### `<target> ends inside an open code fence`
+
+**Cause:** The target file ends inside a Markdown code block that was never closed (a ```` ``` ```` line without its closing pair). A block appended after it would read as code.
+
+**Solution:** Close the code block in the target file, or use `prepend` for that target.
+
+### `<source> has lines that read as skillshare block markers`
+
+**Cause:** The source file has a line that looks like a block marker, such as `<!-- /skillshare:extra -->` outside a code block. Written into a block, it would end the block early.
+
+**Solution:** Put the example inside a fenced code block, or change the line.
+
+---
+
 ## Git Errors
 
 ### `Could not read from remote repository`

@@ -623,7 +623,20 @@ Rules:
 - A target that was `modified` after it was linked is replaced as well; the edited
   file is kept as a drift backup, not as the restore point.
 - `extras list` shows `modified` when a linked target was replaced by a regular file with different
-  content, or a managed copy was edited.
+  content, a managed copy was edited, or a `prepend`/`append` block was edited by hand.
+- Sync never overwrites a block edited by hand: it stops with an error for that target
+  until the edit is copied back to the source or the block is removed.
+- Switching between modes removes what the previous mode wrote, so a target never
+  holds the same source twice: `import` drops a block, `prepend`/`append` drop the `@`
+  line and rebuild the file instead of keeping a `copy`, and a link or `copy` records the
+  file without the block as its restore point. Switching between `prepend` and
+  `append` moves the block. Several blocks on the same side keep their order.
+- A `prepend`/`append` target is refused when its file links to another extra's
+  source (the block would be written into that source), when an `append` target ends
+  inside an open code fence, and when the source has a line that reads as a block
+  marker. A block whose markers were damaged by hand stops sync, mode changes and
+  restore for that target until the markers are repaired. See
+  [common errors](/docs/troubleshooting/common-errors#extras-errors).
 - Switching a target from `merge`, `symlink` or `copy` to `import` restores its last
   own content from `import` mode, including empty content. If it has not used `import`,
   the pre-attach content is used. The import block is added, and an edited copy is
@@ -631,12 +644,13 @@ Rules:
 - `extras remove` and `--remove-target --prune` restore each target file: the link,
   copy, import line or block goes, and the file or symlink that was there before the first
   sync comes back (or no file, if there was none). A `modified` target is kept as a
-  drift backup first. `--remove-target` without `--prune` leaves the single-file target in place and
+  drift backup first. For a block, only that block goes; the rest of the file stays,
+  and a file the block created is removed only when nothing else is left in it. `--remove-target` without `--prune` leaves the single-file target in place and
   unmanaged, and forgets its restore point. Later syncs do not clean it up; attaching it again
   records a new restore point.
 - `extras collect` is not supported. To keep an edit made in a target, copy it back
-  to the source file. For a shared `AGENTS.md`, **Collect into** on the dashboard's
-  **AGENTS.md** tab does this for you.
+  to the source file. For a shared `AGENTS.md`, **Collect into** (or **Collect block
+  into** for a block) on the dashboard's **AGENTS.md** tab does this for you.
 
 In the dashboard, single-file extras whose `file` is `AGENTS.md` appear on the
 **AGENTS.md** tab; all other single-file extras appear on **Folders & files**. There,

@@ -81,7 +81,7 @@ func printExtrasHelp() {
 func printExtraHelp(name string) {
 	printHelp("skillshare extras "+name+" [options]", "",
 		helpGroup{title: "Options", rows: []helpRow{
-			{"--mode <mode>", "Change sync mode: merge, copy, symlink, or import (single-file extras)"},
+			{"--mode <mode>", "Change sync mode: merge, copy, symlink; import, prepend or append (single-file extras)"},
 			{"--target <path>", "Select a target for --mode"},
 			{"--add-target <path>", "Add a target directory"},
 			{"--as <filename>", "Target filename for a single-file --add-target"},
