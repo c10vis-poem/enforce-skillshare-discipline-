@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "Turn off its shared AGENTS.md to change the location",
   "instructions.row.modified": "This file was changed outside skillshare and has not been synced back.",
   "instructions.row.modifiedBlock": "The {name} block in this file was edited outside skillshare and has not been synced back.",
+  "instructions.peek.label": "Show {target}'s file",
+  "instructions.peek.open": "Open target page",
   "instructions.editor.modified": "Modified",
   "instructions.editor.unchanged": "No changes",
   "instructions.editor.readers": "After saving, these targets read the new content right away:",

@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "위치를 바꾸려면 먼저 공유 AGENTS.md를 해제하세요",
   "instructions.row.modified": "이 파일은 skillshare 밖에서 변경되었고 아직 동기화되지 않았습니다.",
   "instructions.row.modifiedBlock": "이 파일의 {name} 블록이 skillshare 밖에서 수정되었고 아직 동기화되지 않았습니다.",
+  "instructions.peek.label": "{target}의 파일 보기",
+  "instructions.peek.open": "대상 페이지로",
   "instructions.editor.modified": "수정됨",
   "instructions.editor.unchanged": "변경 없음",
   "instructions.editor.readers": "저장하면 이 대상들이 바로 새 내용을 읽습니다:",

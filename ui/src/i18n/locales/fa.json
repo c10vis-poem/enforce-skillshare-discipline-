@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "برای تغییر محل، اول AGENTS.md مشترک را جدا کنید",
   "instructions.row.modified": "این فایل بیرون از skillshare تغییر کرده و هنوز همگام نشده است.",
   "instructions.row.modifiedBlock": "بلوک {name} در این فایل خارج از skillshare ویرایش شده و هنوز همگام‌سازی نشده است.",
+  "instructions.peek.label": "نمایش فایل {target}",
+  "instructions.peek.open": "باز کردن صفحهٔ مقصد",
   "instructions.editor.modified": "تغییر یافته",
   "instructions.editor.unchanged": "بدون تغییر",
   "instructions.editor.readers": "پس از ذخیره، این هدف‌ها بلافاصله محتوای تازه را می‌خوانند:",

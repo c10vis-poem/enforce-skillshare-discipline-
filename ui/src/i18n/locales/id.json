@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "Lepaskan AGENTS.md bersama untuk mengubah lokasi",
   "instructions.row.modified": "File ini diubah di luar skillshare dan belum disinkronkan kembali.",
   "instructions.row.modifiedBlock": "Blok {name} di file ini diubah di luar skillshare dan belum disinkronkan kembali.",
+  "instructions.peek.label": "Lihat file {target}",
+  "instructions.peek.open": "Buka halaman target",
   "instructions.editor.modified": "Diubah",
   "instructions.editor.unchanged": "Tidak ada perubahan",
   "instructions.editor.readers": "Setelah disimpan, target berikut langsung membaca isi baru:",

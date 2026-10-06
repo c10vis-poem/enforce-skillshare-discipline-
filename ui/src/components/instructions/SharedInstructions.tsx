@@ -24,6 +24,7 @@ import InstructionsEditorDialog from './InstructionsEditorDialog';
 import LocationRows from './LocationRows';
 import NewSharedDialog from './NewSharedDialog';
 import RestorePreviewDialog from './RestorePreviewDialog';
+import TargetFileDialog from './TargetFileDialog';
 import { BoxHeader, InstructionsPreview } from './ViewTabs';
 import type { ConnectStep, ModeOption, RestoreStep, RowHint } from './instructionsView';
 import {
@@ -154,6 +155,8 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  // The target whose instruction file is open for a read-only look.
+  const [peek, setPeek] = useState<SharedInstructionsTarget | null>(null);
   const [addingLocation, setAddingLocation] = useState(false);
   // Refusals the server gave for one target (another shared file holds it), shown in its row.
   const [held, setHeld] = useState<Record<string, string>>({});
@@ -445,7 +448,12 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
                   )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate font-mono text-[12.5px] text-ink-2" title={tg.path}>{shortenHome(tg.path)}</span>
+                  {/* A rider has no file of its own to show; its row names the target it reads. */}
+                  {tg.rider_of ? (
+                    <span className="truncate font-mono text-[12.5px] text-ink-2" title={tg.path}>{shortenHome(tg.path)}</span>
+                  ) : (
+                    <button type="button" className="truncate text-left font-mono text-[12.5px] text-ink-2 hover:text-ink hover:underline" title={t('instructions.peek.label', { target: tg.name })} onClick={() => setPeek(tg)}>{shortenHome(tg.path)}</button>
+                  )}
                   {hint && <span className={`text-[12px] ${hint.kind === 'tooLong' || hint.kind === 'noSource' || hint.kind === 'folderLink' || hint.kind === 'directory' ? 'text-warn' : 'text-ink-3'}`}>{hintText(hint)}</span>}
                 </span>
                 {on && a && (
@@ -513,6 +521,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
         </div>
       )}
 
+      {peek && <TargetFileDialog target={peek.name} path={peek.path} names={usesOf(peek)} onClose={() => setPeek(null)} />}
       {restoring && (
         <RestorePreviewDialog name={name} target={restoring} label={targets.find((tg) => tg.name === restoring)?.rider_of ? targetLabel(restoring) : restoring}
           mode={targets.find((tg) => tg.name === restoring)?.assigned.find((x) => x.name === name)?.mode ?? ''} busy={busy} onClose={() => setRestoring(null)}

@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "Trenne die gemeinsame AGENTS.md, um den Ort zu ändern",
   "instructions.row.modified": "Diese Datei wurde außerhalb von skillshare geändert und noch nicht zurück synchronisiert.",
   "instructions.row.modifiedBlock": "Der {name}-Block in dieser Datei wurde außerhalb von skillshare geändert und noch nicht zurücksynchronisiert.",
+  "instructions.peek.label": "Datei von {target} anzeigen",
+  "instructions.peek.open": "Zur Zielseite",
   "instructions.editor.modified": "Geändert",
   "instructions.editor.unchanged": "Keine Änderungen",
   "instructions.editor.readers": "Nach dem Speichern lesen diese Ziele den neuen Inhalt sofort:",

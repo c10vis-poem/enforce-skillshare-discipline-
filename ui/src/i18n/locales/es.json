@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "Desconecta el AGENTS.md compartido para cambiar la ubicación",
   "instructions.row.modified": "Este archivo se cambió fuera de skillshare y todavía no se sincronizó.",
   "instructions.row.modifiedBlock": "El bloque de {name} en este archivo se editó fuera de skillshare y aún no se ha sincronizado.",
+  "instructions.peek.label": "Ver el archivo de {target}",
+  "instructions.peek.open": "Ir a la página del destino",
   "instructions.editor.modified": "Modificado",
   "instructions.editor.unchanged": "Sin cambios",
   "instructions.editor.readers": "Al guardar, estos destinos leen el contenido nuevo de inmediato:",

@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "場所を変えるには先に共有 AGENTS.md を外してください",
   "instructions.row.modified": "このファイルは skillshare の外で変更され、まだ同期されていません。",
   "instructions.row.modifiedBlock": "このファイル内の {name} ブロックは skillshare の外で変更され、まだ同期されていません。",
+  "instructions.peek.label": "{target} のファイルを表示",
+  "instructions.peek.open": "ターゲットページへ",
   "instructions.editor.modified": "変更あり",
   "instructions.editor.unchanged": "変更なし",
   "instructions.editor.readers": "保存すると、これらのターゲットがすぐに新しい内容を読み込みます：",

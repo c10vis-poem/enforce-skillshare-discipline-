@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "Déconnectez l'AGENTS.md partagé pour changer l'emplacement",
   "instructions.row.modified": "Ce fichier a été modifié en dehors de skillshare et n'a pas encore été resynchronisé.",
   "instructions.row.modifiedBlock": "Le bloc {name} de ce fichier a été modifié hors de skillshare et n'a pas encore été resynchronisé.",
+  "instructions.peek.label": "Voir le fichier de {target}",
+  "instructions.peek.open": "Ouvrir la page de la cible",
   "instructions.editor.modified": "Modifié",
   "instructions.editor.unchanged": "Aucune modification",
   "instructions.editor.readers": "Après l'enregistrement, ces cibles lisent aussitôt le nouveau contenu :",

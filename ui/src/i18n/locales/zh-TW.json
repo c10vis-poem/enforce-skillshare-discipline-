@@ -1406,6 +1406,8 @@
   "instructions.setup.locationLocked": "先停用共用 AGENTS.md 才能變更位置",
   "instructions.row.modified": "這個檔案在 skillshare 以外被改過，還沒同步回來。",
   "instructions.row.modifiedBlock": "這個檔案裡 {name} 的區塊在 skillshare 以外被改過，還沒同步回來。",
+  "instructions.peek.label": "看 {target} 的檔案",
+  "instructions.peek.open": "到目標頁",
   "instructions.editor.modified": "已修改",
   "instructions.editor.unchanged": "無變更",
   "instructions.editor.readers": "存檔後，這些目標會直接讀到新內容：",
