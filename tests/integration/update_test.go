@@ -681,7 +681,7 @@ func TestUpdate_RegularSkill_Force_OverridesAuditBlock(t *testing.T) {
 }
 
 // TestUpdate_Force_OverridesAuditBlock covers the tracked-repo update path,
-// where the gate lives in auditGateAfterPull rather than install.handleUpdate.
+// where the gate runs in update.TrackedRepo rather than install.handleUpdate.
 func TestUpdate_Force_OverridesAuditBlock(t *testing.T) {
 	sb := testutil.NewSandbox(t)
 	defer sb.Cleanup()
@@ -911,7 +911,7 @@ func TestUpdate_RegularSkill_Force_RecordsAcceptedFindings(t *testing.T) {
 }
 
 // TestUpdate_BatchAll_HonoursAcceptedFindings covers the batch path
-// (updateTrackedRepo → auditTrackedRepoUpdate).
+// (updateTrackedRepoQuick → update.TrackedRepo).
 func TestUpdate_BatchAll_HonoursAcceptedFindings(t *testing.T) {
 	sb := testutil.NewSandbox(t)
 	defer sb.Cleanup()
@@ -976,4 +976,56 @@ func TestUpdate_BatchGitStatusErrorFailsRepo(t *testing.T) {
 	jsonResult.AssertFailure(t)
 	jsonResult.AssertOutputContains(t, `"status": "failed"`)
 	jsonResult.AssertOutputContains(t, "failed to check git status")
+}
+
+func TestUpdate_TrackedRepo_DirtySkippedUnlessForced(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	setupGlobalConfig(sb)
+
+	repoName := setupCleanTrackedRepo(t, sb, "dirty-single")
+	skillFile := filepath.Join(sb.SourcePath, repoName, "my-skill", "SKILL.md")
+	sb.WriteFile(skillFile, "local edit")
+
+	blocked := sb.RunCLI("update", repoName)
+	blocked.AssertFailure(t)
+	blocked.AssertAnyOutputContains(t, "uncommitted changes")
+
+	dry := sb.RunCLI("update", repoName, "--force", "--dry-run")
+	dry.AssertSuccess(t)
+	dry.AssertAnyOutputContains(t, "would run git pull")
+	if got := sb.ReadFile(skillFile); got != "local edit" {
+		t.Fatalf("local edit should survive a refused update and a dry run, got %q", got)
+	}
+
+	forced := sb.RunCLI("update", repoName, "--force")
+	forced.AssertSuccess(t)
+	forced.AssertAnyOutputContains(t, "Discarding local changes (--force)")
+	if got := sb.ReadFile(skillFile); !contains(got, "Updated clean") {
+		t.Errorf("--force should discard the edit and pull, got %q", got)
+	}
+
+	sb.RunCLI("update", repoName).AssertAnyOutputContains(t, "already up to date")
+}
+
+func TestUpdate_Batch_DirtyRepoSkipped(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	setupGlobalConfig(sb)
+
+	cleanName := setupCleanTrackedRepo(t, sb, "batch-dirty-clean")
+	dirtyName := setupCleanTrackedRepo(t, sb, "batch-dirty-dirty")
+	dirtyFile := filepath.Join(sb.SourcePath, dirtyName, "my-skill", "SKILL.md")
+	sb.WriteFile(dirtyFile, "local edit")
+
+	result := sb.RunCLI("update", cleanName, dirtyName, "--json")
+	result.AssertSuccess(t)
+	result.AssertOutputContains(t, `"updated": 1`)
+	result.AssertOutputContains(t, `"skipped": 1`)
+	if got := sb.ReadFile(dirtyFile); got != "local edit" {
+		t.Errorf("dirty repo should be left alone, got %q", got)
+	}
+	if got := sb.ReadFile(filepath.Join(sb.SourcePath, cleanName, "my-skill", "SKILL.md")); !contains(got, "Updated clean") {
+		t.Error("clean repo should have been updated")
+	}
 }

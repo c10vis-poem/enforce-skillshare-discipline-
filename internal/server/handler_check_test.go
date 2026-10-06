@@ -76,32 +76,6 @@ func TestHandleCheck_DirtyCheckErrorReported(t *testing.T) {
 	}
 }
 
-// TestURLBranchGroupRemoteHash_DefaultBranchUsesAuth verifies that a skill
-// without a pinned branch still probes the remote HEAD with token auth, as the
-// CLI check does. The fake git answers ls-remote only when the auth env
-// carries the token.
-func TestURLBranchGroupRemoteHash_DefaultBranchUsesAuth(t *testing.T) {
-	const token = "ghp_check_default_branch_token"
-	fakeBin := t.TempDir()
-	script := "#!/bin/sh\n" +
-		"case \"$GIT_CONFIG_KEY_0\" in *" + token + "*) ;; *) echo 'fatal: Authentication failed' >&2; exit 128;; esac\n" +
-		"printf '0123456789abcdef0123456789abcdef01234567\\tHEAD\\n'\n"
-	if err := os.WriteFile(filepath.Join(fakeBin, "git"), []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("GIT_CONFIG_COUNT", "")
-	t.Setenv("GITHUB_TOKEN", token)
-
-	hash, err := urlBranchGroup{url: "https://github.com/org/private-skills.git"}.remoteHash()
-	if err != nil {
-		t.Fatalf("remoteHash without branch failed: %v", err)
-	}
-	if !strings.HasPrefix("0123456789abcdef0123456789abcdef01234567", hash) || hash == "" {
-		t.Fatalf("unexpected hash %q", hash)
-	}
-}
-
 func TestHandleCheck_ProjectRelativeLocalSourceIsCompared(t *testing.T) {
 	s, _ := newTestServer(t)
 	projectRoot := t.TempDir()

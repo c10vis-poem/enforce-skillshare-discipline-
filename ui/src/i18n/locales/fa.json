@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} اسکیل",
   "dashboard.trackedRepos.title": "مخازن ردیابی‌شده",
   "dashboard.trackedRepos.uninstall": "حذف نصب",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" تغییرات commit‌نشده دارد. با حذف نصب، این تغییرات همراه با repo به سطل زباله منتقل می‌شوند.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "وضعیت git برای \"{name}\" خوانده نشد، بنابراین ممکن است تغییرات commit‌نشده داشته باشد. با حذف نصب، repo به همان صورت به سطل زباله منتقل می‌شود.",
   "dashboard.trackedRepos.uninstallConfirm.message": "مخزن \"{name}\" حذف شود؟ همه اسکیل‌های مخزن به زباله‌دان منتقل می‌شوند.",
   "dashboard.trackedRepos.uninstallConfirm.title": "حذف نصب مخزن",
   "dashboard.trackedRepos.update": "به‌روزرسانی",

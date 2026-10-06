@@ -28,12 +28,11 @@ func SetFrontmatterList(filePath string, field string, values []string) error {
 // RewriteFrontmatterList returns updated frontmatter while preserving the body.
 // It has the same field and removal semantics as SetFrontmatterList.
 func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte, error) {
-	content := string(data)
-	fmRaw, body := splitFrontmatterAndBody(content)
+	fmRaw, body := splitFrontmatterAndBody(data)
 
 	var fm map[string]any
-	if fmRaw != "" {
-		if err := yaml.Unmarshal([]byte(fmRaw), &fm); err != nil {
+	if len(fmRaw) > 0 {
+		if err := yaml.Unmarshal(fmRaw, &fm); err != nil {
 			return nil, err
 		}
 	}
@@ -90,51 +89,19 @@ func RewriteFrontmatterList(data []byte, field string, values []string) ([]byte,
 	sb.WriteString("---\n")
 	sb.Write(fmBytes)
 	sb.WriteString("---\n")
-	if body != "" {
-		sb.WriteString(body)
-	}
+	sb.Write(body)
 
 	return []byte(sb.String()), nil
 }
 
 // splitFrontmatterAndBody splits SKILL.md content into raw frontmatter YAML
-// and the remaining body. Returns ("", fullContent) if no frontmatter found.
-func splitFrontmatterAndBody(content string) (string, string) {
-	if !strings.HasPrefix(strings.TrimSpace(content), "---") {
-		return "", content
+// and the remaining body. Returns (nil, content) if no frontmatter found.
+func splitFrontmatterAndBody(content []byte) (fmRaw, body []byte) {
+	block := locateFrontmatter(content, rewriteBlock)
+	if !block.closed {
+		return nil, content
 	}
-
-	lines := strings.Split(content, "\n")
-	inFrontmatter := false
-	fmStart := -1
-	fmEnd := -1
-
-	for i, line := range lines {
-		// Only match "---" at column 0 (with optional trailing whitespace).
-		// TrimRight preserves leading whitespace so indented "---" inside
-		// a YAML block scalar is not mistaken for the frontmatter delimiter.
-		if strings.TrimRight(line, " \t") == "---" {
-			if !inFrontmatter {
-				inFrontmatter = true
-				fmStart = i + 1
-			} else {
-				fmEnd = i
-				break
-			}
-		}
-	}
-
-	if fmEnd < 0 {
-		return "", content
-	}
-
-	fmRaw := strings.Join(lines[fmStart:fmEnd], "\n")
-	body := ""
-	if fmEnd+1 < len(lines) {
-		body = strings.Join(lines[fmEnd+1:], "\n")
-	}
-
-	return fmRaw, body
+	return block.withoutLastNewline(), block.body
 }
 
 // ToggleFrontmatterFlag flips a top-level boolean frontmatter key and reports the new state.

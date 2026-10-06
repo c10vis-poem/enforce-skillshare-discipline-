@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"skillshare/internal/git"
 	"skillshare/internal/install"
-	"skillshare/internal/sourcefs"
+	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
-	"skillshare/internal/trash"
+	"skillshare/internal/uninstall"
 )
 
 type batchUninstallRequest struct {
@@ -73,76 +72,38 @@ func (s *Server) handleBatchUninstallAgents(w http.ResponseWriter, body batchUni
 		return
 	}
 
-	results := make([]batchUninstallItemResult, 0, len(body.Names))
-	var removedNames []string
-	succeeded, failed := 0, 0
-	var firstErr string
-
-	for _, name := range body.Names {
-		res := batchUninstallItemResult{Name: name, Kind: "agent"}
-
+	results := make([]batchUninstallItemResult, len(body.Names))
+	var agents []uninstall.Agent
+	var slots []int // results index of each resolved agent
+	for i, name := range body.Names {
+		results[i] = batchUninstallItemResult{Name: name, Kind: "agent"}
 		agent, err := resolveAgentResource(agentsSource, name)
 		if err != nil {
-			res.Success = false
-			res.Error = "agent not found: " + name
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
+			results[i].Error = "agent not found: " + name
 			continue
 		}
+		agents = append(agents, uninstall.Agent{Name: agentMetaKey(agent.RelPath), File: agent.SourcePath})
+		slots = append(slots, i)
+	}
 
-		displayName := agentMetaKey(agent.RelPath)
-		legacySidecar := filepath.Join(filepath.Dir(agent.SourcePath), filepath.Base(displayName)+".skillshare-meta.json")
-		if _, err := trash.MoveAgentToTrash(agent.SourcePath, legacySidecar, displayName, s.agentTrashBase()); err != nil {
-			res.Success = false
+	for j, err := range s.uninstallAgents(agentsSource, agents) {
+		res := &results[slots[j]]
+		if err != nil {
 			res.Error = fmt.Sprintf("failed to trash agent: %v", err)
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
 			continue
 		}
-
-		removedNames = append(removedNames, displayName)
-		res.Success = true
-		res.MovedToTrash = true
-		results = append(results, res)
-		succeeded++
+		res.Success, res.MovedToTrash = true, true
 	}
 
-	if succeeded > 0 && s.agentsStore != nil {
-		for _, name := range removedNames {
-			s.agentsStore.Remove(name)
-		}
-		if err := s.agentsStore.Save(agentsSource); err != nil {
-			log.Printf("warning: failed to save agent metadata after batch uninstall: %v", err)
-		}
-	}
-
-	status := "ok"
-	if failed > 0 && succeeded > 0 {
-		status = "partial"
-	} else if failed > 0 {
-		status = "error"
-	}
-
+	summary, status, firstErr := summarizeBatchUninstall(results)
 	s.writeOpsLog("uninstall", status, start, map[string]any{
 		"names": body.Names,
 		"kind":  "agent",
 		"scope": "ui",
-		"count": succeeded,
+		"count": summary.Succeeded,
 	}, firstErr)
 
-	writeJSON(w, map[string]any{
-		"results": results,
-		"summary": batchUninstallSummary{
-			Succeeded: succeeded,
-			Failed:    failed,
-		},
-	})
+	writeJSON(w, map[string]any{"results": results, "summary": summary})
 }
 
 func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUninstallRequest, start time.Time) {
@@ -157,240 +118,186 @@ func (s *Server) handleBatchUninstallSkills(w http.ResponseWriter, body batchUni
 		return
 	}
 
-	results := make([]batchUninstallItemResult, 0, len(body.Names))
-	removedPaths := make(map[string]bool) // exact RelPaths of successfully removed items
-	var repoEntriesToRemove []string
-	succeeded, failed := 0, 0
-	var firstErr string
-
-	for _, name := range body.Names {
-		res := batchUninstallItemResult{Name: name, Kind: "skill"}
-
-		if !validSourceName(name) {
-			res.Success = false
-			res.Error = "invalid skill name: " + name
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
+	results := make([]batchUninstallItemResult, len(body.Names))
+	var items []uninstall.Item
+	var slots []int // results index of each resolved item
+	for i, name := range body.Names {
+		results[i] = batchUninstallItemResult{Name: name, Kind: "skill"}
+		item, err := s.resolveBatchUninstallItem(discovered, source, walk, name)
+		if err != nil {
+			results[i].Error = err.Error()
 			continue
 		}
-
-		repoPath := filepath.Join(source, name)
-		_, repoFollowed := walk.Follow.Resolve(repoPath)
-		managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
-		var skill *sync.DiscoveredSkill
-		if !managedRepo {
-			skill, err = resolveUninstallSkill(discovered, name)
-			if err != nil {
-				res.Error = err.Error()
-				results = append(results, res)
-				failed++
-				if firstErr == "" {
-					firstErr = res.Error
-				}
-				continue
-			}
-		}
-		followed := false
-		if skill != nil {
-			_, followed = walk.Follow.Resolve(skill.SourcePath)
-		}
-		// An explicit managed repo takes precedence over a skill's basename.
-		if managedRepo || (strings.HasPrefix(name, "_") && !followed) {
-			if !install.IsGitRepo(repoPath) {
-				res.Success = false
-				res.Error = "not a tracked repository: " + name
-				results = append(results, res)
-				failed++
-				if firstErr == "" {
-					firstErr = res.Error
-				}
-				continue
-			}
-
-			if !body.Force {
-				dirty, err := git.IsDirty(repoPath)
-				if err != nil {
-					res.Error = fmt.Sprintf("failed to check git status: %v", err)
-				} else if dirty {
-					res.Error = "uncommitted changes (use force to override)"
-				}
-			}
-			if res.Error != "" {
-				res.Success = false
-				results = append(results, res)
-				failed++
-				if firstErr == "" {
-					firstErr = res.Error
-				}
-				continue
-			}
-
-			if err := sourcefs.CheckMoveOut(source, repoPath, walk.Follow); err != nil {
-				res.Success = false
-				res.Error = err.Error()
-				results = append(results, res)
-				failed++
-				if firstErr == "" {
-					firstErr = res.Error
-				}
-				continue
-			}
-			if _, err := trash.MoveToTrash(repoPath, name, s.trashBase()); err != nil {
-				res.Success = false
-				res.Error = fmt.Sprintf("failed to trash repo: %v", err)
-				results = append(results, res)
-				failed++
-				if firstErr == "" {
-					firstErr = res.Error
-				}
-				continue
-			}
-
-			repoEntriesToRemove = append(repoEntriesToRemove, name)
-			removedPaths[name] = true // repo dir name is already the registry path
-			res.Success = true
-			res.MovedToTrash = true
-			results = append(results, res)
-			succeeded++
-			continue
-		}
-
-		if skill == nil {
-			res.Success = false
-			res.Error = "skill not found: " + name
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
-			continue
-		}
-
-		if skill.IsInRepo && !followed {
-			res.Success = false
-			res.Error = "skill is inside a tracked repo; uninstall the repo instead"
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
-			continue
-		}
-
-		if err := sourcefs.CheckSkillMoveOut(source, skill.SourcePath, walk.Follow); err != nil {
-			res.Success = false
-			res.Error = err.Error()
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
-			continue
-		}
-		trashName := filepath.Base(skill.SourcePath)
-		if followed {
-			trashName = skill.RelPath // Preserve the linked skill's logical restore path.
-		}
-		if _, err := trash.MoveToTrash(skill.SourcePath, trashName, s.trashBase()); err != nil {
-			res.Success = false
-			res.Error = fmt.Sprintf("failed to trash skill: %v", err)
-			results = append(results, res)
-			failed++
-			if firstErr == "" {
-				firstErr = res.Error
-			}
-			continue
-		}
-
-		removedPaths[skill.RelPath] = true // exact path for registry matching
-		res.Success = true
-		res.MovedToTrash = true
-		results = append(results, res)
-		succeeded++
+		items = append(items, item)
+		slots = append(slots, i)
 	}
 
-	if len(repoEntriesToRemove) > 0 {
-		gitDir := s.gitignoreDir()
-		if gitDir != "" {
-			entries := repoEntriesToRemove
-			if s.IsProjectMode() {
-				prefix := s.projectGitignorePrefix()
-				entries = make([]string, len(repoEntriesToRemove))
-				for i, e := range repoEntriesToRemove {
-					entries[i] = prefix + "/" + e
-				}
-			}
-			if _, err := install.RemoveFromGitIgnoreBatch(gitDir, entries); err != nil {
-				log.Printf("warning: failed to clean .gitignore: %v", err)
-			}
+	for j, r := range s.uninstallSkills(items, body.Force) {
+		res := &results[slots[j]]
+		if r.Err != nil {
+			res.Error = uninstallErrorMessage(r)
+			continue
 		}
+		res.Success, res.MovedToTrash = true, true
 	}
 
-	if succeeded > 0 {
-		// removedPaths contains exact RelPaths (e.g. "frontend/vue/vue-best-practices")
-		// and repo dir names (e.g. "_team-skills"), collected during the uninstall loop.
-		for _, name := range s.skillsStore.List() {
-			entry := s.skillsStore.Get(name)
-			if entry == nil {
-				continue
-			}
-			if removedPaths[name] {
-				s.skillsStore.Remove(name)
-				continue
-			}
-			// Tracked repos: store uses group without "_" prefix (e.g., group="team-skills"
-			// for repo dir "_team-skills"). Reconstruct the prefixed name to match removedPaths.
-			if entry.Group != "" && removedPaths["_"+entry.Group] {
-				s.skillsStore.Remove(name)
-				continue
-			}
-			// When a group directory is uninstalled, also remove its member skills
-			memberOfRemoved := false
-			for rp := range removedPaths {
-				if strings.HasPrefix(name, rp+"/") {
-					memberOfRemoved = true
-					break
-				}
-			}
-			if memberOfRemoved {
-				s.skillsStore.Remove(name)
-			}
-		}
-		for rp := range removedPaths {
-			s.skillsStore.RemoveTargetOverrides(rp)
-		}
-
-		if err := s.skillsStore.Save(s.cfg.EffectiveSkillsSource()); err != nil {
-			log.Printf("warning: failed to save metadata: %v", err)
-		}
-
+	summary, status, firstErr := summarizeBatchUninstall(results)
+	if summary.Succeeded > 0 {
 		s.reconcileSkillsConfig(s.cfg.EffectiveSkillsSource())
 	}
-
-	status := "ok"
-	if failed > 0 && succeeded > 0 {
-		status = "partial"
-	} else if failed > 0 {
-		status = "error"
-	}
-
 	s.writeOpsLog("uninstall", status, start, map[string]any{
 		"names": body.Names,
 		"force": body.Force,
 		"scope": "ui",
-		"count": succeeded,
+		"count": summary.Succeeded,
 	}, firstErr)
 
-	writeJSON(w, map[string]any{
-		"results": results,
-		"summary": batchUninstallSummary{
-			Succeeded: succeeded,
-			Failed:    failed,
-		},
+	writeJSON(w, map[string]any{"results": results, "summary": summary})
+}
+
+// summarizeBatchUninstall counts the results and derives the oplog status and
+// message from them.
+func summarizeBatchUninstall(results []batchUninstallItemResult) (summary batchUninstallSummary, status, firstErr string) {
+	for _, res := range results {
+		if res.Success {
+			summary.Succeeded++
+			continue
+		}
+		summary.Failed++
+		if firstErr == "" {
+			firstErr = res.Error
+		}
+	}
+	status = "ok"
+	if summary.Failed > 0 && summary.Succeeded > 0 {
+		status = "partial"
+	} else if summary.Failed > 0 {
+		status = "error"
+	}
+	return summary, status, firstErr
+}
+
+// resolveBatchUninstallItem resolves a flat name from the dashboard to a
+// tracked repo or a skill.
+func (s *Server) resolveBatchUninstallItem(discovered []sync.DiscoveredSkill, source string, walk sourcewalk.Options, name string) (uninstall.Item, error) {
+	if !validSourceName(name) {
+		return uninstall.Item{}, errors.New("invalid skill name: " + name)
+	}
+
+	repoPath := filepath.Join(source, name)
+	_, repoFollowed := walk.Follow.Resolve(repoPath)
+	managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
+	var skill *sync.DiscoveredSkill
+	if !managedRepo {
+		var err error
+		if skill, err = resolveUninstallSkill(discovered, name); err != nil {
+			return uninstall.Item{}, err
+		}
+	}
+	followed := false
+	if skill != nil {
+		_, followed = walk.Follow.Resolve(skill.SourcePath)
+	}
+	// An explicit managed repo takes precedence over a skill's basename.
+	if managedRepo || (strings.HasPrefix(name, "_") && !followed) {
+		if !install.IsGitRepo(repoPath) {
+			return uninstall.Item{}, errors.New("not a tracked repository: " + name)
+		}
+		return s.repoUninstallItem(name, repoPath), nil
+	}
+	if skill == nil {
+		return uninstall.Item{}, errors.New("skill not found: " + name)
+	}
+	if skill.IsInRepo && !followed {
+		return uninstall.Item{}, errors.New("skill is inside a tracked repo; uninstall the repo instead")
+	}
+	return skillUninstallItem(skill, followed), nil
+}
+
+// repoUninstallItem describes a tracked repo by its source-relative name.
+func (s *Server) repoUninstallItem(name, repoPath string) uninstall.Item {
+	entry := name
+	if s.IsProjectMode() {
+		entry = s.projectGitignorePrefix() + "/" + name
+	}
+	return uninstall.Item{Name: name, Path: repoPath, TrashName: name, Repo: true, Gitignore: entry}
+}
+
+// skillUninstallItem describes a discovered skill. A skill below a followed
+// source link keeps its logical path in the trash so restore goes back through
+// the same link.
+func skillUninstallItem(skill *sync.DiscoveredSkill, followed bool) uninstall.Item {
+	trashName := filepath.Base(skill.SourcePath)
+	if followed {
+		trashName = skill.RelPath
+	}
+	return uninstall.Item{Name: skill.RelPath, Path: skill.SourcePath, TrashName: trashName}
+}
+
+// uninstallSkills runs the shared uninstall for resolved skills and repos.
+func (s *Server) uninstallSkills(items []uninstall.Item, force bool) []uninstall.Result {
+	out := uninstall.Run(items, uninstall.Options{
+		SourceDir:    s.skillsSource(),
+		Follow:       s.skillsWalk().Follow,
+		TrashDir:     s.trashBase(),
+		Store:        s.skillsStore,
+		GitignoreDir: s.gitignoreDir(),
+		Force:        force,
 	})
+	if out.GitignoreErr != nil {
+		log.Printf("warning: failed to clean .gitignore: %v", out.GitignoreErr)
+	}
+	if out.SaveErr != nil {
+		log.Printf("warning: failed to save metadata: %v", out.SaveErr)
+	}
+	return out.Results
+}
+
+// uninstallAgents runs the shared agent uninstall; errs follows agents.
+func (s *Server) uninstallAgents(agentsSource string, agents []uninstall.Agent) []error {
+	errs, saveErr := uninstall.Agents(agents, agentsSource, s.agentTrashBase(), s.agentsStore)
+	if saveErr != nil {
+		log.Printf("warning: failed to save agent metadata after uninstall: %v", saveErr)
+	}
+	return errs
+}
+
+// uninstallErrorStatus is the HTTP status of a failed single uninstall: a
+// refusal is a conflict, a failed move is the server's fault.
+func uninstallErrorStatus(err error) int {
+	var trashErr *uninstall.TrashError
+	if errors.As(err, &trashErr) {
+		return http.StatusInternalServerError
+	}
+	return http.StatusConflict
+}
+
+// uninstallForceCode names the refusals force overrides, so the dashboard
+// offers the override for these and nothing else; "" for any other error.
+func uninstallForceCode(err error) string {
+	var statusErr *uninstall.StatusError
+	switch {
+	case errors.Is(err, uninstall.ErrDirty):
+		return "repo_dirty"
+	case errors.As(err, &statusErr):
+		return "repo_status_failed"
+	}
+	return ""
+}
+
+// uninstallErrorMessage words a failed result for the dashboard.
+func uninstallErrorMessage(r uninstall.Result) string {
+	var trashErr *uninstall.TrashError
+	switch {
+	case errors.Is(r.Err, uninstall.ErrDirty):
+		return "uncommitted changes (use force to override)"
+	case errors.As(r.Err, &trashErr):
+		if r.Item.Repo {
+			return fmt.Sprintf("failed to trash repo: %v", trashErr.Err)
+		}
+		return fmt.Sprintf("failed to trash skill: %v", trashErr.Err)
+	}
+	return r.Err.Error()
 }
 
 // ponytail: scan per requested name; index discovery if large batches become slow.

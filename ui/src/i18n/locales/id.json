@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} skill",
   "dashboard.trackedRepos.title": "Repositori yang Dilacak",
   "dashboard.trackedRepos.uninstall": "Copot",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" memiliki perubahan yang belum di-commit. Mencopotnya akan memindahkan perubahan itu ke sampah bersama repo.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "Status git \"{name}\" tidak dapat dibaca, jadi mungkin ada perubahan yang belum di-commit. Mencopotnya akan memindahkan repo apa adanya ke sampah.",
   "dashboard.trackedRepos.uninstallConfirm.message": "Hapus repositori \"{name}\"? Ini akan memindahkan semua skill di repo ke sampah.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Copot Repositori",
   "dashboard.trackedRepos.update": "Perbarui",

@@ -56,7 +56,7 @@ Operations that change configuration, sources, targets, or managed files must:
 - write an oplog entry to `operations.log` with the operation, status, duration, and necessary arguments;
 - send security scan events to the audit log rather than the regular operation log;
 - preserve path validation, scope checks, and ownership checks;
-- use domain uninstall/remove flows for managed state rather than replacing them with filesystem deletion;
+- use domain uninstall/remove flows for managed state rather than replacing them with filesystem deletion. Skills, tracked repos and agents go through `internal/uninstall` (`Preflight`, `Run`, `Agents`): it owns the move-out check, the dirty check for tracked repos, the move to trash, `.gitignore` cleanup and the metadata prune (`MetadataStore.RemoveByNames`). The CLI and the dashboard handlers only resolve names and report its per-item results;
 - write the skills source through `internal/sourcefs`, which refuses paths with a link component unless the operation's `*sourcewalk.Follow` policy (built by `config.SkillsWalk` when `follow_source_links` is on) resolves a first-level link; such paths are rebased onto the link target with the same escape checks. The ratchet in `internal/sourcefs/ratchet_test.go` fails on any new raw `os` write call until it gets a truthful reason in `testdata/raw_writes.tsv`;
 - create and remove first-level source links through `internal/sourcelink` (`Create` prechecks with `sourcewalk.Follow.Allow`; `Remove` is the `unlink` flow and moves only the link to trash; `uninstall <link>` is refused when the linked folder itself is a skill, and `Discard` rolls back a link whose follow-up step failed);
 - read the skills source through `internal/sourcewalk` and pass the same `sourcewalk.Options` the operation's discovery used, so CLI, dashboard, and reconcile agree on which first-level links are followed. The ratchet in `internal/sourcewalk/guard_test.go` fails on any new raw walk until it is listed in `allowlist.json`.
@@ -95,6 +95,8 @@ When a dashboard endpoint is needed:
 5. Share an `internal/` package when the CLI and API expose the same operation; do not shell out between them.
 
 Sync is the main example: the CLI and the server both run per-target sync through `internal/sync` (`SyncSkillTarget`, `RunAgentSync`, `RunExtraTargets`). Both follow CLI semantics: every target runs, and a failed target is reported as a partial failure instead of stopping the loop. Change sync behavior in these runners, not in a command or handler loop.
+
+Updating one tracked repo is another: both call `update.TrackedRepo` (`internal/update`), which checks for uncommitted changes, pulls, runs the post-pull audit gate (`install.AuditGate`), resets to the pre-pull commit when the gate blocks, and refreshes metadata. The gate is fail-closed: a scan that cannot run is never overridden by force. Callers only choose inputs (`AcceptedFindings`, `Confirm`) and word the result; change the sequence in the operation, not in a command or handler.
 
 ## Completion Criteria
 

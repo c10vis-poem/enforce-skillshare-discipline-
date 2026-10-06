@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../api/client';
+import { ApiError, api } from '../api/client';
 import type { Overview, Target } from '../api/client';
 import { hooksApi } from '../api/hooks';
 import type { HookInventory } from '../api/hooks';
@@ -21,7 +22,7 @@ vi.mock('../api/client', async (load) => {
     api: {
       ...actual.api,
       getOverview: vi.fn(), listTargets: vi.fn(), listExtras: vi.fn(), listLog: vi.fn(),
-      auditAll: vi.fn(), check: vi.fn(), getVersionCheck: vi.fn(),
+      auditAll: vi.fn(), check: vi.fn(), getVersionCheck: vi.fn(), deleteRepo: vi.fn(),
     },
   };
 });
@@ -88,5 +89,57 @@ describe('DashboardPage', () => {
   it('opens a broken target from the attention list on that target', async () => {
     renderPage();
     expect(await screen.findByRole('link', { name: 'Open' })).toHaveAttribute('href', '/targets/cursor');
+  });
+
+  describe('uninstalling a tracked repo', () => {
+    const dirty = new ApiError(409, 'uncommitted changes (use force to override)', { code: 'repo_dirty' });
+
+    async function confirmUninstall() {
+      vi.mocked(api.getOverview).mockResolvedValue({ skillCount: 3, agentCount: 0, source: '/home/dev/skills', trackedRepos: [{ name: '_team', skillCount: 1, dirty: false }] } as unknown as Overview);
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Repo actions' }));
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Uninstall' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Uninstall' }));
+    }
+
+    it('removes a clean repo in one request without force', async () => {
+      vi.mocked(api.deleteRepo).mockResolvedValue({ success: true, name: '_team' });
+      await confirmUninstall();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(vi.mocked(api.deleteRepo).mock.calls).toEqual([['_team', false]]);
+    });
+
+    it('retries a dirty repo with force once the user confirms', async () => {
+      vi.mocked(api.deleteRepo).mockRejectedValueOnce(dirty).mockResolvedValue({ success: true, name: '_team' });
+      await confirmUninstall();
+      expect(await screen.findByText(/"team" has uncommitted changes/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Retry with Force' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(vi.mocked(api.deleteRepo).mock.calls).toEqual([['_team', false], ['_team', true]]);
+    });
+
+    it('leaves a dirty repo alone when the user cancels', async () => {
+      vi.mocked(api.deleteRepo).mockRejectedValue(dirty);
+      await confirmUninstall();
+      await screen.findByRole('button', { name: 'Retry with Force' });
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(vi.mocked(api.deleteRepo).mock.calls).toEqual([['_team', false]]);
+    });
+
+    it('offers force when git status cannot be read', async () => {
+      vi.mocked(api.deleteRepo).mockRejectedValueOnce(new ApiError(409, 'failed to check git status: boom', { code: 'repo_status_failed' })).mockResolvedValue({ success: true, name: '_team' });
+      await confirmUninstall();
+      expect(await screen.findByText(/Could not read the git status of "team"/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Retry with Force' }));
+      await waitFor(() => expect(vi.mocked(api.deleteRepo).mock.calls).toEqual([['_team', false], ['_team', true]]));
+    });
+
+    it('does not offer force for a refusal force cannot override', async () => {
+      vi.mocked(api.deleteRepo).mockRejectedValue(new ApiError(409, 'is the linked folder itself; use unlink to remove the link', { code: 'conflict' }));
+      await confirmUninstall();
+      expect(await screen.findByText('is the linked folder itself; use unlink to remove the link')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Retry with Force' })).not.toBeInTheDocument();
+    });
   });
 });

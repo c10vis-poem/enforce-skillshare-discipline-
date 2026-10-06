@@ -120,13 +120,7 @@ func ParallelCheckURLs(urls []URLCheckInput, onDone func()) []URLCheckOutput {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			var hash string
-			var err error
-			if input.Branch != "" {
-				hash, err = git.GetRemoteRefHashWithAuth(input.RepoURL, input.Branch)
-			} else {
-				hash, err = git.GetRemoteHeadHashWithAuth(input.RepoURL)
-			}
+			hash, err := GitRemote{}.Hash(input.RepoURL, input.Branch)
 			outputs[idx] = URLCheckOutput{
 				RepoURL:    input.RepoURL,
 				RemoteHash: hash,

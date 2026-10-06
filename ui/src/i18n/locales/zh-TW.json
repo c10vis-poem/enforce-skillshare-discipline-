@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} 個 skills",
   "dashboard.trackedRepos.title": "追蹤的 Repositories",
   "dashboard.trackedRepos.uninstall": "解除安裝",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "「{name}」有未提交的變更。解除安裝會將這些變更連同 repo 一併移至垃圾桶。",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "無法讀取「{name}」的 git 狀態，因此可能有未提交的變更。解除安裝會將 repo 原樣移至垃圾桶。",
   "dashboard.trackedRepos.uninstallConfirm.message": "移除 repository「{name}」？這將把 repo 中所有 skills 移至垃圾桶。",
   "dashboard.trackedRepos.uninstallConfirm.title": "解除安裝 Repository",
   "dashboard.trackedRepos.update": "更新",

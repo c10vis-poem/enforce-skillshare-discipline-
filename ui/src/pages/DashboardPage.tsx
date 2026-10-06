@@ -21,7 +21,7 @@ import {
   Webhook,
   X,
 } from 'lucide-react';
-import { api } from '../api/client';
+import { ApiError, api } from '../api/client';
 import type { AuditAllResponse, CheckResult, LogEntry, Overview, Target } from '../api/client';
 import { pluginsApi } from '../api/plugins';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
@@ -424,6 +424,12 @@ function RecentLog() {
 
 /* ── Tracked repositories ── */
 
+// Refusals of DELETE /api/repos/{name} that ?force=true overrides, by error code.
+const forceableRefusals = {
+  repo_dirty: 'dashboard.trackedRepos.uninstallConfirm.dirty',
+  repo_status_failed: 'dashboard.trackedRepos.uninstallConfirm.statusFailed',
+} as const;
+
 function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
   const t = useT();
   const queryClient = useQueryClient();
@@ -432,6 +438,7 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [refusal, setRefusal] = useState<keyof typeof forceableRefusals | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -456,12 +463,13 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await api.deleteRepo(toDelete);
+      await api.deleteRepo(toDelete, refusal !== null);
       toast(t('dashboard.toast.repoUninstalled', { name: toDelete.replace(/^_/, '') }), 'success');
       setToDelete(null);
       await refresh();
     } catch (e: unknown) {
-      toast((e as Error).message, 'error');
+      if (e instanceof ApiError && e.code && e.code in forceableRefusals) setRefusal(e.code as keyof typeof forceableRefusals);
+      else toast((e as Error).message, 'error');
     } finally {
       setDeleting(false);
     }
@@ -493,7 +501,7 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
               </button>
               {menuFor === repo.name && (
                 <div className="ss-menu absolute right-0 top-full mt-1 z-20 !w-44 animate-dropdown-in" role="menu">
-                  <button type="button" role="menuitem" className="dng" onClick={() => { setMenuFor(null); setToDelete(repo.name); }}>
+                  <button type="button" role="menuitem" className="dng" onClick={() => { setMenuFor(null); setToDelete(repo.name); setRefusal(null); }}>
                     <Trash2 size={15} />
                     {t('dashboard.trackedRepos.uninstall')}
                   </button>
@@ -506,8 +514,8 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
       <ConfirmDialog
         open={toDelete !== null}
         title={t('dashboard.trackedRepos.uninstallConfirm.title')}
-        message={toDelete ? t('dashboard.trackedRepos.uninstallConfirm.message', { name: toDelete.replace(/^_/, '') }) : ''}
-        confirmText={t('dashboard.trackedRepos.uninstall')}
+        message={toDelete ? t(refusal ? forceableRefusals[refusal] : 'dashboard.trackedRepos.uninstallConfirm.message', { name: toDelete.replace(/^_/, '') }) : ''}
+        confirmText={t(refusal ? 'resources.uninstall.retryForce' : 'dashboard.trackedRepos.uninstall')}
         variant="danger"
         loading={deleting}
         onConfirm={uninstall}

@@ -303,6 +303,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} skills",
   "dashboard.trackedRepos.title": "Tracked repositories",
   "dashboard.trackedRepos.uninstall": "Uninstall",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" has uncommitted changes. Uninstalling moves them to trash with the repo.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "Could not read the git status of \"{name}\", so it may have uncommitted changes. Uninstalling moves the repo to trash as it is.",
   "dashboard.trackedRepos.uninstallConfirm.message": "Remove repository \"{name}\"? This will move all skills in the repo to trash.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Uninstall Repository",
   "dashboard.trackedRepos.update": "Update",
