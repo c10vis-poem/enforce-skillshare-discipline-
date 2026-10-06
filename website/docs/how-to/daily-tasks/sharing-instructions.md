@@ -172,9 +172,13 @@ How a target uses a shared file depends on whether it follows `@` imports:
   Your own Claude-only instructions stay here.
   ```
 
-- **Other targets** (codex, gemini and the rest) use one shared file. Their file is
+- **Other targets** (codex, gemini and the rest) get one shared file by default. Their file is
   backed up, then replaced by a link (symlink) to the shared file. On Windows without
   Developer Mode, file links aren't available, so it is replaced by a copy instead.
+  To keep the target's own content, switch the target to `prepend` or `append` in the
+  mode picker: the shared file's content is then written into a managed block at the
+  top or end of the target's file, and the file can hold several shared files, each in
+  its own block.
 
 In global mode, one shared file reaches each target like this:
 
@@ -217,8 +221,8 @@ Some targets are special:
   is a target too, their rows follow universal.
 - cursor isn't listed: its user rules live in Cursor's settings, not in a file.
 
-A target file in link or `copy` mode can belong to only one shared file. It cannot also import
-another shared file. **Connect all** skips targets held by another shared file, including links you
+A target file in link or `copy` mode can belong to only one shared file. It cannot also hold
+another shared file's import line or block. **Connect all** skips targets held by another shared file, including links you
 created yourself; restore that connection before attaching a different file.
 
 ## Manage one shared file
@@ -229,6 +233,8 @@ the target gets the shared file:
 | Mode | Target file | Available |
 |------|-------------|-----------|
 | `import` | Your own file, with one `@import` line in the managed block. Changes to the shared file apply right away | Targets that follow `@` imports |
+| `prepend` | Your own file, with the shared file's content in a managed block at the top. Changes to the shared file are written on the next sync; a block edited by hand shows as `modified` until you collect or reapply it | Always |
+| `append` | The same block, at the end of your file | Always |
 | `symlink` | A link to the shared file. Changes apply right away | Not on Windows without Developer Mode |
 | `copy` | A copy of the shared file. Saving the shared file in the dashboard updates the copy; after editing the shared file elsewhere, sync again with **Sync** on this page | Always |
 
@@ -237,10 +243,17 @@ the target gets the shared file:
 When file links are unavailable, an info tooltip beside **Targets** explains Windows Developer Mode. Instruction warnings and errors use the dashboard language, with the original English message as a fallback for unknown codes.
 
 The picker marks the default: `import` for targets that follow `@` imports, otherwise
-`symlink`, or `copy` on Windows without Developer Mode. A target that uses more than
-one shared file can only use `import`. Changing the mode syncs the target right away.
+`symlink`, or `copy` on Windows without Developer Mode; `prepend` once the target's file
+already holds a shared file in a managed block. A target that uses more than
+one shared file can only use `import`, `prepend` or `append`; `import` is listed but
+blocked for targets that do not follow `@` imports. Changing the mode syncs the target right away.
 Switching back to `import` restores your last content from `import` mode (or the
 pre-attach content if you have not used `import`), plus the import block.
+A mode change also removes what the previous mode wrote: switching from `import` to
+`prepend` drops the `@` line, switching from `prepend` or `append` to `import` drops the
+block, and switching from `copy` to a block mode rebuilds your own file instead of
+keeping the copy. The file never holds the same shared file twice. Switching between
+`prepend` and `append` moves the block.
 
 On Windows, a target whose file is a link that was created as a folder shows a
 warning: tools can't read it. Switching it to `copy` (or running
@@ -251,16 +264,22 @@ If a mode change replaces an edit, the dashboard reports the backup. Switching b
 
 | Status | Meaning |
 |--------|---------|
-| `synced` | The link, copy, or import line is in place |
-| `modified` | The link was replaced by a different regular file, or a managed copy was edited ([see below](#when-a-linked-file-is-edited)) |
-| `drift` | The target file exists but isn't linked to the shared file, or no longer has the import line |
+| `synced` | The link, copy, import line, or block is in place |
+| `modified` | The link was replaced by a different regular file, a managed copy was edited, or a block was edited by hand ([see below](#when-a-linked-file-is-edited)) |
+| `drift` | The target file exists but isn't linked to the shared file, no longer has the import line, or its block is missing or older than the shared file |
 | `not synced` | The target file doesn't exist yet |
 | `no source` | The shared file itself is missing |
 
 If a folder occupies the target file path, remove or rename the folder, then sync; sync does not replace it.
 
 When a connected target is `drift` or `not synced`, the heading shows how many need a
-sync and a **Sync** button that restores this file’s links, copies, and import lines.
+sync and a **Sync** button that restores this file’s links, copies, import lines, and blocks.
+
+Click a target's file path to see the file as the tool reads it, with **Preview** and
+**Source** tabs. In **Source**, each managed block is tinted, and a block edited by hand
+is tinted as a warning. For a `prepend` or `append` target, a line below the file says
+what the block is, or offers the same choices as the row when the block is `modified`.
+**Open target page** goes to the target's own tab to edit the file.
 
 **Edit** opens the file in a large editor with **Edit** and **Preview** tabs. The side
 panel lists the targets that read the saved file right away, and warns about targets
@@ -287,6 +306,11 @@ For an import target, only skillshare's import line is removed; a `CLAUDE.md` th
 skillshare created just for the block is removed once it is empty. The shared file
 itself is kept. If the target is still `modified`, the edited file is first kept as a
 [drift backup](#backups).
+For a `prepend` or `append` target, only this shared file's block is removed; your own
+lines and other shared files' blocks stay. A file skillshare created just for the block
+is removed once nothing else is in it. A block edited by hand is kept as a drift backup
+first. If the block's markers are damaged, for example the end marker was deleted, the
+restore stops and the target stays connected until you repair the markers.
 
 Deleting a shared file removes it from the config and restores every target that used
 it. The file stays in the extras folder.
@@ -353,6 +377,20 @@ without asking. The edit is kept as a drift backup first, so choose **Collect in
 before syncing if the shared file should get it.
 
 A managed `copy` with edited content also shows `modified` and offers the same **Collect into** and **Overwrite with** choices. Overwrite or Sync reapplies the selected mode, so a target in `copy` mode remains a copy.
+
+A `prepend` or `append` target is `modified` when the text inside its block no longer
+matches what skillshare wrote. The note names the block, and the choices touch only the
+block:
+
+- **Collect block into** the shared file: the block's text becomes the shared file, and
+  every target using it gets the change. The current shared file is backed up first.
+- **Rewrite block from** the shared file: the edited file is kept as a
+  [drift backup](#backups), and the block is written again. Lines outside the block
+  are not changed.
+
+Unlike a link or a copy, an edited block is never overwritten by
+`skillshare sync extras` or **Sync**: sync stops with an error for that target until you
+choose one of the two.
 
 ## Change which file a target reads
 

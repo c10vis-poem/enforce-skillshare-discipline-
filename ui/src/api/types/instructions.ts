@@ -104,7 +104,7 @@ export interface InstructionLocation {
   path: string; // the folder as stored in config; names the location in the calls below
   file: string; // the file written
   as?: string; // custom file name
-  mode: 'import' | 'symlink' | 'copy';
+  mode: 'import' | 'prepend' | 'append' | 'symlink' | 'copy';
   status: string; // same values as InstructionsAssignment.status
   reason?: 'folder_link' | 'directory';
 }

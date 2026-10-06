@@ -710,7 +710,7 @@ extras:
 | `file` | No | Sync only this file from the source directory: a plain file name such as `system.md` or `AGENTS.md`. See [single-file extras](../commands/extras.md#single-file-extras) |
 | `targets` | Yes | List of target paths |
 | `targets[].path` | Yes | Destination directory |
-| `targets[].mode` | No | `merge` (default), `copy`, or `symlink`; `import` for single-file extras only |
+| `targets[].mode` | No | `merge` (default), `copy`, or `symlink`; `import`, `prepend` and `append` for single-file extras only |
 | `targets[].as` | No | File name in the target for a single-file extra (default: the `file` name) |
 | `targets[].flatten` | No | When `true`, sync subdirectory files directly into target root (cannot use with `symlink` or `file`) |
 

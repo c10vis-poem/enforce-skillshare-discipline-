@@ -9,7 +9,7 @@ import { useT } from '../../i18n';
 import { fileName } from '../../lib/paths';
 import RestorePreviewDialog from './RestorePreviewDialog';
 import type { LocationHint } from './instructionsView';
-import { locationHint, locationLabel, locationModeOptions, pickedMode, statusTone } from './instructionsView';
+import { blockMode, locationHint, locationLabel, locationModeOptions, pickedMode, statusTone } from './instructionsView';
 
 /**
  * The rows of a shared file's other locations: mode, status, removal after a restore
@@ -25,8 +25,8 @@ export default function LocationRows({ name, locations, fileLinks, busy, project
   /** Runs one change with the caller busy, reporting failures and refetching afterwards. */
   act: (fn: () => Promise<void>) => Promise<void>;
   warn: (warnings?: InstructionsWarning[]) => void;
-  /** Asks before collecting an edited location into the shared file, or overwriting it. */
-  onResolve: (label: string, path: string, action: 'collect' | 'reapply') => void;
+  /** Asks before collecting an edited location into the shared file, or overwriting it; block when only its content block is touched. */
+  onResolve: (label: string, path: string, action: 'collect' | 'reapply', block: boolean) => void;
 }) {
   const t = useT();
   const { toast } = useToast();
@@ -80,9 +80,9 @@ export default function LocationRows({ name, locations, fileLinks, busy, project
             {l.status === 'modified' && (
               <div className="ss-note warn mr-4 mb-3 ml-[58px] !items-center">
                 <TriangleAlert size={16} className="!mt-0" />
-                <span className="flex-1">{t('instructions.row.modified')}</span>
-                <Button variant="secondary" size="sm" disabled={busy} onClick={() => onResolve(path, l.path, 'collect')}>{t('instructions.resolve.collect.item', { name })}</Button>
-                <Button variant="secondary" size="sm" disabled={busy} onClick={() => onResolve(path, l.path, 'reapply')}>{t('instructions.resolve.reapply.item', { name })}</Button>
+                <span className="flex-1">{t(blockMode(l.mode) ? 'instructions.row.modifiedBlock' : 'instructions.row.modified', { name })}</span>
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => onResolve(path, l.path, 'collect', blockMode(l.mode))}>{t(blockMode(l.mode) ? 'instructions.resolve.collect.itemBlock' : 'instructions.resolve.collect.item', { name })}</Button>
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => onResolve(path, l.path, 'reapply', blockMode(l.mode))}>{t(blockMode(l.mode) ? 'instructions.resolve.reapply.itemBlock' : 'instructions.resolve.reapply.item', { name })}</Button>
               </div>
             )}
           </div>

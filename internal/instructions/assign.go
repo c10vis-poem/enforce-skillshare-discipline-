@@ -40,7 +40,8 @@ func Shared(extras []config.ExtraConfig) []config.ExtraConfig {
 // the extra's targets and synced. A target without import takes at most one.
 // It returns the updated extras; on error the extras reflect the steps done.
 func Assign(extras []config.ExtraConfig, t Target, want []string, r Resolver, warnings ...*[]syncpkg.FileWarning) ([]config.ExtraConfig, error) {
-	if _, err := PlanAssign(extras, t, want, r); err != nil {
+	planned, err := PlanAssign(extras, t, want, r)
+	if err != nil {
 		return extras, err
 	}
 
@@ -70,12 +71,12 @@ func Assign(extras []config.ExtraConfig, t Target, want []string, r Resolver, wa
 		if targetIndex(extras[i], t.File, r) != -1 {
 			continue
 		}
-		tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), Mode: "symlink"}
-		if t.Import {
-			tc.Mode = "import"
-		}
-		if base := filepath.Base(t.File); base != extras[i].File {
-			tc.As = base
+		// The mode the plan validated, chosen with every wanted file in view;
+		// recomputing it here, after the removals above, could pick another.
+		pi := indexOf(planned, name)
+		tc := planned[pi].Targets[targetIndex(planned[pi], t.File, r)]
+		if tc.As == extras[i].File {
+			tc.As = ""
 		}
 		if err := config.ValidateExtraConfig(config.ExtraConfig{Name: name, File: extras[i].File, Targets: []config.ExtraTargetConfig{tc}}); err != nil {
 			return extras, err
@@ -99,38 +100,63 @@ func Assign(extras []config.ExtraConfig, t Target, want []string, r Resolver, wa
 // PlanAssign validates the complete desired ownership without changing files or
 // the caller's config. API batches use it before making their first mutation.
 func PlanAssign(extras []config.ExtraConfig, t Target, want []string, r Resolver) ([]config.ExtraConfig, error) {
-	if !t.Import && len(want) > 1 {
-		return nil, &config.ExtraTargetConflict{Name: want[0], Target: t.Name}
-	}
 	for _, name := range want {
 		if i := indexOf(extras, name); i == -1 || !IsShared(extras[i]) {
 			return nil, fmt.Errorf("shared instruction file %q not found", name)
 		}
 	}
+	// Detach first, so the defaults below see only the files that stay.
 	next := slices.Clone(extras)
 	for i := range next {
 		next[i].Targets = slices.Clone(next[i].Targets)
-		if !IsShared(next[i]) {
+		if !IsShared(next[i]) || slices.Contains(want, next[i].Name) {
 			continue
 		}
-		j := targetIndex(next[i], t.File, r)
-		if !slices.Contains(want, next[i].Name) {
-			if j != -1 {
-				next[i].Targets = slices.Delete(next[i].Targets, j, j+1)
-			}
-		} else if j == -1 {
-			mode := "symlink"
-			if t.Import {
-				mode = "import"
-			}
-			tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), As: filepath.Base(t.File), Mode: mode}
-			next[i].Targets = append(next[i].Targets, tc)
+		if j := targetIndex(next[i], t.File, r); j != -1 {
+			next[i].Targets = slices.Delete(next[i].Targets, j, j+1)
 		}
+	}
+	if !t.Import && len(want) > 1 && !holdsManaged(next, t, r) {
+		return nil, &config.ExtraTargetConflict{Name: want[0], Target: t.Name}
+	}
+	for _, name := range want {
+		i := indexOf(next, name)
+		if targetIndex(next[i], t.File, r) != -1 {
+			continue
+		}
+		tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), As: filepath.Base(t.File), Mode: defaultAssignMode(t, next, r)}
+		next[i].Targets = append(next[i].Targets, tc)
 	}
 	if err := config.ValidateExtraConnections(next, r.SourceDir, r.TargetDir); err != nil {
 		return nil, err
 	}
 	return next, nil
+}
+
+// holdsManaged reports whether the target's file already holds a shared file in
+// a managed block, which lets it take several.
+func holdsManaged(extras []config.ExtraConfig, t Target, r Resolver) bool {
+	return defaultAssignMode(Target{Name: t.Name, File: t.File}, extras, r) == "prepend"
+}
+
+// defaultAssignMode is how a newly connected target gets a shared file: one
+// @path line where the tool reads them; otherwise a link, unless the target's
+// file already holds another shared file in a managed block, in which case the
+// new one goes in a block of its own (a link would replace the file). A target
+// without @import is switched to prepend or append from the mode picker.
+func defaultAssignMode(t Target, extras []config.ExtraConfig, r Resolver) string {
+	if t.Import {
+		return "import"
+	}
+	for _, e := range extras {
+		if !IsShared(e) {
+			continue
+		}
+		if j := targetIndex(e, t.File, r); j != -1 && config.ManagedExtraMode(e.Targets[j].Mode) {
+			return "prepend"
+		}
+	}
+	return "symlink"
 }
 
 // Find returns the index of the named single-file extra's target that writes

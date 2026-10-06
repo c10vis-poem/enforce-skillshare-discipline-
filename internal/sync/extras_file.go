@@ -34,7 +34,7 @@ func (r *ExtraResult) addFileWarning(code, message string, params map[string]str
 type ExtraFile struct {
 	Source string // absolute path of <source dir>/<file>
 	Target string // <target path>/<as or file>
-	Mode   string // merge (default), symlink, copy, or import
+	Mode   string // merge (default), symlink, copy, import, prepend, or append
 
 	projectRoot  string
 	linkFallback bool // Mode is copy because file links are unavailable
@@ -100,6 +100,8 @@ func SyncExtraFile(f ExtraFile, dryRun bool, projectRoot string) (*ExtraResult, 
 	switch f.Mode {
 	case "import":
 		return syncExtraImport(f, dryRun)
+	case "prepend", "append":
+		return syncExtraBlock(f, dryRun)
 	case "merge", "symlink", "copy":
 		result, err := syncExtraFileReplace(f, dryRun, projectRoot)
 		if err == nil && f.linkFallback {
@@ -208,8 +210,17 @@ func syncExtraFileReplace(f ExtraFile, dryRun bool, projectRoot string) (*ExtraR
 			// target later has nothing else to put back once the link is
 			// removed. Once attached, a differing file is an edit; keep it as
 			// a drift backup so the restore point stays the pre-attach state.
+			// A file a block created is the user's once they wrote lines
+			// outside the block: record those lines, not "no file".
+			if attached && extraCreated(f.Target) {
+				if data, err := os.ReadFile(f.Target); err == nil {
+					if rest, ok := f.removeContentBlock(string(data)); ok && strings.TrimSpace(rest) != "" {
+						attached = false
+					}
+				}
+			}
 			if !attached {
-				if err := recordExtraRestorePoint(f.Target, f.importLine()); err != nil {
+				if err := recordExtraRestorePoint(f); err != nil {
 					return nil, err
 				}
 				attached = true
@@ -364,6 +375,21 @@ func syncExtraImport(f ExtraFile, dryRun bool) (*ExtraResult, error) {
 		return nil, fmt.Errorf("%s has a damaged managed import block; restore or repair it before syncing", f.Target)
 	}
 	exists := ourLink || err == nil
+	// This extra's content block is left over from prepend or append mode; the
+	// import line takes its place. A hand-edited block is kept as a drift backup.
+	block, err := f.findContentBlock(strings.Split(string(data), "\n"))
+	if err != nil {
+		return nil, err // a damaged block must be repaired first, or the import line would double it
+	}
+	if block != nil {
+		if contentBlockHash(block.body) != block.hash && !dryRun {
+			if err := backupExtraDrift(f.Target, DriftReasonMode); err != nil {
+				return nil, err
+			}
+		}
+		stripped, _ := f.removeContentBlock(string(data))
+		data = []byte(stripped)
+	}
 	rest, others := splitImportBlock(string(data))
 
 	// A whole-file copy is left over from copy mode: unedited when it is what
@@ -591,6 +617,9 @@ func ExtraFileStatus(f ExtraFile) string {
 		}
 		return "drift"
 	}
+	if isContentBlockMode(f.Mode) {
+		return extraBlockStatus(f)
+	}
 	info, err := os.Lstat(f.Target)
 	if err != nil {
 		return "drift"
@@ -627,6 +656,9 @@ func ExtraFileStatus(f ExtraFile) string {
 func RestoreExtraTarget(f ExtraFile) (bool, error) {
 	if f.Mode == "import" {
 		return restoreExtraImport(f)
+	}
+	if isContentBlockMode(f.Mode) {
+		return restoreExtraBlock(f)
 	}
 
 	info, err := os.Lstat(f.Target)
@@ -715,6 +747,9 @@ func restoreExtraImport(f ExtraFile) (bool, error) {
 // content: it becomes the source (the old source is backed up), then the
 // target is linked again. In copy mode the target stays a copy.
 func CollectBackExtraFile(f ExtraFile, projectRoot string) error {
+	if isContentBlockMode(f.Mode) {
+		return collectExtraBlock(f)
+	}
 	info, err := os.Lstat(f.Target)
 	if err != nil {
 		return fmt.Errorf("failed to inspect target: %w", err)
@@ -748,6 +783,9 @@ func CollectBackExtraFile(f ExtraFile, projectRoot string) error {
 // ReapplyExtraFile resolves a "modified" target by keeping the source: the
 // target file is backed up and replaced by the source again.
 func ReapplyExtraFile(f ExtraFile, projectRoot string) error {
+	if isContentBlockMode(f.Mode) {
+		return reapplyExtraBlock(f)
+	}
 	return replaceDriftedTarget(f, projectRoot)
 }
 

@@ -187,13 +187,24 @@ func recordExtraAttach(path, name string, data []byte, perm os.FileMode) error {
 // over it and records that content as what restore puts back. importLine, left
 // in the file by an earlier import mode, is not part of the user's file and is
 // dropped from the record.
-func recordExtraRestorePoint(path, importLine string) error {
+func recordExtraRestorePoint(f ExtraFile) error {
+	path := f.Target
 	if err := backupExtraFile(path, BackupReasonAttach); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(path)
 	if err == nil {
-		if stripped, changed := removeImportLine(string(data), importLine); changed {
+		// What this extra put there before the mode switch (an import line or
+		// a content block) is not the user's file; restoring must not bring it back.
+		if stripped, changed := removeImportLine(string(data), f.importLine()); changed {
+			data = []byte(stripped)
+		}
+		// A damaged block cannot be told apart from the user's lines; keeping it
+		// in the restore point would bring it back on detach.
+		if _, findErr := f.findContentBlock(strings.Split(string(data), "\n")); findErr != nil {
+			return findErr
+		}
+		if stripped, changed := f.removeContentBlock(string(data)); changed {
 			data = []byte(stripped)
 		}
 		err = recordExtraAttach(path, attachRestore, data, 0600)

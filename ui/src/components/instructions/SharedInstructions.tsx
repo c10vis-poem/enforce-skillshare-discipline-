@@ -24,10 +24,11 @@ import InstructionsEditorDialog from './InstructionsEditorDialog';
 import LocationRows from './LocationRows';
 import NewSharedDialog from './NewSharedDialog';
 import RestorePreviewDialog from './RestorePreviewDialog';
+import TargetFileDialog from './TargetFileDialog';
 import { BoxHeader, InstructionsPreview } from './ViewTabs';
 import type { ConnectStep, ModeOption, RestoreStep, RowHint } from './instructionsView';
 import {
-  instructionsErrorMessage, instructionsWarningMessage, connectExtras, connectPlan, connectedTo, modeOptions, needsSync, pickedMode, restorePlan, rowHint, saveCopiesSummary, staleLocations, statusTone, usesOf,
+  instructionsErrorMessage, instructionsWarningMessage, blockMode, connectExtras, connectPlan, connectedTo, modeOptions, needsSync, pickedMode, restorePlan, rowHint, saveCopiesSummary, staleLocations, statusTone, usesOf,
 } from './instructionsView';
 import { invalidate } from '../../lib/queryEvents';
 
@@ -155,6 +156,8 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  // The target whose instruction file is open for a read-only look.
+  const [peek, setPeek] = useState<SharedInstructionsTarget | null>(null);
   const [addingLocation, setAddingLocation] = useState(false);
   // Refusals the server gave for one target (another shared file holds it), shown in its row.
   const [held, setHeld] = useState<Record<string, string>>({});
@@ -259,7 +262,9 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   const connectNote = (s: ConnectStep) => (s.note === 'held' ? t('instructions.plan.held', { other: s.other ?? '' })
     : s.note === 'tooLong' ? t('instructions.plan.tooLong', { max: (s.max ?? 0).toLocaleString() })
       : t(`instructions.plan.${s.note}`));
-  const restoreNote = (s: RestoreStep) => (s.note === 'importKeep' ? t(plural('instructions.plan.importKeep', (s.others ?? []).length), { name, others: list(s.others ?? []) })
+  const restoreNote = (s: RestoreStep) => (s.note === 'blockKeep' ? t(plural('instructions.plan.blockKeep', (s.others ?? []).length), { name, others: list(s.others ?? []) })
+    : s.note === 'block' ? t('instructions.plan.dropBlock', { name })
+      : s.note === 'importKeep' ? t(plural('instructions.plan.importKeep', (s.others ?? []).length), { name, others: list(s.others ?? []) })
     : s.note === 'import' ? t('instructions.plan.dropImport', { name })
       : s.note === 'modified' ? t('instructions.plan.modified') : t('instructions.plan.restoreLink'));
   const planList = (rows: { target: string; note: string; warn: boolean }[], footer: string) => (
@@ -281,7 +286,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
     const run = steps.filter((s) => s.note !== 'held');
     ask({
       title: t(plural('instructions.connectAll.title', run.length), { count: run.length, name }),
-      message: planList(steps.map((s) => ({ target: s.target, note: connectNote(s), warn: s.note !== 'import' && s.note !== 'link' })), t('instructions.connectAll.message')),
+      message: planList(steps.map((s) => ({ target: s.target, note: connectNote(s), warn: s.note !== 'import' && s.note !== 'block' && s.note !== 'link' })), t('instructions.connectAll.message')),
       confirm,
       run: () => connect(run),
     });
@@ -294,15 +299,20 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
   });
 
   // label names the row in the messages: a target's name or a location's path.
-  const resolve = (label: string, on: { target: string } | { path: string }, action: 'collect' | 'reapply') => ask({
-    title: t(`instructions.resolve.${action}.title`, { name, target: label }),
-    message: t(action === 'collect' ? plural('instructions.resolve.collect.message', connected.length) : 'instructions.resolve.reapply.message', { name, target: label, count: connected.length }),
-    confirm: t(`instructions.resolve.${action}.item`, { name }),
-    run: async () => {
-      await api.resolveSharedInstructions(name, on, action);
-      toast(t(`instructions.resolve.${action}.done`, { name, target: label }), 'success');
-    },
-  });
+  // block: the file holds name as a content block, so only that block is collected or rewritten.
+  const resolve = (label: string, on: { target: string } | { path: string }, action: 'collect' | 'reapply', block = false) => {
+    const key = (part: string) => `instructions.resolve.${action}.${part}${block ? 'Block' : ''}`;
+    const message = action === 'collect' && !block ? plural('instructions.resolve.collect.message', connected.length) : key('message');
+    return ask({
+      title: t(key('title'), { name, target: label }),
+      message: t(message, { name, target: label, count: connected.length }),
+      confirm: t(key('item'), { name }),
+      run: async () => {
+        await api.resolveSharedInstructions(name, on, action);
+        toast(t(key('done'), { name, target: label }), 'success');
+      },
+    });
+  };
 
   const sync = () => act(async () => {
     const res = await api.syncExtras({ name });
@@ -439,7 +449,12 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
                   )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate font-mono text-[12.5px] text-ink-2" title={tg.path}>{shortenHome(tg.path)}</span>
+                  {/* A rider has no file of its own to show; its row names the target it reads. */}
+                  {tg.rider_of ? (
+                    <span className="truncate font-mono text-[12.5px] text-ink-2" title={tg.path}>{shortenHome(tg.path)}</span>
+                  ) : (
+                    <button type="button" className="truncate text-left font-mono text-[12.5px] text-ink-2 hover:text-ink hover:underline" title={t('instructions.peek.label', { target: tg.name })} onClick={() => setPeek(tg)}>{shortenHome(tg.path)}</button>
+                  )}
                   {hint && <span className={`text-[12px] ${hint.kind === 'tooLong' || hint.kind === 'noSource' || hint.kind === 'folderLink' || hint.kind === 'directory' ? 'text-warn' : 'text-ink-3'}`}>{hintText(hint)}</span>}
                 </span>
                 {on && a && (
@@ -462,9 +477,9 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
               {on && a?.status === 'modified' && (
                 <div className="ss-note warn mr-4 mb-3 ml-[82px] !items-center">
                   <TriangleAlert size={16} className="!mt-0" />
-                  <span className="flex-1">{t('instructions.row.modified')}</span>
-                  <Button variant="secondary" size="sm" disabled={busy} onClick={() => resolve(tg.name, { target: tg.name }, 'collect')}>{t('instructions.resolve.collect.item', { name })}</Button>
-                  <Button variant="secondary" size="sm" disabled={busy} onClick={() => resolve(tg.name, { target: tg.name }, 'reapply')}>{t('instructions.resolve.reapply.item', { name })}</Button>
+                  <span className="flex-1">{t(blockMode(a.mode) ? 'instructions.row.modifiedBlock' : 'instructions.row.modified', { name })}</span>
+                  <Button variant="secondary" size="sm" disabled={busy} onClick={() => resolve(tg.name, { target: tg.name }, 'collect', blockMode(a.mode))}>{t(blockMode(a.mode) ? 'instructions.resolve.collect.itemBlock' : 'instructions.resolve.collect.item', { name })}</Button>
+                  <Button variant="secondary" size="sm" disabled={busy} onClick={() => resolve(tg.name, { target: tg.name }, 'reapply', blockMode(a.mode))}>{t(blockMode(a.mode) ? 'instructions.resolve.reapply.itemBlock' : 'instructions.resolve.reapply.item', { name })}</Button>
                 </div>
               )}
             </div>
@@ -481,7 +496,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
       {locations.length > 0 ? (
         <div className="ss-list" aria-label={t('instructions.locations.title')}>
           <LocationRows name={name} locations={locations} fileLinks={fileLinks} busy={busy} act={act} warn={warn}
-            onResolve={(label, path, action) => resolve(label, { path }, action)} />
+            onResolve={(label, path, action, block) => resolve(label, { path }, action, block)} />
         </div>
       ) : (
         <div className="ss-empty !gap-1.5 !p-[26px]">
@@ -507,6 +522,11 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
         </div>
       )}
 
+      {peek && (
+        <TargetFileDialog target={peek} name={name} onClose={() => setPeek(null)}
+          // The confirm dialog takes the dialog's place; the row shows the outcome.
+          onResolve={(action) => { setPeek(null); resolve(peek.name, { target: peek.name }, action, true); }} />
+      )}
       {restoring && (
         <RestorePreviewDialog name={name} target={restoring} label={targets.find((tg) => tg.name === restoring)?.rider_of ? targetLabel(restoring) : restoring}
           mode={targets.find((tg) => tg.name === restoring)?.assigned.find((x) => x.name === name)?.mode ?? ''} busy={busy} onClose={() => setRestoring(null)}

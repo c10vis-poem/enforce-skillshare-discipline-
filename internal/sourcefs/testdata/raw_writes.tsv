@@ -387,6 +387,12 @@ internal/sync/extras_backup.go	recordExtraWritten	os.WriteFile	filepath.Join(ext
 internal/sync/extras_backup.go	storeExtraBackup	os.MkdirAll	dir	backup
 internal/sync/extras_backup.go	storeExtraBackup	os.WriteFile	filepath.Join(dir, "path")	backup
 internal/sync/extras_backup.go	storeExtraBackup	os.WriteFile	filepath.Join(dir, name)	backup
+internal/sync/extras_block.go	applyExtraBlock	os.MkdirAll	filepath.Dir(f.Target)	target
+internal/sync/extras_block.go	applyExtraBlock	os.Remove	f.Target	target
+internal/sync/extras_block.go	applyExtraBlock	os.WriteFile	f.Target	target
+internal/sync/extras_block.go	collectExtraBlock	os.WriteFile	f.Source	extras
+internal/sync/extras_block.go	restoreExtraBlock	os.Remove	f.Target	target
+internal/sync/extras_block.go	restoreExtraBlock	os.WriteFile	f.Target	target
 internal/sync/extras_file.go	CollectBackExtraFile	os.MkdirAll	filepath.Dir(f.Source)	extras
 internal/sync/extras_file.go	CollectBackExtraFile	os.WriteFile	f.Source	extras
 internal/sync/extras_file.go	RestoreExtraTarget	os.Remove	f.Target	target

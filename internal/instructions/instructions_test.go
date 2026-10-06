@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -185,6 +186,70 @@ func TestAssign_SymlinkTargetTakesOne(t *testing.T) {
 	}
 	if _, err = Assign(extras, target, nil, r); err != nil || read(t, file) != "mine\n" {
 		t.Errorf("restore: %v, content %q", err, read(t, file))
+	}
+}
+
+// A target without @import whose file already holds a shared file in a block
+// takes the next one in a block of its own instead of refusing.
+func TestAssign_BlockTargetTakesSeveral(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	src, home := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(src, "personal", "AGENTS.md"), "p\n")
+	write(t, filepath.Join(src, "work", "AGENTS.md"), "w\n")
+	file := filepath.Join(home, "AGENTS.md")
+	write(t, file, "mine\n")
+	extras := []config.ExtraConfig{
+		{Name: "personal", File: "AGENTS.md", Targets: []config.ExtraTargetConfig{{Path: home, Mode: "prepend"}}},
+		{Name: "work", File: "AGENTS.md"},
+	}
+	target := Target{Name: "codex", File: file}
+	r := newResolver(src)
+
+	extras, err := Assign(extras, target, []string{"personal", "work"}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Assignments(extras, file, r); len(got) != 2 || got[1].Mode != "prepend" || got[1].Status != "synced" {
+		t.Fatalf("assignments = %+v", got)
+	}
+	// personal was configured but never synced, so only work's block is in the file.
+	if got := read(t, file); !strings.HasSuffix(got, "\nmine\n") || strings.Count(got, "<!-- /skillshare:extra -->") != 1 {
+		t.Fatalf("file =\n%s", got)
+	}
+}
+
+// Two new files for a target whose only block holder is being removed: the
+// plan must see the file without that holder and refuse, rather than let
+// Assign pick a link for each after the removal and have the second replace the first.
+func TestAssign_RemovingTheBlockHolderRefusesTwoNewFiles(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	src, home := t.TempDir(), t.TempDir()
+	for _, n := range []string{"a", "b", "old"} {
+		write(t, filepath.Join(src, n, "AGENTS.md"), n+"\n")
+	}
+	file := filepath.Join(home, "AGENTS.md")
+	write(t, file, "mine\n")
+	extras := []config.ExtraConfig{
+		{Name: "a", File: "AGENTS.md"},
+		{Name: "b", File: "AGENTS.md"},
+		{Name: "old", File: "AGENTS.md", Targets: []config.ExtraTargetConfig{{Path: home, Mode: "prepend"}}},
+	}
+	target := Target{Name: "codex", File: file}
+	r := newResolver(src)
+	if _, err := syncpkg.SyncExtraFile(ExtraFile(extras[2], 0, r), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	before := read(t, file)
+
+	var conflict *config.ExtraTargetConflict
+	if _, err := Assign(extras, target, []string{"a", "b"}, r); !errors.As(err, &conflict) {
+		t.Fatalf("err = %v, want a target conflict", err)
+	}
+	if got := read(t, file); got != before {
+		t.Fatalf("a refused assignment must leave the file alone:\n%s", got)
+	}
+	if len(extras[2].Targets) != 1 {
+		t.Fatal("old must stay attached")
 	}
 }
 

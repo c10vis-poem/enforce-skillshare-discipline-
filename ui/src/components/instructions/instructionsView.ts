@@ -198,15 +198,21 @@ export const usesOf = (target: SharedInstructionsTarget) => target.assigned.map(
 export const connectedTo = (targets: SharedInstructionsTarget[], name: string) =>
   targets.filter((tg) => !tg.same_as && usesOf(tg).includes(name));
 
-/** What a target should use after connecting it: import targets add one more file, link targets hold one. */
+/** A mode that keeps a managed part of the target file (an @import line or a content block) rather than replacing the whole file; several can share one file. */
+export const managedMode = (mode: string) => mode === 'import' || mode === 'prepend' || mode === 'append';
+
+/** Whether the target's file already holds a shared file in a managed part (an @import line or a block), so another one can join it. */
+export const holdsManaged = (target: SharedInstructionsTarget) => target.assigned.some((a) => managedMode(a.mode));
+
+/** What a target should use after connecting it: a target holding managed files adds one more, a link or copy target holds one. */
 export const connectExtras = (target: SharedInstructionsTarget, name: string) =>
-  (target.import ? [...usesOf(target).filter((n) => n !== name), name] : [name]);
+  (target.import || holdsManaged(target) ? [...usesOf(target).filter((n) => n !== name), name] : [name]);
 
 /** Connected targets a sync would fix: the file or its link is gone, or points elsewhere. */
 export const needsSync = (targets: SharedInstructionsTarget[], name: string) =>
   connectedTo(targets, name).filter((tg) => ['not synced', 'drift'].includes(tg.assigned.find((a) => a.name === name)!.status));
 
-export type ConnectStep = { target: string; extras: string[]; note: 'import' | 'link' | 'tooLong' | 'held'; other?: string; max?: number };
+export type ConnectStep = { target: string; extras: string[]; note: 'import' | 'block' | 'link' | 'tooLong' | 'held'; other?: string; max?: number };
 
 /**
  * One step per target that would be connected to file, with what changes for it.
@@ -218,14 +224,14 @@ export function connectPlan(targets: SharedInstructionsTarget[], file: SharedIns
   return targets.filter((tg) => !tg.same_as && !usesOf(tg).includes(file.name)).map((tg) => {
     const step = { target: tg.name, extras: connectExtras(tg, file.name) };
     if (tg.linked_shared && tg.linked_shared !== file.name) return { ...step, note: 'held', other: tg.linked_shared };
-    const holder = tg.assigned.find((a) => a.mode !== 'import');
+    const holder = tg.assigned.find((a) => !managedMode(a.mode));
     if (holder) return { ...step, note: 'held', other: holder.name };
     if (tg.max_chars && file.chars > tg.max_chars) return { ...step, note: 'tooLong', max: tg.max_chars };
-    return { ...step, note: tg.import ? 'import' : 'link' };
+    return { ...step, note: tg.import ? 'import' : holdsManaged(tg) ? 'block' : 'link' };
   });
 }
 
-export type RestoreStep = { target: string; note: 'import' | 'importKeep' | 'link' | 'modified'; others?: string[] };
+export type RestoreStep = { target: string; note: 'import' | 'importKeep' | 'block' | 'blockKeep' | 'link' | 'modified'; others?: string[] };
 
 /** One step per target that would stop using name, with what happens to its file. */
 export function restorePlan(targets: SharedInstructionsTarget[], name: string): RestoreStep[] {
@@ -234,26 +240,29 @@ export function restorePlan(targets: SharedInstructionsTarget[], name: string): 
     const others = usesOf(tg).filter((n) => n !== name);
     if (a.status === 'modified') return { target: tg.name, note: 'modified' };
     if (a.mode === 'import') return others.length ? { target: tg.name, note: 'importKeep', others } : { target: tg.name, note: 'import' };
+    if (managedMode(a.mode)) return others.length ? { target: tg.name, note: 'blockKeep', others } : { target: tg.name, note: 'block' };
     return { target: tg.name, note: 'link' };
   });
 }
 
-export type SharedMode = 'import' | 'symlink' | 'copy';
-export type ModeOption = { mode: SharedMode; isDefault: boolean; blocked?: 'fileLinks' | 'several' };
+export type SharedMode = 'import' | 'prepend' | 'append' | 'symlink' | 'copy';
+export type ModeOption = { mode: SharedMode; isDefault: boolean; blocked?: 'fileLinks' | 'several' | 'noImport' };
 
-/** The mode a newly connected target gets: import where the tool reads @import lines, else a link, or a copy when file links are unavailable (Windows without Developer Mode). */
+/** The mode a newly connected target gets, as the server picks it: import where the tool reads @import lines; a block when its file already holds a shared file in one; else a link, or a copy when file links are unavailable (Windows without Developer Mode). */
 export const defaultMode = (target: SharedInstructionsTarget, fileLinks: boolean): SharedMode =>
-  (target.import ? 'import' : fileLinks ? 'symlink' : 'copy');
+  (target.import ? 'import' : holdsManaged(target) ? 'prepend' : fileLinks ? 'symlink' : 'copy');
 
 /** The picker's value for an assignment's mode: a single file written with merge is linked, as symlink does. */
 export const pickedMode = (mode: string) => (mode === 'merge' ? 'symlink' : mode);
 
-/** The modes a target can get a shared file with, and why one cannot be picked. A link or copy replaces the whole file, so it holds one shared file only. */
+/** The modes a target can get a shared file with, and why one cannot be picked: the two that keep the tool's own file first, then the two that replace it, which hold one shared file only. */
 export function modeOptions(target: SharedInstructionsTarget, fileLinks: boolean): ModeOption[] {
-  const modes: SharedMode[] = target.import ? ['import', 'symlink', 'copy'] : ['symlink', 'copy'];
+  const modes: SharedMode[] = ['import', 'prepend', 'append', 'symlink', 'copy'];
   const def = defaultMode(target, fileLinks);
   return modes.map((mode) => {
-    const blocked = mode !== 'import' && target.assigned.length > 1 ? 'several' : mode === 'symlink' && !fileLinks ? 'fileLinks' : undefined;
+    const blocked = mode === 'import' && !target.import ? 'noImport'
+      : !managedMode(mode) && target.assigned.length > 1 ? 'several'
+        : mode === 'symlink' && !fileLinks ? 'fileLinks' : undefined;
     return blocked ? { mode, isDefault: mode === def, blocked } : { mode, isDefault: mode === def };
   });
 }
@@ -279,8 +288,33 @@ export function rowHint(target: SharedInstructionsTarget, file: SharedInstructio
   if (target.max_chars && file.chars > target.max_chars) return { kind: 'tooLong', max: target.max_chars };
   const others = usesOf(target).filter((n) => n !== file.name);
   if (!others.length) return null;
-  return target.import ? { kind: 'alsoUses', names: others } : { kind: 'usesOther', name: others[0] };
+  // A managed part joins the others; a link or copy would take the other file's place.
+  const joins = target.import || (a ? managedMode(a.mode) : holdsManaged(target));
+  return joins ? { kind: 'alsoUses', names: others } : { kind: 'usesOther', name: others[0] };
 }
+
+/** A mode that writes the shared file into the target as a content block, so Collect and Reapply touch only that block. */
+export const blockMode = (mode: string) => mode === 'prepend' || mode === 'append';
+
+/** A managed block in a target file: the source it was written from and its 1-based line range, markers included. */
+export interface ManagedBlock { src: string; start: number; end: number }
+
+// ponytail: markers inside code fences are taken as real; the server's parser decides what counts, this only tints lines.
+/** The managed blocks in a target file's content. */
+export function managedBlocks(content: string): ManagedBlock[] {
+  const out: ManagedBlock[] = [];
+  let open: ManagedBlock | null = null;
+  content.split('\n').forEach((raw, i) => {
+    const line = raw.trim();
+    const m = /^<!-- skillshare:extra src="([^"]+)" sha256=[0-9a-f]{16} -->$/.exec(line);
+    if (m && !open) open = { src: m[1], start: i + 1, end: i + 1 };
+    else if (line === '<!-- /skillshare:extra -->' && open) { out.push({ ...open, end: i + 1 }); open = null; }
+  });
+  return out;
+}
+
+/** The shared file a block was written from, by the extras folder named in its source path. */
+export const blockOwner = (block: ManagedBlock, names: string[]) => names.find((n) => block.src.split('/').slice(0, -1).at(-1) === n) ?? null;
 
 /** Other locations a sync would fix: the file or its link is gone, or points elsewhere. */
 export const staleLocations = (locations: InstructionLocation[]) => locations.filter((l) => ['not synced', 'drift'].includes(l.status));
@@ -288,7 +322,7 @@ export const staleLocations = (locations: InstructionLocation[]) => locations.fi
 /** The modes a location can get: a folder has no tool deciding for it, so symlink is the default where file links work. */
 export function locationModeOptions(fileLinks: boolean): ModeOption[] {
   const def: SharedMode = fileLinks ? 'symlink' : 'copy';
-  return (['symlink', 'copy', 'import'] as const).map((mode) => (mode === 'symlink' && !fileLinks
+  return (['symlink', 'copy', 'import', 'prepend', 'append'] as const).map((mode) => (mode === 'symlink' && !fileLinks
     ? { mode, isDefault: false, blocked: 'fileLinks' as const } : { mode, isDefault: mode === def }));
 }
 

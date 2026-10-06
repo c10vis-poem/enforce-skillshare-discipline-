@@ -28,7 +28,7 @@ import { invalidate } from '../lib/queryEvents';
 
 const MODES = ['merge', 'copy', 'symlink'] as const;
 // A single file can't be a directory symlink; import writes an @ line instead.
-const FILE_MODES = ['merge', 'copy', 'import'] as const;
+const FILE_MODES = ['merge', 'copy', 'import', 'prepend', 'append'] as const;
 
 /** A file name typed where a path would be wrong. */
 const isPathLike = (name: string) => /[\\/]/.test(name);

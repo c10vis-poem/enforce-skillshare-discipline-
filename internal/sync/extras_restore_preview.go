@@ -34,10 +34,13 @@ func PreviewRestoreExtraTarget(f ExtraFile) ExtraRestorePreview {
 	record, at := extraAttachRecord(f.Target)
 	p := ExtraRestorePreview{RecordedAt: at, Drift: hasExtraDriftSince(dir, at)}
 
-	if f.Mode == "import" {
-		// Only the import line goes, unless nothing else is left in the file.
+	if f.Mode == "import" || isContentBlockMode(f.Mode) {
+		// Only the import line or block goes, unless nothing else is left in the file.
 		data, _ := os.ReadFile(f.Target)
 		stripped, _ := f.removeImport(string(data))
+		if isContentBlockMode(f.Mode) {
+			stripped, _ = f.removeContentBlock(string(data))
+		}
 		if strings.TrimSpace(stripped) != "" || record == "" {
 			p.Kind, p.Content = RestoreKindContent, stripped
 			return p

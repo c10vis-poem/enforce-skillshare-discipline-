@@ -154,8 +154,8 @@ func validateExtrasInit(o extrasInitOptions) error {
 		if o.file == "" && t.as != "" {
 			return fmt.Errorf("--as requires --file")
 		}
-		if o.file == "" && t.mode == "import" {
-			return fmt.Errorf("import mode requires a single-file extra: add --file <filename>")
+		if o.file == "" && config.ManagedExtraMode(t.mode) {
+			return fmt.Errorf("%s mode requires a single-file extra: add --file <filename>", t.mode)
 		}
 	}
 	return config.ValidateExtraConfig(o.extra())
@@ -334,7 +334,7 @@ func printExtrasInitHelp() {
 			{"--source <path>", "Custom source directory (overrides extras_source and default;\nrelative to the project root in project mode)"},
 			{"--file <filename>", "Sync only this file from the source directory (single-file extra)"},
 			{"--as <filename>", "Target filename for every --target (requires --file; default: the --file name)"},
-			{"--mode <mode>", "Sync mode: merge (default), copy, symlink; import for single-file extras"},
+			{"--mode <mode>", "Sync mode: merge (default), copy, symlink; import, prepend or append for single-file extras"},
 			{"--flatten", "Flatten files from subdirectories into target root (folder extras only)"},
 			{"--force", "Overwrite if extra already exists"},
 			{"-p, --project", "Create in project mode (.skillshare/)"},

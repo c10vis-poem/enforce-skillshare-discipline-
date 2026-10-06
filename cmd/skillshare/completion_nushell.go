@@ -682,7 +682,7 @@ export extern "skillshare tui" [
 export extern "skillshare extras" [
     subcommand?: string@"nu-complete skillshare extras"
     name?: string
-    --mode: string           # Sync mode (merge, copy, symlink, import)
+    --mode: string           # Sync mode (merge, copy, symlink, import, prepend, append)
     --target: string         # Target directory
     --source: string         # init: custom source directory
     --file: string           # init: single-file extra
