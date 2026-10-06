@@ -30,32 +30,35 @@ func createNote(path, draft string) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	err = createExclusive(path, func(file *os.File) error {
+		if err := file.Chmod(0644); err != nil {
+			return err
+		}
+		_, err := file.Write(data)
+		return err
+	})
 	if os.IsExist(err) {
 		return ErrConflict
 	}
+	return err
+}
+
+// createExclusive creates path and fills it with write. It fails with an
+// os.IsExist error, leaving the file alone, when path already exists; a file
+// it created but could not finish is removed.
+func createExclusive(path string, write func(*os.File) error) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			os.Remove(path)
-		}
-	}()
-	if err := file.Chmod(0644); err != nil {
-		file.Close()
-		return err
+	err = write(file)
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
 	}
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-		return err
+	if err != nil {
+		os.Remove(path)
 	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	committed = true
-	return nil
+	return err
 }
 
 // removeNote commits a deletion after the backup has completed.
