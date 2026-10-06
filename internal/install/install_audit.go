@@ -306,20 +306,22 @@ func (e *AuditGateError) RollbackNote() string {
 }
 
 func (e *AuditGateError) Error() string {
-	head := fmt.Sprintf("security audit failed — findings at/above %s detected", e.Threshold)
+	return e.message("security audit failed") + ": " + audit.ErrBlocked.Error()
+}
+
+// message words the block starting with subject, e.g. "security audit failed".
+func (e *AuditGateError) message(subject string) string {
+	head := fmt.Sprintf("%s — findings at/above %s detected", subject, e.Threshold)
 	if e.ScanErr != nil {
-		head = fmt.Sprintf("security audit failed: %v", e.ScanErr)
+		head = fmt.Sprintf("%s: %v", subject, e.ScanErr)
 	}
-	var msg string
 	switch e.Rollback {
 	case RollbackUnavailable:
-		msg = "security audit failed — " + e.RollbackNote()
+		return subject + " — " + e.RollbackNote()
 	case RollbackFailed:
-		msg = head + "; " + e.RollbackNote()
-	default:
-		msg = head + " — rolled back (use --skip-audit to bypass)"
+		return head + "; " + e.RollbackNote()
 	}
-	return msg + ": " + audit.ErrBlocked.Error()
+	return head + " — rolled back (use --skip-audit to bypass)"
 }
 
 func (e *AuditGateError) Unwrap() error { return audit.ErrBlocked }
@@ -419,12 +421,8 @@ func auditGateFailClosed(sourceDir, repoPath, beforeHash, threshold, projectRoot
 		return res.Audit, nil
 	case !errors.As(err, &blocked):
 		return nil, err
-	case blocked.Rollback == RollbackUnavailable:
-		return nil, fmt.Errorf("post-update audit failed — %s: %w", blocked.RollbackNote(), audit.ErrBlocked)
-	case blocked.ScanErr != nil && blocked.Rollback == RolledBack:
-		return nil, fmt.Errorf("post-update audit failed: %v — rolled back (use --skip-audit to bypass): %w", blocked.ScanErr, audit.ErrBlocked)
-	case blocked.ScanErr != nil:
-		return nil, fmt.Errorf("post-update audit failed: %v; %s: %w", blocked.ScanErr, blocked.RollbackNote(), audit.ErrBlocked)
+	case blocked.ScanErr != nil || blocked.Rollback == RollbackUnavailable:
+		return nil, fmt.Errorf("%s: %w", blocked.message("post-update audit failed"), audit.ErrBlocked)
 	case blocked.Rollback == RolledBack:
 		return nil, blockedDetailsError(blocked, res,
 			fmt.Sprintf("post-update audit failed — findings at/above %s detected", blocked.Threshold))

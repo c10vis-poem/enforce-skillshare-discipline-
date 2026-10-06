@@ -88,6 +88,7 @@ type TrackedRepoResult struct {
 	Overridden      bool  // blocking findings were let through by Force or Confirm
 	Recorded        int   // findings newly recorded as accepted
 	RecordErr       error // recording accepted findings failed; the update stays applied
+	MetadataChanged bool  // root-skill hashes were rewritten under SourceDir
 	MetadataErr     error // refreshing metadata failed; the update stays applied
 }
 
@@ -136,7 +137,7 @@ func TrackedRepo(repoPath string, opts TrackedRepoOptions) (*TrackedRepoResult, 
 	}
 
 	if opts.SourceDir != "" {
-		res.MetadataErr = refreshMetadata(repoPath, opts)
+		res.MetadataChanged, res.MetadataErr = refreshMetadata(repoPath, opts)
 	}
 	res.Status = StatusUpdated
 	if info.UpToDate {
@@ -178,10 +179,10 @@ func auditPulled(repoPath string, res *TrackedRepoResult, opts TrackedRepoOption
 	return nil
 }
 
-func refreshMetadata(repoPath string, opts TrackedRepoOptions) error {
+func refreshMetadata(repoPath string, opts TrackedRepoOptions) (bool, error) {
 	rel, err := filepath.Rel(opts.SourceDir, repoPath)
 	if err != nil {
-		return err
+		return false, err
 	}
 	return install.RefreshTrackedRootSkillMetadata(opts.SourceDir, filepath.ToSlash(rel), repoPath, opts.Follow)
 }

@@ -432,18 +432,22 @@ func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string, 
 	return true, nil
 }
 
-// RefreshTrackedRootSkillMetadata loads the metadata store, refreshes hashes
-// for a tracked root-skill repo, and saves only when metadata changed.
-func RefreshTrackedRootSkillMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) error {
+// RefreshTrackedRootSkillMetadata refreshes hashes for a tracked root-skill
+// repo and reports whether it saved a change. A repo without a root SKILL.md
+// has no hashes to refresh, so the store is not even loaded for it.
+func RefreshTrackedRootSkillMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) (bool, error) {
+	if _, err := os.Stat(filepath.Join(repoPath, "SKILL.md")); os.IsNotExist(err) {
+		return false, nil
+	}
 	store, err := LoadMetadataWithMigration(sourceDir, "")
 	if err != nil {
-		return err
+		return false, err
 	}
 	changed, err := store.RefreshTrackedRootSkillHashes(filepath.ToSlash(relPath), repoPath, follow...)
 	if err != nil || !changed {
-		return err
+		return false, err
 	}
-	return store.Save(sourceDir)
+	return true, store.Save(sourceDir)
 }
 
 func stringMapsEqual(a, b map[string]string) bool {

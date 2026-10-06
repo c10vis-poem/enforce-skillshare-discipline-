@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"time"
 
 	"skillshare/internal/audit"
@@ -17,18 +16,18 @@ import (
 )
 
 // runTrackedRepoUpdate updates one tracked repo and prints what the audit gate
-// found. On a terminal it asks whether to keep blocking findings. onPulled,
-// when set, runs once after a pull that brought changes and before any audit
-// output, so the caller can print the pull summary above it.
-func runTrackedRepoUpdate(uc *updateContext, repoPath string, onProgress func(string), onPulled func(*update.TrackedRepoResult)) (*update.TrackedRepoResult, error) {
+// found. On a terminal it asks whether to keep blocking findings. onReport,
+// when set, runs once with the result so far, before any audit output or
+// prompt, so the caller can print its own lines above them.
+func runTrackedRepoUpdate(uc *updateContext, repoPath string, onProgress func(string), onReport func(*update.TrackedRepoResult)) (*update.TrackedRepoResult, error) {
 	printed := false
 	printAudit := func(res *update.TrackedRepoResult) {
-		if printed || res.Info == nil || res.Info.UpToDate {
+		if printed {
 			return
 		}
 		printed = true
-		if onPulled != nil {
-			onPulled(res)
+		if onReport != nil {
+			onReport(res)
 		}
 		if res.Audit == nil {
 			return
@@ -94,7 +93,6 @@ func updateTrackedRepo(uc *updateContext, repoName string) (updateResult, error)
 	startUpdate := time.Now()
 
 	spinner := ui.StartSpinner("Fetching " + repoName + "...")
-	stopSpinner := sync.OnceFunc(spinner.Stop)
 	var onProgress func(string)
 	if ui.IsTTY() {
 		onProgress = func(line string) {
@@ -102,17 +100,15 @@ func updateTrackedRepo(uc *updateContext, repoName string) (updateResult, error)
 		}
 	}
 
-	warned := false
-	warnDiscard := func(res *update.TrackedRepoResult) {
-		stopSpinner()
-		if res.Discarded && !warned {
-			warned = true
+	res, err := runTrackedRepoUpdate(uc, repoPath, onProgress, func(res *update.TrackedRepoResult) {
+		spinner.Stop()
+		if res.Discarded {
 			ui.Warning("Discarding local changes (--force)")
 		}
-	}
-	res, err := runTrackedRepoUpdate(uc, repoPath, onProgress, func(res *update.TrackedRepoResult) {
-		warnDiscard(res)
 		info := res.Info
+		if info == nil || info.UpToDate {
+			return
+		}
 		printUpdateRow(ui.MarkOK, repoName, fmt.Sprintf("%s, %s changed (+%d −%d)",
 			plural(len(info.Commits), "commit"), plural(info.Stats.FilesChanged, "file"),
 			info.Stats.Insertions, info.Stats.Deletions), time.Since(startUpdate))
@@ -123,7 +119,6 @@ func updateTrackedRepo(uc *updateContext, repoName string) (updateResult, error)
 			renderDiffSummary(repoPath, info.BeforeHash, info.AfterHash)
 		}
 	})
-	warnDiscard(res)
 
 	var statusErr *gitStatusError
 	var opErr *update.Error
