@@ -83,6 +83,24 @@ func TestServer_ListPaginatesWholeEntries(t *testing.T) {
 	}
 }
 
+// The catalog may be rebuilt between pages; a skill added ahead of the cursor
+// must not shift the next page onto entries already returned.
+func TestServer_ListContinuesAfterTheLastSkillReturned(t *testing.T) {
+	src := t.TempDir()
+	for i := range pageSize + 1 {
+		name := fmt.Sprintf("s%03d", i)
+		writeFile(t, filepath.Join(src, name, "SKILL.md"), skillMD(name))
+	}
+	cs := connect(t, src) // Refresh 0: every call rebuilds
+
+	first := listSkills(t, cs, "")
+	writeFile(t, filepath.Join(src, "a000", "SKILL.md"), skillMD("a000"))
+	second := listSkills(t, cs, first.NextCursor)
+	if len(second.Skills) != 1 || second.Skills[0].URI != "skill://s100/SKILL.md" {
+		t.Errorf("second page = %v, want only skill://s100/SKILL.md", second.Skills)
+	}
+}
+
 func TestServer_GetUnknownSkillIsInvalidParams(t *testing.T) {
 	cs := connect(t, t.TempDir())
 	_, err := mcp.CallCustomMethod[*getSkillParams, *getSkillResult](context.Background(), cs, methodGet, &getSkillParams{URI: "skill://missing/SKILL.md"})

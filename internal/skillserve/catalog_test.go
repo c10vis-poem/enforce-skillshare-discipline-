@@ -184,6 +184,15 @@ func TestBuild_SkipsSkillWhoseDescriptionOrCompatibilityIsTooLong(t *testing.T) 
 	}
 }
 
+// The size limit holds for the bytes hashed, not only the sizes the walk saw.
+func TestHashFile_StopsPastTheSizeLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "big.bin")
+	writeFile(t, path, strings.Repeat("x", skillpkg.MaxBytes+1))
+	if _, _, err := hashFile(path, skillpkg.MaxBytes); err == nil {
+		t.Error("hashFile succeeded past the limit, want an error")
+	}
+}
+
 func TestBuild_SkipsSkillOverFileLimit(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))

@@ -50,7 +50,7 @@ type Skip struct {
 
 func (s Skip) String() string { return fmt.Sprintf("skipped %s: %s", s.Path, s.Reason) }
 
-// Catalog is one snapshot of the served skills, ordered by source path.
+// Catalog is one snapshot of the served skills, ordered by URI; Skipped is in source path order.
 type Catalog struct {
 	Skills  []*Skill
 	Skipped []Skip
@@ -128,6 +128,8 @@ func (b *Builder) Build() (*Catalog, error) {
 		c.bySkill[l.skill.URI] = l.skill
 		maps.Copy(c.byFile, l.files)
 	}
+	// By URI, which skills/list cursors continue from.
+	slices.SortFunc(c.Skills, func(x, y *Skill) int { return strings.Compare(x.URI, y.URI) })
 	return c, nil
 }
 
@@ -142,11 +144,13 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	base := "skill://" + escapePath(s.RelPath)
 	skill := &Skill{URI: base + "/SKILL.md", Frontmatter: p.Frontmatter}
 	files := make(map[string]servedFile, len(p.Files))
+	left := int64(skillpkg.MaxBytes) // the walk checked sizes too, but files can grow since
 	for _, f := range p.Files {
-		sum, size, err := hashFile(f.Path)
+		sum, size, err := hashFile(f.Path, left)
 		if err != nil {
 			return nil, nil, err.Error()
 		}
+		left -= size
 		uri := base + "/" + escapePath(f.Rel)
 		files[uri] = servedFile{dir: p.Dir, rel: f.Rel, digest: sum}
 		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: size})
@@ -155,17 +159,21 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 }
 
 // hashFile returns the digest and size of one read of the file, so both describe
-// the same bytes even when the file is replaced while the catalog is built.
-func hashFile(path string) (string, int64, error) {
+// the same bytes even when the file is replaced while the catalog is built. It
+// stops past limit bytes, so a file that grew cannot stall the build.
+func hashFile(path string, limit int64) (string, int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", 0, err
 	}
 	defer f.Close()
 	h := sha256.New()
-	n, err := io.Copy(h, f)
+	n, err := io.Copy(h, io.LimitReader(f, limit+1))
 	if err != nil {
 		return "", 0, err
+	}
+	if n > limit {
+		return "", 0, fmt.Errorf("is larger than %d MiB", skillpkg.MaxBytes>>20)
 	}
 	return fmt.Sprintf("sha256:%x", h.Sum(nil)), n, nil
 }

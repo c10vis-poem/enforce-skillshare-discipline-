@@ -9,7 +9,8 @@ import (
 	"mime"
 	"net/http"
 	"path"
-	"strconv"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -151,18 +152,24 @@ func (s *service) list(_ context.Context, _ *mcp.ServerSession, p *listSkillsPar
 	if err != nil {
 		return nil, err
 	}
+	// The cursor is the last URI returned, not an offset: the catalog may be rebuilt
+	// between pages, and skills added or removed before it must not shift the next page.
 	start := 0
 	if p != nil && p.Cursor != "" {
-		n, err := strconv.Atoi(p.Cursor)
-		if err != nil || n < 0 || n > len(c.Skills) {
+		if !strings.HasPrefix(p.Cursor, "skill://") {
 			return nil, invalidParams("invalid cursor")
 		}
-		start = n
+		start, _ = slices.BinarySearchFunc(c.Skills, p.Cursor, func(s *Skill, uri string) int {
+			if s.URI <= uri {
+				return -1
+			}
+			return 1
+		})
 	}
 	end := min(start+pageSize, len(c.Skills))
 	res := &listSkillsResult{Cacheable: s.cacheable(), ResultType: "complete", Skills: c.Skills[start:end]}
 	if end < len(c.Skills) {
-		res.NextCursor = strconv.Itoa(end)
+		res.NextCursor = c.Skills[end-1].URI
 	}
 	return res, nil
 }
