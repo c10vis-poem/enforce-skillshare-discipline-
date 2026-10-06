@@ -11,6 +11,7 @@ skillshare link ~/code/dev-skills                  # 以 _dev-skills 链接
 skillshare link ~/code/dev-skills --enable         # 链接并开启跟随
 skillshare link ~/code/dev-skills --name _mine     # 自定义链接名
 skillshare link ../team --name _team -p            # 链接到项目的 Source
+skillshare link -- -checkout                       # 链接以 - 开头的路径
 ```
 
 ## 何时使用
@@ -34,7 +35,7 @@ Next
 2. 按发现阶段检查被跟随链接的同样方式检查文件夹。如果名称已存在，或文件夹是 Source 本身或其上级、位于 Source 内部、与 sync target 重叠、不存在、不可读或不是目录，链接会被拒绝。
 3. 创建链接：macOS 和 Linux 上是绝对路径的 symlink。Windows 上会创建 junction，不需要开发者模式或管理员权限；只有 junction 创建失败时才改试目录 symlink。
 4. 文件夹没有 `.git` 条目时会给出警告：链接仍然可用，但 `skillshare update` 无法 pull 它。
-5. `follow_source_links` 关闭时，除非加上 `--enable`，否则不会修改配置。不加时，命令会打印与 `skillshare doctor` 相同的提示。
+5. `follow_source_links` 关闭时，除非加上 `--enable`，否则不会修改配置。不加时，命令会打印与 `skillshare doctor` 相同的提示。如果 `--enable` 无法保存配置，新建的链接会被移除、命令失败，不会留下未被跟随的链接。Dashboard 的 **Link folder** 复选框也一样。
 
 ## 选项
 
@@ -44,6 +45,7 @@ Next
 | `--enable` | Also set `follow_source_links: true` |
 | `--project, -p` | Use project-level config in current directory |
 | `--global, -g` | Use global config (`~/.config/skillshare`) |
+| `--` | End options; allow a path starting with `-` |
 | `--help, -h` | Show help |
 
 ## 不加 `--enable`

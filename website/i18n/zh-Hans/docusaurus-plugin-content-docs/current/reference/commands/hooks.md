@@ -87,10 +87,20 @@ Skillshare 以缩进的 block 格式写入 `hooks` 区段；每次保存也会�
 | `enabled` | 默认 true；false 保留来源，下次同步移除未被修改的自有输出 |
 | `bindings` | Agent ID 到原生 binding 的映射 |
 | `bindings.AGENT.events` | command／配置型 Agent 的原生 event map |
-| `bindings.AGENT.code` | Pi、Amp、OpenCode 的原生 extension/plugin 代码 |
+| `bindings.AGENT.code` | Pi、OMP、Amp、OpenCode 的原生 extension/plugin 代码 |
 | `bindings.AGENT.files` | 可选 UTF-8 脚本文件，以相对文件名为 key |
 
-Agent ID 为 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`amp`、`opencode`、`git`；`factory` 是 `droid` 的别名，`antigravity-cli` 和 `agy` 是 `antigravity` 的别名。event、matcher、handler type、command、timeout 单位和 payload 均保留原生格式，不自动跨 Agent 转换。event 名称会对照各 command Agent 文档列出的事件检查：未知名称（例如拼错的 `Stopp`）在预览和 plan 的 `warnings` 中显示警告，但不阻止同步，因为 Agent 会陆续新增事件。Pi、Amp、OpenCode 的代码不检查。Pi、Amp、OpenCode 的代码及 imports 须匹配已安装版本，发布为独立的 `skillshare-NAME.ts`，不生成共享执行引擎。command binding 的脚本位于 Agent 配置目录的 `hooks/skillshare/NAME/`；command 保留你提供的原生 macro 或明确路径。请在预览中确认完整路径。 global binding 也可以使用在 `targets` 下声明的账号 target 名称。
+Agent ID 为 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`omp`、`amp`、`opencode`、`git`；`factory` 是 `droid` 的别名，`antigravity-cli` 和 `agy` 是 `antigravity` 的别名。event、matcher、handler type、command、timeout 单位和 payload 均保留原生格式，不自动跨 Agent 转换。event 名称会对照各 command Agent 文档列出的事件检查：未知名称（例如拼错的 `Stopp`）在预览和 plan 的 `warnings` 中显示警告，但不阻止同步，因为 Agent 会陆续新增事件。Pi、OMP、Amp、OpenCode 的代码不检查。Pi、OMP、Amp、OpenCode 的代码及 imports 须匹配已安装版本，发布为独立的 `skillshare-NAME.ts`，不生成共享执行引擎。
+
+### Oh My Pi code binding {#omp}
+
+请使用 `bindings.omp.code`，并配合你已安装 OMP 版本的 extension API。Skillshare 会原样复制源码；它不会转换 shell event，也不会执行该 extension 来验证它。OMP 没有项目信任提示，因此同步到项目中的 extension 可能会在下一次 OMP 启动时执行。
+
+OMP 的 `hooks/pre` 和 `hooks/post` factory 仍是额外的、不受管理的来源。它们会被列出，但不会导入到 `extensions` 中，否则可能导致同一个 factory 被加载两次。导入现有的独立 extension 时，也会保留其原始文件；同步另一份副本之前，请先查看导入警告。
+
+Pi 和 OMP 都遵循 `PI_CODING_AGENT_DIR`。如果 binding 解析到同一个输出文件，Skillshare 会在写入前阻止该 plan。同时管理两者时，请使用各自独立的显式账号目录。
+
+command binding 的脚本位于 Agent 配置目录的 `hooks/skillshare/NAME/`；command 保留你提供的原生 macro 或明确路径。请在预览中确认完整路径。 global binding 也可以使用在 `targets` 下声明的账号 target 名称。
 
 ## 原生目标路径
 
@@ -106,6 +116,7 @@ Agent ID 为 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`q
 | [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/users/features/hooks/) | `~/.qwen/settings.json` | `.qwen/settings.json` | `hooks` event map |
 | [Antigravity](https://antigravity.google/docs/hooks) | `~/.gemini/config/hooks.json` | `.agents/hooks.json` | 具名 hook block，每个 hook 一个 |
 | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) | `~/.pi/agent/extensions/skillshare-NAME.ts` | `.pi/extensions/skillshare-NAME.ts` | Native extension code |
+| [Oh My Pi](https://github.com/can1357/oh-my-pi/blob/v18.6.1/docs/extensions.md) | `~/.omp/agent/extensions/skillshare-NAME.ts` | `.omp/extensions/skillshare-NAME.ts` | Native OMP extension code |
 | [Amp](https://ampcode.com/docs/plugin-api) | `~/.config/amp/plugins/skillshare-NAME.ts` | `.amp/plugins/skillshare-NAME.ts` | Native plugin code |
 | [OpenCode](https://opencode.ai/docs/plugins/) | `~/.config/opencode/plugins/skillshare-NAME.ts` | `.opencode/plugins/skillshare-NAME.ts` | Supplied v1/v2 plugin code |
 
@@ -116,7 +127,7 @@ Droid 存在有效 inline hooks 时，同步会拒绝创建独立文件。先导
 
 ## 某个 Agent 的另一个账号 {#accounts}
 
-声明了 `agent` 和 `config_dir` 的 target 可以用自己的名称接收 hooks。Claude、Codex 和 Pi 账号使用其 Agent 的原生 binding 格式。`git` 这个 key 始终表示 Git config hooks，名为 `git` 的账号不会收到 hooks；只要有 entry 使用 `git` binding，计划就会显示警告；请改用其他名称。
+声明了 `agent` 和 `config_dir` 的 target 可以用自己的名称接收 hooks。Claude、Codex、Pi 和 OMP 账号使用其 Agent 的原生 binding 格式。`git` 这个 key 始终表示 Git config hooks，名为 `git` 的账号不会收到 hooks；只要有 entry 使用 `git` binding，计划就会显示警告；请改用其他名称。
 
 ```yaml
 targets:
@@ -141,6 +152,7 @@ hooks:
 | `claude` | `<config_dir>/settings.json` |
 | `codex` | `<config_dir>/hooks.json` |
 | `pi` | `<config_dir>/extensions/skillshare-NAME.ts` |
+| `omp` | `<config_dir>/extensions/skillshare-NAME.ts` |
 
 command 脚本写入 `<config_dir>/hooks/skillshare/NAME/`。账号仅用于 global 配置；project 配置与 `hooks.projects` 应绑定 Agent 本身，因为所有账号都会读取相同的项目文件。`config_dir` 不存在时会警告并跳过，不会创建账号目录。
 

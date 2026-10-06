@@ -1,9 +1,10 @@
 # MCP Connections
 
 Skillshare keeps MCP server definitions in one source and writes each Agent's native
-config file from it. It writes settings only: it never starts a server, checks
-connectivity, resolves a secret or copies OAuth credentials. The one exception is
-`mcp check --live`, which starts or calls servers only when asked.
+config file from it. It writes settings only: it never starts a configured server, checks
+connectivity, resolves a secret or copies OAuth credentials. The exceptions are
+`mcp check --live`, which starts or calls servers only when asked, and `mcp serve`,
+which runs Skillshare's own read-only skills server.
 
 ## Commands
 
@@ -54,9 +55,9 @@ skillshare mcp serve --check [--target NAME]         # List skills serve would s
   servers. `--json` adds `live: {protocolVersion, serverInfo, tools, toolNames}`.
 - `mcp serve` serves skills to Agents that cannot reach the synced folders (VMs, MCP
   gateways): stdio by default, global unless `-p`. `--target NAME` applies that target's
-  filters. Skipped skills (name not matching its directory, description missing or over 1,024
-  characters, compatibility over 500, over 512 files/16 MiB) are
-  listed on stderr; `--check` lists them without serving. `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN` and `--tls-cert`/`--tls-key` (or bind loopback behind a TLS proxy).
+  filters. Skipped skills (`SKILL.md` a link or not starting with frontmatter, name not matching
+  its directory, description missing or over 1,024 characters, compatibility empty or over 500, over 512 files/16 MiB) are
+  listed on stderr; `--check` lists them without serving. `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN` and `--tls-cert`/`--tls-key` (or bind loopback behind a TLS proxy). Cross-origin browser requests are refused.
   Do not connect local Agents that already sync skills; they would see each skill twice.
   Connect one with `mcp add skillshare --target CLIENT --sync -- skillshare mcp serve`, or a
   remote `url` with `bearerToken: {fromEnv: SKILLSHARE_MCP_TOKEN}`. Agents with the Skills

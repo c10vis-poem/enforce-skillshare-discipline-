@@ -49,6 +49,7 @@ $ skillshare unlink my-skill
 |------|-------------|
 | `--project, -p` | Use project-level config in current directory |
 | `--global, -g` | Use global config (`~/.config/skillshare`) |
+| `--` | End options; allow a name starting with `-` |
 | `--help, -h` | Show help |
 
 ## 另请参阅

@@ -50,7 +50,9 @@ MCP プロバイダーから提供された URL または JSON を貼り付け�
 貼り付けるかです。貼り付け側はファイルの読み込みにも対応しており、これはブラウザ版の
 `mcp import --file` に相当します。貼り付けられた JSON は自動的に認識されます。TOML の場合は、
 Codex 由来か Grok 由来かを選択します。貼り付けた内容がサーバー 1 つだけで Pi にチェックが入っている場合は、
-ダイアログにフォームの Pi 設定（ツールの公開方法、その他の Pi 設定）も表示されます。**Import from a target** は別の機能で、すでにインストールされて
+ダイアログにフォームの Pi 設定（ツールの公開方法、その他の Pi 設定）も表示されます。**Skillshare** タブは `skillshare mcp serve` を追加します。これは sync で Skill を受け取らない Agent に
+[MCP で Skill を提供します](/docs/reference/commands/mcp#serve-skills-over-mcp)。Skill を選び、Agent にチェックを入れます。すでに Skill を sync していて
+Skill が二重に表示される Agent には印が付きます。**Import from a target** は別の機能で、すでにインストールされて
 いる Agent が持つサーバーを読み込みます。いずれの方法でも、ダッシュボードは CLI と同じ source、検証、
 プレビュー、競合ルールを使用します。MCP ページの Sync ボックスにある **Sync MCP** は、MCP の設定ファイルだけを
 書き込みます。Sync ページには、skills、agents、extras、MCP をまとめて Sync するための

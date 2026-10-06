@@ -54,10 +54,10 @@ target 会保存该选择。下一次 `sync plugins` 会移除其受管理的安
 
 | Option | Meaning |
 |---|---|
-| `--target TARGET` | Repeatable selection: `claude`, `codex`, `cursor`, `antigravity` (`agy` alias), `antigravity-cli`, `copilot`, `grok`, `pi`, `opencode`, or the name of [another account of an Agent](#accounts); see the capability table below |
+| `--target TARGET` | Repeatable selection: `claude`, `codex`, `cursor`, `antigravity` (`agy` alias), `antigravity-cli`, `copilot`, `grok`, `pi`, `omp`, `opencode`, or the name of [another account of an Agent](#accounts); see the capability table below |
 | `--plugin NAME` | Select one plugin from a source marketplace |
 | `--name NAME` | Logical package name when adding or importing |
-| `--from TARGET` | Import from Claude, Codex, Antigravity CLI, Copilot, Grok, Pi, OpenCode, or [another account of an Agent](#accounts) |
+| `--from TARGET` | Import from Claude, Codex, Antigravity CLI, Copilot, Grok, Pi, OMP marketplaces, OpenCode, or [another account of an Agent](#accounts) |
 | `--dry-run`, `-n` | Preview without changing Skillshare or Agent configuration |
 | `--source-ref REF` | Git branch, tag, or commit for `discover`, `add`, and `update`; remote sources only |
 | `--entry PATH` | Explicit built OpenCode JS/TS entry, relative to the package root (`discover` and `add`) |
@@ -65,7 +65,7 @@ target 会保存该选择。下一次 `sync plugins` 会移除其受管理的安
 | `--json` | Machine-readable output; disables TUI |
 | `--no-tui` | Disable interactive menus; also respects `tui: false` |
 | `--global`, `-g` | Global Skillshare config and native user scope |
-| `--project`, `-p` | Project config; Claude, Antigravity, Pi, or OpenCode (never global fallback) |
+| `--project`, `-p` | Project config; Claude, Antigravity, Pi, OMP, or OpenCode (never global fallback) |
 
 JSON 输出包含来源路径和原生标识符。不要在来源 URL 中放置凭据。一次失败的变更操作仍可能
 对部分 targets 返回成功结果；当任何 target 失败时，CLI 会以非零代码退出。重试之前请先
@@ -80,6 +80,7 @@ JSON 输出包含来源路径和原生标识符。不要在来源 URL 中放置�
 | Cursor | `.cursor-plugin/plugin.json` or Agent Plugins root manifest | Yes | No | Replace reviewed local copy |
 | Antigravity Desktop | Root `plugin.json` with an explicit name | Yes | Yes | Replace reviewed local copy |
 | Pi | `package.json` with `pi` resources, or `pi-package` keyword and conventional resource folders | Yes | Yes, with native project trust | Refresh managed source snapshot |
+| Oh My Pi | Marketplace-backed local/Git plugins with native-compatible metadata | Fresh-cache install/reinstall, import and scoped removal | At OMP's project anchor | Updates blocked; removal retains shared cache |
 | OpenCode | `package.json` with an SDK dependency, `.opencode/plugins/` entry, or explicit `--entry` | Yes | Yes | Refresh managed source snapshot |
 
 | Antigravity CLI | Native root manifest or Claude manifest accepted by `agy` | Yes | No | Update natively to preserve enablement |
@@ -133,6 +134,78 @@ skillshare plugin import demo@market --from claude-work
 marketplace 安装。Skillshare 拒绝覆盖非自身拥有的文件夹、symlinks 或本地已编辑的受管理内容。
 显式的 Antigravity manifest 名称可以在 Git 检出和快照之间保持身份稳定。
 
+### Oh My Pi (OMP) {#omp}
+
+OMP 使用自己的 marketplace 生命周期，而不是 Pi 的 package 命令。Skillshare 管理经审核的本地/Git
+plugin 来源，并导入以 `name@marketplace` 标识的原生 marketplace 条目：
+
+```bash
+skillshare plugin add ./my-omp-plugin --target omp --dry-run --json -g
+skillshare plugin add ./my-omp-plugin --target omp --no-tui -g
+skillshare plugin import demo@my-market --from omp --dry-run --json -g
+```
+
+安装需要 OMP **18.6.1**、经审核的本地/Git 来源、一个经过验证且从未使用过的 cache 目标位置，
+以及一个尚不存在的作用域本地运行时目标位置。运行时 package 名称来自经审核的来源，而不仅仅是
+marketplace 名称。已存在的模块目录或链接会阻止安装，而不会被替换；目标位置会绑定到预览，并在
+安装前再次检查。适配器会让 plugin 树保持完整，使用原生 marketplace 安装，并验证产生的注册。
+Catalog 可以使用 `.omp-plugin/marketplace.json` 或旧版的 `.claude-plugin/marketplace.json`。
+预览不会调用 OMP 原生的 `--dry-run`，因为它可能会写入文件。应用前请先审查来源：OMP 可能会在下次
+启动时于进程内执行 plugin 的 extension 和工具，而且没有项目信任提示。安装成功并不能证明这些资源
+已成功加载。
+
+**OMP 18.6.1 的共享 cache 限制：** 它原生的 uninstall 和 upgrade 可能会删除或替换仍被另一个项目
+引用的 plugin cache 文件。原生清单只列出用户注册表和当前项目的注册表，因此无法确认这些操作对其他
+项目是否安全。Skillshare 不会调用这些破坏性命令。**Remove** 以及停用后同步会改用一个限定作用域的
+适配器，删除该安装的注册表条目、运行时选择和经过验证的 `node_modules` 链接。plugin 会从该作用域
+卸载，而不只是停用。共享 cache、marketplace 和 plugin 设置会保留；不会尝试 cache 垃圾回收。
+当旧 cache 仍存在时，重新安装会自动选择新的 marketplace/cache 身份，不会替换其他项目可能使用的
+文件。无法读取、是链接或不是目录的 cache 目标位置仍会被阻止。
+
+移除需要经过验证的 18.6.1 元数据契约、相符的已安装版本、无歧义的 JSON，以及已证实的运行时链接
+所有权。真实的模块文件夹、外部链接、npm 依赖冲突或无法确定的运行时拥有者都会被拒绝。如果 cache
+manifest 缺失，适配器会要求一个唯一的 runtime-lock key，且其作用域本地链接指向该安装的 cache；
+它绝不会猜测 marketplace 名称，也不会在实际运行时链接仍然安装的情况下报告成功。无法验证的有效
+安装仍会被阻止。如果原生 uninstall 已经移除了 cache、注册和运行时链接/选择，Forget 只会丢弃过时的
+Skillshare 绑定；另一个 plugin 的 `node_modules` 目录不会阻止它。原生文件的变更会使预览失效。
+部分完成的移除可以根据保留的 cache 和绑定身份重试，无需保存完整的原生设置备份。在 Windows 上
+写入还需要可验证的私有 ACL；Skillshare 不会为了通过检查而更改权限。不会运行任何 extension 代码。
+
+适配器会将 Skillshare 的移除操作串行化，并检查原生文件的 revision，但 OMP 的 plugin 命令不参与
+它的锁；请不要同时运行原生 plugin 变更操作。这不是一个原子的多文件原生事务。在出现非破坏性的
+upgrade 契约之前，**更新仍会被阻止**；没有经审核的来源，导入的代码永远不会被升级。
+
+项目操作要求所选的根目录与 OMP 原生的项目锚点相符；它们绝不会悄悄地安装到 global 或某个上层项目中。
+原生 profile/config-root 覆盖（`PI_CONFIG_DIR`、`PI_CODING_AGENT_DIR`、`OMP_PROFILE` 或
+`PI_PROFILE`）会阻止 plugin 管理。迁移过的原生 cache 会使现有预览失效。任意账号的 `config_dir`
+不会重定向 OMP 的 plugin store，因此不支持 OMP 账号 plugin target。
+
+原生的 npm/Git/link package 会出现在清单中，但不会作为 marketplace plugin 导入。请在 OMP 中管理
+这些 package；`plugin add npm:...` 仍是 Pi 专用的工作流程。不要另外把 plugin 的 extension、hook、
+skill 或 MCP 条目复制到 Skillshare 的其他资源中。
+
+#### 选择独立的 OMP extension
+
+打开 OMP target 的 **Extensions** 标签页，即可查看基于文件的选择。卡片按来源和作用范围分组文件：
+plugin 按其检查到的 package 根目录分组，其他文件按目录分组。文件列表始终可见。plugin 卡片使用
+package 图标，以及来自原生 package 身份（而不是 extension 文件夹名称）的 `Plugins · <name>`
+标题。已知的 manifest 版本和作用范围会保持显示，并以 **Open Plugins** 导航图标代替重复的来源标签。
+共享文件夹以相对于 plugin 的路径显示，完整文件路径保留在提示中。**Details** 使用与 Pi 相同的带
+标签双栏布局，显示完整来源、原生名称、选择标识符和备注。缺少身份元数据时会退回到检查到的文件夹；
+不会猜测 package 身份或版本。只读原因以及指向 Hooks 或 Plugins 的链接会和对应条目一起显示。
+受支持的独立模块带有开关；**Preview** 会显示变更，**Apply** 只会写入所选原生 YAML 设置文件中的
+`disabledExtensions`。Global、project 和显式配置的账号目录彼此独立。编辑器会保留不相关的 YAML
+和注释，在 OMP 原生锁下再次检查已审核的 revision，并拒绝过时或忙碌时的写入。
+
+选择编辑要求所选启动器背后是一个可验证的 OMP **18.6.1** package。无法识别的版本、独立二进制文件
+和包装启动器保持只读。这项检查只读取 package 元数据，不会运行 OMP。同名的模块分组、绕过
+disabled-name 过滤器的显式文件、环境中的 `hooks/pre|post` factory、不确定的选择以及链接路径都是
+只读的。由 Hooks 拥有和由 plugin 拥有的条目仍由各自的管理器负责。
+
+备份会在 Skillshare state 目录下的 `omp-extensions/backups` 中记录变更前后的选择以及设置的哈希，
+而不记录不相关的 YAML 值或凭据。它是一份选择恢复记录，不能用来恢复整份设置。应用成功描述的是
+磁盘上的配置，而不是正在运行的 extension；重启/重新加载仍需在 OMP 中进行。
+
 ### Pi 与 OpenCode
 
 Pi 保留同一包的第一条全局注册与最后一条 project 注册。如果更早的全局来源或更晚的 project 来源无法确认 identity，Skillshare 无法证明哪条注册具有优先权，因此可能被覆盖的条目（包括继承的 project delta）会保持 Unknown／只读，不会通过删除 URL query 来猜测 identity。不受这项不确定性影响、已确认的条目仍可编辑。
@@ -158,9 +231,9 @@ Pi 每个包名只保留一条。Pi 已经有相同来源时，`add` 会导入�
 
 #### 选择 package 的 extension
 
-在 dashboard 中，`pi` 和 Pi 账号的 target 页面有一个 **Extensions** 标签页。它列出该 target 的 `settings.json` 中每个包条目，以及其过滤规则选中的 extension。开关会在该条目的 `extensions` 列表中写入一条精确的 `+path` 或 `-path` 规则；但如果删除该文件自身的精确规则就能得到开关要的状态，开关会改为删除那条规则，所以把文件切回其余规则选中的状态时不会留下规则。**Remove rule** 只在开关不会删除规则时显示，它会删除该文件的精确规则（无论写成相对路径还是绝对路径），之后该文件由其余规则决定；结果会显示在预览中。应用前一定会先显示预览，并且只修改这些列表：条目的其他键、`skills`、`prompts` 和 `themes` 过滤规则、glob 和 `!` 规则，以及文件的其余部分都保持原样。字符串条目会变成 `{"source": ...}`，以便放入规则。对于字符串条目，Pi 只从包的 `pi` manifest 读取 skills、prompts 和 themes；对象条目则会在 manifest 没有列出时，从包的 `skills`、`prompts`、`themes` 文件夹加载它们。有这类文件夹的包，其字符串条目是只读的，因为 Skillshare 无法确认转换后这些资源保持原样。指向单个文件的来源也是只读的，因为 Pi 会直接加载它并忽略过滤规则。如果预览后文件已被修改，或 Pi 正持有设置锁，就不会写入任何内容。写入期间 Skillshare 会以与 Pi 相同的方式持有这个锁，一旦失去就不写入。每次应用前都会保存一份变更的 extension 列表及文件变更前后哈希的记录。成功应用的记录会保留，不会自动清理；应用失败时只移除该次新建的记录。这不是 `settings.json` 的副本，无法用来恢复整份设置文件。这个标签页会列出设置中的所有包，包括直接用 Pi 安装的，例如 [pi.dev](https://pi.dev/packages) 上的 `npm:` 包。Skillshare 只通过 `plugin` 安装和移除包：`plugin add` 接受本地目录、Git 来源或 [npm 包](#pidev-的-npm-包)，`plugin import --from pi` 则可接管用 Pi 安装的包。
+在 dashboard 中，`pi` 和 Pi 账号的 target 页面有一个 **Extensions** 标签页。它列出该 target 的 `settings.json` 中每个包条目，以及其过滤规则选中的 extension。由 Skillshare 管理的包使用 package 图标和 `Plugins · <name>` 标题，与 OMP 的 plugin 卡片一致。它们会保留已安装版本、作用范围和相关的项目覆盖形式；导航图标会打开 Plugins。不受管理的 Pi 包保留其原生身份和 Pi 图标。这种呈现方式不会改变所有权或 extension 选择规则。extension 行保持可见；**Details** 会单独显示来源和过滤规则。开关会在该条目的 `extensions` 列表中写入一条精确的 `+path` 或 `-path` 规则；但如果删除该文件自身的精确规则就能得到开关要的状态，开关会改为删除那条规则，所以把文件切回其余规则选中的状态时不会留下规则。**Remove rule** 只在开关不会删除规则时显示，它会删除该文件的精确规则（无论写成相对路径还是绝对路径），之后该文件由其余规则决定；结果会显示在预览中。应用前一定会先显示预览，并且只修改这些列表：条目的其他键、`skills`、`prompts` 和 `themes` 过滤规则、glob 和 `!` 规则，以及文件的其余部分都保持原样。字符串条目会变成 `{"source": ...}`，以便放入规则。对于字符串条目，Pi 只从包的 `pi` manifest 读取 skills、prompts 和 themes；对象条目则会在 manifest 没有列出时，从包的 `skills`、`prompts`、`themes` 文件夹加载它们。有这类文件夹的包，其字符串条目是只读的，因为 Skillshare 无法确认转换后这些资源保持原样。指向单个文件的来源也是只读的，因为 Pi 会直接加载它并忽略过滤规则。如果预览后文件已被修改，或 Pi 正持有设置锁，就不会写入任何内容。写入期间 Skillshare 会以与 Pi 相同的方式持有这个锁，一旦失去就不写入。每次应用前都会保存一份变更的 extension 列表及文件变更前后哈希的记录。成功应用的记录会保留，不会自动清理；应用失败时只移除该次新建的记录。这不是 `settings.json` 的副本，无法用来恢复整份设置文件。这个标签页会列出设置中的所有包，包括直接用 Pi 安装的，例如 [pi.dev](https://pi.dev/packages) 上的 `npm:` 包。Skillshare 只通过 `plugin` 安装和移除包：`plugin add` 接受本地目录、Git 来源或 [npm 包](#pidev-的-npm-包)，`plugin import --from pi` 则可接管用 Pi 安装的包。
 
-Skillshare 读取包时不会运行它们，因此这个标签页显示的是设置选中了哪些文件（**设置**列），而不是 Pi 是否已加载它们；应用后请重新加载 Pi。设置指明但包中不存在的文件会标记为不存在。Skillshare 无法判断的选择会显示**无法判断**，并附上原因与修改方式，绝不猜测开或关。编辑需要该 target 自己的 Pi 是 0.99.2 及以上（用 Pi 本身验证过的最旧版本），且设置是严格的 JSON；更旧的版本为只读，标签页会显示检测到的版本。运行其他程序的 Pi 账号为只读，Skillshare 也不会运行它。列表为 `[]`（不加载任何文件）的条目是只读的，由 Skillshare 无法评估的模式（例如 `?` 对上 emoji）决定的 extension 也是只读的。来源为空的条目，或来源、规则中含有未配对的 UTF-16 代理项转义或无效 UTF-8 的条目，因为 Skillshare 无法像 Pi 一样准确读取，会保持原样并设为只读。Pi 只采用包的第一个全局条目，所以当 Skillshare 无法读取那个条目时，同一个包后面的条目也是只读的。
+Skillshare 读取包时不会运行它们，因此这个标签页显示的是设置选中了哪些文件（开关和选择说明），而不是 Pi 是否已加载它们；应用后请重新加载 Pi。设置指明但包中不存在的文件会标记为不存在。Skillshare 无法判断的选择会显示**无法判断**，并附上原因与修改方式，绝不猜测开或关。编辑需要该 target 自己的 Pi 是 0.99.2 及以上（用 Pi 本身验证过的最旧版本），且设置是严格的 JSON；更旧的版本为只读，标签页会显示检测到的版本。运行其他程序的 Pi 账号为只读，Skillshare 也不会运行它。列表为 `[]`（不加载任何文件）的条目是只读的，由 Skillshare 无法评估的模式（例如 `?` 对上 emoji）决定的 extension 也是只读的。来源为空的条目，或来源、规则中含有未配对的 UTF-16 代理项转义或无效 UTF-8 的条目，因为 Skillshare 无法像 Pi 一样准确读取，会保持原样并设为只读。Pi 只采用包的第一个全局条目，所以当 Skillshare 无法读取那个条目时，同一个包后面的条目也是只读的。
 
 同步到 Pi 的项目在项目页面上也有这个标签页。它显示项目设置叠加在全局设置之上后，每个包选中的内容，并标明是继承自 `pi (global)` 还是项目覆盖。开关只会把规则保存到项目的 `.pi/settings.json`，做法与 `pi config` 相同：全局包会得到一个项目条目 `{"source": ..., "autoload": false, "extensions": [...]}`，只改变它指明的文件，全局条目保持不变。本地来源会写成相对于 `.pi` 的路径，npm 或 git 来源则按全局设置的写法。移除这类条目的最后一条项目规则时，只有不会让更早注册的 filters 生效才移除该条目；否则保留空的 winning override。只有明确的 JSON `false` 才表示 delta，`autoload: null` 不是 `false`。没有对应全局条目、且 `autoload: false` 的项目条目只会加载它用 `+` 指明的文件。文件及其 `.pi` 文件夹只会在应用时创建。全局设置和 Pi 的 `trust.json` 永远不会被写入，Skillshare 也不会替你信任项目：Pi 只有在信任项目时才会使用项目设置。含有凭据或查询字符串的全局来源不会被复制到项目中，所以该包在项目中是只读的；项目设置中有 Skillshare 无法读取的条目时，所有包都是只读的。应用时会持有 Pi 对项目文件的锁，并在写入前再次检查两个设置文件和包。Pi 自己的 `extensions` 文件夹中的 extension（包括 [extras](./extras.md) 链接到那里的文件）以只读方式列出，并说明在哪里修改；项目会列出自己的文件夹（Pi 只有在信任项目时才会读取）和全局文件夹。
 

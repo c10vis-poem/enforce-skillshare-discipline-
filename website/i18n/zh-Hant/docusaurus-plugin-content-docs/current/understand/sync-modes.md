@@ -256,7 +256,7 @@ skillshare target claude --target-naming standard
 skillshare sync
 ```
 
-**Standard mode** 遵循 [Agent Skills specification](https://agentskills.io/specification)，該規範要求 SKILL.md 的 `name` 欄位須與父層目錄名稱相符。名稱不合法或有名稱衝突的 skills 會顯示警告並被略過。
+**Standard mode** 遵循 [Agent Skills specification](https://agentskills.io/specification)，該規範要求 SKILL.md 的 `name` 欄位須與父層目錄名稱相符。合法的名稱最多 64 個字元，只能包含小寫字母（任何文字系統皆可）、數字與單一連字號，且不能以 `-` 開頭或結尾；不允許底線。名稱不合法或有名稱衝突的 skills 會顯示警告並被略過。
 
 **Migration（遷移）**：從 `flat` 切換到 `standard` 時，會自動就地重新命名既有的受管理項目。如果某個裸名稱已被本機 skill 佔用，原本的 flat 項目會被保留。
 

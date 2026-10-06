@@ -87,10 +87,22 @@ Skillshare は `hooks` セクションをインデントした block 形式で�
 | `enabled` | 既定 true。false はソースを保持し、次の同期で未変更の所有出力を削除 |
 | `bindings` | Agent ID ごとのネイティブ binding |
 | `bindings.AGENT.events` | 設定型 Agent のネイティブ event map |
-| `bindings.AGENT.code` | Pi、Amp、OpenCode のネイティブ extension/plugin ソース |
+| `bindings.AGENT.code` | Pi、OMP、Amp、OpenCode のネイティブ extension/plugin ソース |
 | `bindings.AGENT.files` | 相対ファイル名を key とした任意の UTF-8 スクリプト |
 
-Agent ID は `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`amp`、`opencode`、`git`。`factory` は `droid` の、`antigravity-cli` と `agy` は `antigravity` の別名です。event、matcher、handler type、command、timeout 単位、payload はネイティブ形式のまま保持し、自動変換しません。event 名は各 command Agent のドキュメントにある event と照合します。未知の名前（例：綴り違いの `Stopp`）はプレビューと plan の `warnings` に警告として表示されますが、Agent は event を追加していくため同期は止めません。Pi、Amp、OpenCode のコードは確認しません。Pi、Amp、OpenCode のコードと imports はインストール済みバージョンに合わせ、専用の `skillshare-NAME.ts` に出力します。共通実行エンジンは生成しません。command binding のスクリプトは Agent 設定ディレクトリの `hooks/skillshare/NAME/` に保存され、command 内の指定 macro／パスは変更しません。プレビューで完全なパスを確認してください。 global の binding は `targets` で宣言したアカウント target の名前も指定できます。
+Agent ID は `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`omp`、`amp`、`opencode`、`git`。`factory` は `droid` の、`antigravity-cli` と `agy` は `antigravity` の別名です。event、matcher、handler type、command、timeout 単位、payload はネイティブ形式のまま保持し、自動変換しません。event 名は各 command Agent のドキュメントにある event と照合します。未知の名前（例：綴り違いの `Stopp`）はプレビューと plan の `warnings` に警告として表示されますが、Agent は event を追加していくため同期は止めません。Pi、OMP、Amp、OpenCode のコードは確認しません。Pi、OMP、Amp、OpenCode のコードと imports はインストール済みバージョンに合わせ、専用の `skillshare-NAME.ts` に出力します。共通実行エンジンは生成しません。
+
+### Oh My Pi のコード binding {#omp}
+
+`bindings.omp.code` には、インストール済みの OMP バージョンの extension API に合わせたコードを指定します。
+Skillshare はソースをそのままコピーし、シェルの event を変換したり、検証のために extension を実行したりはしません。OMP には project の信頼確認がないため、同期された project の extension は次回の OMP 起動時に実行される可能性があります。
+
+OMP の `hooks/pre` と `hooks/post` の factory は、管理外の追加ソースのままです。
+一覧には表示されますが、同じ factory を二重に読み込むおそれがあるため `extensions` にはインポートされません。既存のスタンドアロン extension をインポートしても元のファイルは残ります。別のコピーを同期する前にインポートの警告を確認してください。
+
+Pi と OMP はどちらも `PI_CODING_AGENT_DIR` に従います。binding が同じ出力ファイルに解決される場合、Skillshare は書き込み前に plan をブロックします。両方を管理する場合は、別々の明示的なアカウントディレクトリを使ってください。
+
+command binding のスクリプトは Agent 設定ディレクトリの `hooks/skillshare/NAME/` に保存され、command 内の指定 macro／パスは変更しません。プレビューで完全なパスを確認してください。 global の binding は `targets` で宣言したアカウント target の名前も指定できます。
 
 ## ネイティブの保存先
 
@@ -106,6 +118,7 @@ Agent ID は `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`q
 | [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/users/features/hooks/) | `~/.qwen/settings.json` | `.qwen/settings.json` | `hooks` event map |
 | [Antigravity](https://antigravity.google/docs/hooks) | `~/.gemini/config/hooks.json` | `.agents/hooks.json` | hook ごとに 1 つの名前付きブロック |
 | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) | `~/.pi/agent/extensions/skillshare-NAME.ts` | `.pi/extensions/skillshare-NAME.ts` | Native extension code |
+| [Oh My Pi](https://github.com/can1357/oh-my-pi/blob/v18.6.1/docs/extensions.md) | `~/.omp/agent/extensions/skillshare-NAME.ts` | `.omp/extensions/skillshare-NAME.ts` | Native OMP extension code |
 | [Amp](https://ampcode.com/docs/plugin-api) | `~/.config/amp/plugins/skillshare-NAME.ts` | `.amp/plugins/skillshare-NAME.ts` | Native plugin code |
 | [OpenCode](https://opencode.ai/docs/plugins/) | `~/.config/opencode/plugins/skillshare-NAME.ts` | `.opencode/plugins/skillshare-NAME.ts` | Supplied v1/v2 plugin code |
 
@@ -116,7 +129,7 @@ Droid の inline hooks が有効な場合、同期は独立ファイルの作成
 
 ## Agent の別のアカウント {#accounts}
 
-`agent` と `config_dir` を持つ target は、その名前で hooks を受け取れます。Claude、Codex、Pi のアカウントは Agent のネイティブ binding 形式を使います。`git` キーは常に Git config hooks を指すため、`git` という名前のアカウントは hooks を受け取らず、`git` binding を使う entry があるとプランに警告が出ます。別の名前を付けてください。
+`agent` と `config_dir` を持つ target は、その名前で hooks を受け取れます。Claude、Codex、Pi、OMP のアカウントは Agent のネイティブ binding 形式を使います。`git` キーは常に Git config hooks を指すため、`git` という名前のアカウントは hooks を受け取らず、`git` binding を使う entry があるとプランに警告が出ます。別の名前を付けてください。
 
 ```yaml
 targets:
@@ -141,6 +154,7 @@ hooks:
 | `claude` | `<config_dir>/settings.json` |
 | `codex` | `<config_dir>/hooks.json` |
 | `pi` | `<config_dir>/extensions/skillshare-NAME.ts` |
+| `omp` | `<config_dir>/extensions/skillshare-NAME.ts` |
 
 command のスクリプトは `<config_dir>/hooks/skillshare/NAME/` に入ります。アカウントは global のみです。project 設定と `hooks.projects` では、すべてのアカウントが同じプロジェクトファイルを読むため Agent 自体を指定します。`config_dir` がなければ警告してスキップし、アカウントのホームを作成しません。
 

@@ -46,7 +46,7 @@
 </p>
 
 > [!NOTE]
-> **最新版本**：v0.24.6 — `diff` 与 Dashboard 的 Sync 标签页不再把已同步的转换后 agent（Codex、OpenCode）列为待同步，并遵循各 Target 的 include/exclude；Targets 列表中 Target 的每一部分都直接链接到对应标签页；Memory 新增 **Refresh** 按钮，agent 会把简短的事实记在 `INDEX.md`；指向 skills 文件夹之外的 skill 名称会被 Dashboard 拒绝。完整的新功能与修复见 [Releases](https://github.com/runkids/skillshare/releases) 和[更新日志](https://skillshare.runkids.cc/changelog)。
+> **最新版本**：v0.25.0 — `skillshare mcp serve` 通过 MCP（SEP-2640 Skills extension）把你的 skills 提供给只能连接 MCP endpoint 的 agent，不支持该 extension 的 client 可以改用 `list_skills` 和 `read_skill` 两个 tool，Dashboard 的 **Add server** 也新增 **Skillshare** 标签页；`skillshare link` 与 `unlink` 可以把放在别处的文件夹（例如自己的 checkout 或外接硬盘）加入或移除为 followed source link，Skills 页面也能操作；Oh My Pi（`omp`）成为原生支持的 Target。完整的新功能与修复见 [Releases](https://github.com/runkids/skillshare/releases) 和[更新日志](https://skillshare.runkids.cc/changelog)。
 
 ## 为什么用 skillshare
 

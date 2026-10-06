@@ -803,9 +803,9 @@ skill approval does not apply.
   its sync mode; skills always come from the source. A target with skills turned off is
   an error.
 - **Skipped skills.** A skill is skipped, with a warning on stderr, when its `SKILL.md`
-  does not begin with its frontmatter, when its `name` breaks the Agent Skills naming
+  is a link or does not begin with its frontmatter, when its `name` breaks the Agent Skills naming
   rules or differs from its directory name (for example after `install --name`), when
-  its description is missing or over 1,024 characters or its `compatibility` over 500,
+  its description is missing or over 1,024 characters or its `compatibility` is empty or over 500,
   when it has more than 512 files
   or 16 MiB, or when it contains a nested skill that is not served.
   `skillshare mcp serve --check` lists those skills and their reasons, with the same
@@ -823,7 +823,7 @@ skill approval does not apply.
   address such as `127.0.0.1:8765` and let the proxy terminate TLS.
 - **Safety.** Only files in a skill's manifest can be read, and reads stay inside the
   skill directory. Links and `.git` are neither listed nor served. Nothing is executed or
-  written.
+  written. With `--http`, cross-origin browser requests are refused.
 
 To connect an Agent, add the server like any other and sync it. On the machine that
 runs the Agent:
@@ -903,7 +903,8 @@ npx @modelcontextprotocol/inspector --cli skillshare mcp serve --method skills/l
   domain name.
 - Credentials use environment references; no secret store, OAuth session sync,
   continuous health monitoring, package installation, gateway, registry or plugin sync.
-  `mcp check --live` is the only command that starts a server or calls one.
+  `mcp check --live` is the only command that starts or calls a configured server;
+  `mcp serve` runs Skillshare's own read-only skills server.
 - VS Code Insiders, custom profiles, remote workspaces and legacy SSE are not
   supported in this version.
 - VS Code does not currently substitute `${env:VARIABLE}` inside `headers`

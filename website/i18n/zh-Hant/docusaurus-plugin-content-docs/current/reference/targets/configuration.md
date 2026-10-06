@@ -252,7 +252,7 @@ dashboard 的 Target 分配寫入 frontmatter 時，也遵守這個寫入邊界�
 
 替換被跟隨連結內的 Skill 時，會保留舊 Skill 直到替換成功；複製失敗會還原舊內容。傳入內容中的連結會複製為實際檔案或目錄，目標不存在的連結會跳過。
 
-跨檔案系統將 Skill 移入 trash 時，內部檔案與目錄連結會保留為連結，並保持原始目標文字；不會複製或刪除連結目標。
+跨檔案系統將 Skill 移入 trash 時，內部檔案與目錄連結會保留為連結，並保持原始目標文字；不會複製或刪除連結目標。在 Windows 上，junction 會維持為 junction，因此不需要 Developer Mode。
 
 `update` 與 `check` 的 `--group` 接受連結名稱（`skillshare update --group _dev-skills`）。位於連結底下的巢狀群組（例如 `_dev-skills/sub`）不被 `--group` 接受；請改為指定其 Skill 名稱。`skillshare uninstall --group _dev-skills` 會被拒絕，因為它會清空真實 checkout：要移除連結請用 `skillshare unlink _dev-skills`，或指定要丟進垃圾桶的 Skill 名稱。
 
@@ -338,11 +338,11 @@ targets:
     config_dir: ~/.codex-work    # Skill 會放到 ~/.codex-work/skills
 ```
 
-Codex 也會讀取共用的 `~/.agents/skills`，但一個帳號只擁有自己的目錄，因此它的 Skill 會放到 `<config_dir>/skills`。Pi 的運作方式相同。只有 Claude 有 agents 目錄。
+Codex 也會讀取共用的 `~/.agents/skills`，但一個帳號只擁有自己的目錄，因此它的 Skill 會放到 `<config_dir>/skills`。Pi 與 OMP 的運作方式相同。只有 Claude 有 agents 目錄。
 
 | 欄位 | 說明 |
 |-------|-------------|
-| `agent` | 內建的 Agent：`claude`（`CLAUDE_CONFIG_DIR`）、`codex`（`CODEX_HOME`）或 `pi`（`PI_CODING_AGENT_DIR`） |
+| `agent` | 內建的 Agent：`claude`（`CLAUDE_CONFIG_DIR`）、`codex`（`CODEX_HOME`）、`pi` 或 `omp`（兩者都使用 `PI_CODING_AGENT_DIR`） |
 | `config_dir` | 該帳號的 config 目錄。必須是絕對路徑或以 `~` 開頭，不能是該 Agent 的預設目錄，且只能由一個 Target 使用 |
 | `cli` | 選填。用相容的 CLI 取代 Agent 本身來執行這個帳號的 [plugin 指令](/docs/reference/commands/plugin#accounts)，例如 Pi 用 `omo`。填 `PATH` 上的名稱，或絕對路徑（可以用 `~` 開頭）。只能是一個執行檔、不帶參數；shell alias 不會生效 |
 
@@ -358,7 +358,7 @@ targets:
 
 `cli` 只改變由哪個程式安裝與移除 plugin。Skills、agents 與 MCP servers 仍照舊寫入 `config_dir`。
 
-`mode`、`include`、`exclude` 與其他 Target 設定的運作方式與任何 Target 相同。你自己寫的 `skills.path` 或 `agents.path` 會優先於推導出來的路徑。Target 名稱也可以當作 [MCP target](/docs/reference/commands/mcp#accounts) 與 [plugin target](/docs/reference/commands/plugin#accounts) 使用。 也可以當作 [hooks target](/docs/reference/commands/hooks#accounts) 使用。
+`mode`、`include`、`exclude` 與其他 Target 設定的運作方式與任何 Target 相同。你自己寫的 `skills.path` 或 `agents.path` 會優先於推導出來的路徑。Target 名稱也可以當作 [MCP target](/docs/reference/commands/mcp#accounts) 使用。對於支援這些資源的 Agent，它也可以是 [plugin target](/docs/reference/commands/plugin#accounts) 或 [hooks target](/docs/reference/commands/hooks#accounts)。OMP 帳號支援 skills、instructions、files、MCP 與原生程式碼 hooks，但不支援 plugin 同步。它們的 Extensions 分頁會列出原生 module，並只在原生版本、檔案身分與設定 scope 都經過驗證時，才提供[選取編輯](/docs/reference/commands/plugin#omp)；它不是 runtime 狀態監控工具。
 
 #### 指示檔案 {#target-instructions}
 

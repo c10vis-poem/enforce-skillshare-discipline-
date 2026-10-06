@@ -252,7 +252,7 @@ skillshare sync
 
 따라가는 링크 내부의 Skill을 교체할 때는 교체가 성공할 때까지 기존 Skill을 보존하고, 복사가 실패하면 복원합니다. 가져오는 콘텐츠의 링크는 실제 파일이나 디렉터리로 복사하며, 대상이 없는 링크는 건너뜁니다.
 
-Skill을 다른 파일시스템의 trash로 옮길 때 내부 파일 및 디렉터리 링크는 원래 대상 문자열을 가진 링크로 보존됩니다. 링크 대상은 복사하거나 삭제하지 않습니다.
+Skill을 다른 파일시스템의 trash로 옮길 때 내부 파일 및 디렉터리 링크는 원래 대상 문자열을 가진 링크로 보존됩니다. 링크 대상은 복사하거나 삭제하지 않습니다. Windows에서는 junction이 junction으로 유지되므로 개발자 모드가 필요 없습니다.
 
 `--group`은 `update`와 `check`에서 링크 이름을 받습니다(`skillshare update --group _dev-skills`). `_dev-skills/sub`처럼 링크 아래에 중첩된 그룹은 `--group`에서 받지 않으므로, 대신 skill 이름을 지정하세요. `skillshare uninstall --group _dev-skills`는 실제 checkout을 비워 버리기 때문에 거부됩니다. 링크를 제거하려면 `skillshare unlink _dev-skills`를 사용하고, 휴지통으로 보낼 skill은 이름을 지정하세요.
 
@@ -338,11 +338,11 @@ targets:
     config_dir: ~/.codex-work    # skills는 ~/.codex-work/skills로
 ```
 
-Codex는 공유되는 `~/.agents/skills`도 읽지만, 계정은 자기 디렉터리만 소유하므로 그 skill은 `<config_dir>/skills`로 갑니다. Pi도 같은 방식입니다. agents 디렉터리를 가지는 것은 Claude뿐입니다.
+Codex는 공유되는 `~/.agents/skills`도 읽지만, 계정은 자기 디렉터리만 소유하므로 그 skill은 `<config_dir>/skills`로 갑니다. Pi와 OMP도 같은 방식입니다. agents 디렉터리를 가지는 것은 Claude뿐입니다.
 
 | Field | Description |
 |-------|-------------|
-| `agent` | 내장 Agent. `claude`(`CLAUDE_CONFIG_DIR`), `codex`(`CODEX_HOME`), `pi`(`PI_CODING_AGENT_DIR`) |
+| `agent` | 내장 Agent. `claude`(`CLAUDE_CONFIG_DIR`), `codex`(`CODEX_HOME`), `pi` 또는 `omp`(둘 다 `PI_CODING_AGENT_DIR`) |
 | `config_dir` | 해당 계정의 config 디렉터리. 절대 경로이거나 `~`로 시작해야 하고, Agent의 기본 디렉터리가 아니어야 하며, 하나의 target만 사용 |
 | `cli` | 선택 사항. 이 계정의 [plugin 명령](/docs/reference/commands/plugin#accounts)을 Agent 자체 대신 호환 CLI로 실행합니다(예: Pi의 `omo`). `PATH`에 있는 이름이나 절대 경로(`~`로 시작 가능). 인수 없는 실행 파일 하나만 가능하며, shell alias는 인식되지 않음 |
 
@@ -358,7 +358,7 @@ targets:
 
 `cli`는 plugin을 설치하고 제거하는 프로그램만 바꿉니다. Skill, agent, MCP 서버는 이전처럼 `config_dir`에 기록됩니다.
 
-`mode`, `include`, `exclude` 및 그 밖의 target 설정은 다른 target과 동일하게 동작합니다. 직접 작성한 `skills.path`나 `agents.path`는 파생된 경로보다 우선합니다. target 이름은 [MCP target](/docs/reference/commands/mcp#accounts)과 [plugin target](/docs/reference/commands/plugin#accounts)으로도 사용할 수 있습니다. [hooks target](/docs/reference/commands/hooks#accounts)으로도 사용할 수 있습니다.
+`mode`, `include`, `exclude` 및 그 밖의 target 설정은 다른 target과 동일하게 동작합니다. 직접 작성한 `skills.path`나 `agents.path`는 파생된 경로보다 우선합니다. target 이름은 [MCP target](/docs/reference/commands/mcp#accounts)으로도 사용할 수 있습니다. 해당 리소스를 지원하는 Agent라면 [plugin target](/docs/reference/commands/plugin#accounts)이나 [hooks target](/docs/reference/commands/hooks#accounts)으로도 사용할 수 있습니다. OMP 계정은 skills, instructions, files, MCP, 네이티브 코드 hooks를 지원하지만 plugin sync는 지원하지 않습니다. Extensions 탭은 네이티브 모듈 목록을 보여 주며, 네이티브 버전, 파일 식별 정보, 설정 scope가 검증된 경우에만 [선택 편집](/docs/reference/commands/plugin#omp)을 제공합니다. 런타임 상태 모니터는 아닙니다.
 
 #### 지침 파일 {#target-instructions}
 

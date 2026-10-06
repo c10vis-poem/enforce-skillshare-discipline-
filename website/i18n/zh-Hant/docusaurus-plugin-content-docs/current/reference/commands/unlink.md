@@ -49,6 +49,7 @@ $ skillshare unlink my-skill
 |------|-------------|
 | `--project, -p` | 使用目前目錄的專案層級設定 |
 | `--global, -g` | 使用全域設定（`~/.config/skillshare`） |
+| `--` | 結束選項；允許以 `-` 開頭的名稱 |
 | `--help, -h` | 顯示說明 |
 
 ## 另請參閱

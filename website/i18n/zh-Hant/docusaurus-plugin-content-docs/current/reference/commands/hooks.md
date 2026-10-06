@@ -87,10 +87,20 @@ Skillshare 以縮排的 block 格式寫入 `hooks` 區段；每次儲存也會�
 | `enabled` | 預設 true；false 保留來源，下次同步移除未被修改的自有輸出 |
 | `bindings` | Agent ID 到原生 binding 的對應 |
 | `bindings.AGENT.events` | command／設定型 Agent 的原生 event map |
-| `bindings.AGENT.code` | Pi、Amp、OpenCode 的原生 extension/plugin 程式碼 |
+| `bindings.AGENT.code` | Pi、OMP、Amp、OpenCode 的原生 extension/plugin 程式碼 |
 | `bindings.AGENT.files` | 可選 UTF-8 腳本檔，以相對檔名為 key |
 
-Agent ID 為 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`amp`、`opencode`、`git`；`factory` 是 `droid` 的別名，`antigravity-cli` 與 `agy` 是 `antigravity` 的別名。event、matcher、handler type、command、timeout 單位與 payload 均保留原生格式，不自動跨 Agent 轉換。event 名稱會對照各 command Agent 文件列出的事件檢查：未知名稱（例如拼錯的 `Stopp`）在預覽與 plan 的 `warnings` 中顯示警告，但不阻擋同步，因為 Agent 會陸續新增事件。Pi、Amp、OpenCode 的程式碼不檢查。Pi、Amp、OpenCode 的程式碼與 imports 須符合已安裝版本；發布至獨立的 `skillshare-NAME.ts`，不產生共用執行引擎。command binding 的腳本位於 Agent 設定目錄的 `hooks/skillshare/NAME/`，command 保留你提供的原生 macro 或明確路徑。請在預覽確認完整路徑。 global binding 也可以使用在 `targets` 下宣告的帳號 target 名稱。
+Agent ID 為 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`qwen`、`antigravity`、`pi`、`omp`、`amp`、`opencode`、`git`；`factory` 是 `droid` 的別名，`antigravity-cli` 與 `agy` 是 `antigravity` 的別名。event、matcher、handler type、command、timeout 單位與 payload 均保留原生格式，不自動跨 Agent 轉換。event 名稱會對照各 command Agent 文件列出的事件檢查：未知名稱（例如拼錯的 `Stopp`）在預覽與 plan 的 `warnings` 中顯示警告，但不阻擋同步，因為 Agent 會陸續新增事件。Pi、OMP、Amp、OpenCode 的程式碼不檢查。Pi、OMP、Amp、OpenCode 的程式碼與 imports 須符合已安裝版本；發布至獨立的 `skillshare-NAME.ts`，不產生共用執行引擎。
+
+### Oh My Pi code bindings {#omp}
+
+`bindings.omp.code` 請使用已安裝 OMP 版本的 extension API。Skillshare 會原封不動複製原始碼；不會轉換 shell 事件，也不會執行 extension 來驗證。OMP 沒有 project 信任提示，因此同步後的 project extension 可能在下次 OMP 啟動時執行。
+
+OMP 的 `hooks/pre` 與 `hooks/post` factory 仍是額外的未管理來源。它們會被列出，但不會匯入 `extensions`，以免同一個 factory 被載入兩次。匯入既有的獨立 extension 時，原始檔案也會保留；同步另一份副本前，請先檢視匯入警告。
+
+Pi 與 OMP 都遵循 `PI_CODING_AGENT_DIR`。如果 binding 解析到同一個輸出檔案，Skillshare 會在寫入前擋下 plan。同時管理兩者時，請使用各自明確的帳號目錄。
+
+command binding 的腳本位於 Agent 設定目錄的 `hooks/skillshare/NAME/`，command 保留你提供的原生 macro 或明確路徑。請在預覽確認完整路徑。 global binding 也可以使用在 `targets` 下宣告的帳號 target 名稱。
 
 ## 原生目的地
 
@@ -106,6 +116,7 @@ Agent ID 為 `claude`、`codex`、`gemini`、`copilot`、`cursor`、`droid`、`q
 | [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/users/features/hooks/) | `~/.qwen/settings.json` | `.qwen/settings.json` | `hooks` event map |
 | [Antigravity](https://antigravity.google/docs/hooks) | `~/.gemini/config/hooks.json` | `.agents/hooks.json` | 具名 hook block，每個 hook 一個 |
 | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) | `~/.pi/agent/extensions/skillshare-NAME.ts` | `.pi/extensions/skillshare-NAME.ts` | Native extension code |
+| [Oh My Pi](https://github.com/can1357/oh-my-pi/blob/v18.6.1/docs/extensions.md) | `~/.omp/agent/extensions/skillshare-NAME.ts` | `.omp/extensions/skillshare-NAME.ts` | Native OMP extension code |
 | [Amp](https://ampcode.com/docs/plugin-api) | `~/.config/amp/plugins/skillshare-NAME.ts` | `.amp/plugins/skillshare-NAME.ts` | Native plugin code |
 | [OpenCode](https://opencode.ai/docs/plugins/) | `~/.config/opencode/plugins/skillshare-NAME.ts` | `.opencode/plugins/skillshare-NAME.ts` | Supplied v1/v2 plugin code |
 
@@ -116,7 +127,7 @@ Droid 有有效 inline hooks 時，同步會拒絕建立獨立檔案。先匯入
 
 ## 某個 Agent 的另一個帳號 {#accounts}
 
-宣告了 `agent` 與 `config_dir` 的 target 可以用自己的名稱接收 hooks。Claude、Codex 與 Pi 帳號使用其 Agent 的原生 binding 格式。`git` 這個 key 永遠代表 Git config hooks，名為 `git` 的帳號不會收到 hooks；只要有 entry 使用 `git` binding，計畫就會顯示警告；請改用其他名稱。
+宣告了 `agent` 與 `config_dir` 的 target 可以用自己的名稱接收 hooks。Claude、Codex、Pi 與 OMP 帳號使用其 Agent 的原生 binding 格式。`git` 這個 key 永遠代表 Git config hooks，名為 `git` 的帳號不會收到 hooks；只要有 entry 使用 `git` binding，計畫就會顯示警告；請改用其他名稱。
 
 ```yaml
 targets:
@@ -141,6 +152,7 @@ hooks:
 | `claude` | `<config_dir>/settings.json` |
 | `codex` | `<config_dir>/hooks.json` |
 | `pi` | `<config_dir>/extensions/skillshare-NAME.ts` |
+| `omp` | `<config_dir>/extensions/skillshare-NAME.ts` |
 
 command 腳本寫入 `<config_dir>/hooks/skillshare/NAME/`。帳號僅用於 global 設定；project 設定與 `hooks.projects` 應綁定 Agent 本身，因為所有帳號都會讀取相同的專案檔案。`config_dir` 不存在時會警告並跳過，不會建立帳號目錄。
 
