@@ -469,7 +469,7 @@ func moveLink(src, dst string, rename func(string, string) error) error {
 			return err
 		}
 	}
-	if err := os.Symlink(target, dst); err != nil {
+	if err := recreateLink(src, target, dst); err != nil {
 		return err
 	}
 	if err := os.Remove(src); err != nil {
@@ -478,6 +478,16 @@ func moveLink(src, dst string, rename func(string, string) error) error {
 		return err
 	}
 	return nil
+}
+
+// recreateLink creates at dst a link to target of the same kind as the one at
+// src. A junction stays a junction: a symlink would need Developer Mode or
+// elevation on Windows, which the junction was chosen to avoid.
+func recreateLink(src, target, dst string) error {
+	if utils.IsJunction(src) {
+		return utils.CreateJunction(dst, target)
+	}
+	return os.Symlink(target, dst)
 }
 
 // RestoreAgent restores agent files from a trashed directory back to the agent source.
@@ -601,7 +611,7 @@ func copyDir(src, dst string) error {
 		}
 
 		// Preserve link text without copying the target. Junctions may need
-		// ResolveLinkTarget, as in moveLink, then a symlink fallback.
+		// ResolveLinkTarget, as in moveLink, and are recreated as junctions.
 		if utils.IsLinkMode(srcPath, info.Mode()) {
 			target, err := os.Readlink(srcPath)
 			if err != nil {
@@ -610,7 +620,7 @@ func copyDir(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.Symlink(target, dstPath); err != nil {
+			if err := recreateLink(srcPath, target, dstPath); err != nil {
 				return err
 			}
 			continue

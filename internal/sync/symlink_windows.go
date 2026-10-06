@@ -3,13 +3,10 @@
 package sync
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	gosync "sync"
 
 	"skillshare/internal/utils"
@@ -64,7 +61,7 @@ func createLink(linkPath, sourcePath string, relative bool, sourceRoot ...string
 	}
 
 	// Try junction (no admin required, but requires absolute paths)
-	junctionErr := createJunction(absTarget, absSource)
+	junctionErr := utils.CreateJunction(absTarget, absSource)
 	if junctionErr == nil {
 		return nil
 	}
@@ -79,18 +76,6 @@ func createLink(linkPath, sourcePath string, relative bool, sourceRoot ...string
 	errMsg = fmt.Sprintf("%s\n  target: %s\n  source: %s", errMsg, absTarget, absSource)
 
 	return errors.New(errMsg)
-}
-
-// createJunction is also used to restore an original junction exactly, without
-// requiring symlink privileges or falling back to a different link kind.
-func createJunction(linkPath, sourcePath string) error {
-	var stderr bytes.Buffer
-	cmd := exec.Command("cmd", "/c", "mklink", "/J", linkPath, sourcePath)
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("mklink /J: %w: %s", err, strings.TrimSpace(stderr.String()))
-	}
-	return nil
 }
 
 // canCreateRelativeLink probes whether the OS can create relative symlinks.

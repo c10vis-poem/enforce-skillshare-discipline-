@@ -200,7 +200,7 @@ func RestoreFileBackup(path, id string, unlink bool) (string, error) {
 			return saved, err
 		}
 		if v.junction {
-			err = createJunction(path, v.LinkTo)
+			err = utils.CreateJunction(path, v.LinkTo)
 		} else {
 			err = os.Symlink(v.LinkTo, path)
 		}
