@@ -60,7 +60,7 @@ func Load(dir string) (*Package, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("SKILL.md is not a regular file")
 	}
-	content, err := readAtMost(skillPath, MaxBytes)
+	content, err := readAtMost(skillPath, info, MaxBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func Load(dir string) (*Package, error) {
 		if len(p.Files) == MaxFiles {
 			return fmt.Errorf("has more than %d files", MaxFiles)
 		}
-		sum, n, err := hashAtMost(path, left)
+		sum, n, err := hashAtMost(path, info, left)
 		if err != nil {
 			return err
 		}
@@ -130,9 +130,23 @@ func Load(dir string) (*Package, error) {
 // Digest is the manifest digest of b.
 func Digest(b []byte) string { return fmt.Sprintf("sha256:%x", sha256.Sum256(b)) }
 
-// readAtMost reads the file, failing past limit bytes.
-func readAtMost(path string, limit int64) ([]byte, error) {
+// openSame opens path and checks that it is the file info (from Lstat) described,
+// so a file swapped for a link after it was checked is not followed.
+func openSame(path string, info os.FileInfo) (*os.File, error) {
 	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	if got, err := f.Stat(); err != nil || !os.SameFile(info, got) {
+		f.Close()
+		return nil, fmt.Errorf("%s changed while it was read", filepath.Base(path))
+	}
+	return f, nil
+}
+
+// readAtMost reads the file, failing past limit bytes.
+func readAtMost(path string, info os.FileInfo, limit int64) ([]byte, error) {
+	f, err := openSame(path, info)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +162,8 @@ func readAtMost(path string, limit int64) ([]byte, error) {
 }
 
 // hashAtMost streams the file into its digest and size, failing past limit bytes.
-func hashAtMost(path string, limit int64) (string, int64, error) {
-	f, err := os.Open(path)
+func hashAtMost(path string, info os.FileInfo, limit int64) (string, int64, error) {
+	f, err := openSame(path, info)
 	if err != nil {
 		return "", 0, err
 	}
