@@ -9,6 +9,62 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ---
 
+## [0.25.0] - 2026-10-06
+
+### New Features
+
+#### Serve skills over MCP
+
+- **`skillshare mcp serve`** — serves your skills read-only over MCP, for Agents that cannot reach the synced folders, such as one in a throwaway VM or behind an MCP gateway. It implements the [Skills extension](https://modelcontextprotocol.io/seps/2640-skills-extension) (SEP-2640): each skill is one entry with its full frontmatter and a manifest of its files with their `sha256` digest and size. Most Agents do not support the extension yet, so the server also offers two tools, `list_skills` and `read_skill`, which any Agent that uses MCP tools can call; a client that declares the extension gets the skills natively and does not see the tools. Changes in the source show up within 5 seconds without a restart. Refs: #428.
+  ```bash
+  skillshare mcp serve                       # stdio, every enabled skill
+  skillshare mcp serve --target claude       # only what the claude target selects
+  skillshare mcp serve --check               # list skipped skills and exit
+  SKILLSHARE_MCP_TOKEN=change-me skillshare mcp serve --http 0.0.0.0:8765 \
+    --tls-cert cert.pem --tls-key key.pem    # HTTPS for other machines
+  ```
+  - Global by default; `-p` serves the project in the current directory.
+  - A skill is skipped, with a warning on stderr, when it breaks the Agent Skills format (for example its `name` differs from its directory), is over 512 files or 16 MiB, or contains a nested skill that is not served.
+  - `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN` and HTTPS through `--tls-cert` and `--tls-key`, or a loopback address behind a TLS proxy. Cross-origin browser requests are refused.
+  - Do not connect local Agents that already sync skills; they would see each skill twice.
+- **A Skillshare tab in the dashboard's Add server** — adds `skillshare mcp serve` as an MCP server, with the target and scope to serve, so the Agents you sync it to can read your skills.
+
+#### Followed source links
+
+- **`skillshare link` and `unlink`** — use a skills checkout where it already lives, or keep skills on an external drive, by linking the folder directly under the skills source. `--enable` also turns on `follow_source_links`; `unlink` removes only the link and leaves the folder alone. On Windows `link` creates a junction, which needs no Developer Mode. Refs: #274, #419.
+  ```bash
+  skillshare link ~/code/dev-skills --enable    # links it as _dev-skills
+  skillshare sync
+  skillshare unlink _dev-skills
+  ```
+- **`follow_source_links`** — with this setting on, globally or per project, `list`, `sync`, `status`, `audit` and the dashboard find the skills inside first-level links in the source. A link that would loop back into the source, overlaps a sync target, or is missing is skipped with a warning. While a linked drive is unmounted, that run deletes nothing: target links, copies and install metadata stay until it is back. `update --all` skips linked checkouts, because they are your own working copies; update one by name.
+  ```yaml
+  follow_source_links: true
+  ```
+- **Link and unlink folders from the dashboard** — **Link folder** on the Skills page takes a path, an optional name and the `follow_source_links` switch, and shows the same reasons as the command when it refuses a folder. A linked folder is listed as its own group with the folder it points at, and its row unlinks it after a confirmation; the link can be restored from **Trash**.
+
+#### Oh My Pi
+
+- **MCP, code hooks, plugins and extensions for Oh My Pi (`omp`)** — the `omp` target already received skills and instructions. It now also gets MCP servers in its own `mcpServers` format, code hooks as native extensions, plugins from reviewed local or Git sources or imported from its marketplace, and a guarded **Extensions** tab for choosing which extensions load. An account declared with `agent: omp` gets skills, instructions, MCP and code hooks. Refs: #409.
+  ```bash
+  skillshare mcp add docs --url https://example.com/mcp --target omp -g --sync
+  skillshare plugin add ./my-omp-plugin --target omp -g
+  ```
+
+#### Targets
+
+- **DeepSeek Harness and GitLab Duo** — two new built-in targets, `deepseek-harness` and `gitlab-duo`.
+- **Unicode skill names under `target_naming: standard`** — names in lowercase letters of any script, such as `café` or `日本語-tool`, now sync like ASCII names instead of being skipped. Underscores are still rejected.
+
+### Bug Fixes
+
+- **`update` no longer pulls a Git repository that a link points at** — a link inside the skills source to a checkout elsewhere was treated as a tracked repo, so `skillshare update` and the dashboard ran `git pull` there, and with `--force` reset it. A linked checkout is now only updated when you name it. Git worktrees and submodules, which have a `.git` file, get the same guards. Refs: #410.
+- **Option values that look like a scope flag are kept** — in commands such as `link --name -g`, the value was read as the `-g` flag, which changed the scope or reported a mode conflict. A value after an option that takes one now stays its value, and `--` ends the options. Refs: #422.
+- **Moving a Windows junction to another drive keeps it a junction** — when the skills source and the trash were on different drives, `unlink` and `trash restore` recreated a junction as a symlink, which needs Developer Mode, so they could fail after `link` had worked. Refs: #420.
+- **A plugin whose source changes without a new version shows the commits** — `plugin check` compares the source, not the version, so a repository that pushes commits without changing its version showed the same version with an **Update** button. The version tag now adds the old → new commit.
+- **Pi MCP settings with invalid OAuth client registration are rejected before sync** — `oauth.clientRegistration` accepts `dcr` or `cimd`; with `cimd`, a `clientId` or `clientName`, or a `callbackUrl` other than HTTP on `localhost` or `127.0.0.1` with path `/callback`, is reported instead of being written to Pi.
+- **Searching skills with no match shows the no-match state** — linked folders no longer appear as empty groups while a search or filter excludes every skill, so **Clear filters** is shown.
+
 ## [0.24.6] - 2026-10-05
 
 ### New Features
