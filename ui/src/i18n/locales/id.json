@@ -1408,6 +1408,7 @@
   "instructions.row.modifiedBlock": "Blok {name} di file ini diubah di luar skillshare dan belum disinkronkan kembali.",
   "instructions.peek.label": "Lihat file {target}",
   "instructions.peek.open": "Buka halaman target",
+  "instructions.peek.block": "Blok terkelola: ditulis dari {name}, diganti di tempat saat {name} berubah. Semua di luarnya milik alat itu sendiri.",
   "instructions.editor.modified": "Diubah",
   "instructions.editor.unchanged": "Tidak ada perubahan",
   "instructions.editor.readers": "Setelah disimpan, target berikut langsung membaca isi baru:",

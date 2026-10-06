@@ -521,7 +521,11 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
         </div>
       )}
 
-      {peek && <TargetFileDialog target={peek.name} path={peek.path} names={usesOf(peek)} onClose={() => setPeek(null)} />}
+      {peek && (
+        <TargetFileDialog target={peek} name={name} onClose={() => setPeek(null)}
+          // The confirm dialog takes the dialog's place; the row shows the outcome.
+          onResolve={(action) => { setPeek(null); resolve(peek.name, { target: peek.name }, action, true); }} />
+      )}
       {restoring && (
         <RestorePreviewDialog name={name} target={restoring} label={targets.find((tg) => tg.name === restoring)?.rider_of ? targetLabel(restoring) : restoring}
           mode={targets.find((tg) => tg.name === restoring)?.assigned.find((x) => x.name === name)?.mode ?? ''} busy={busy} onClose={() => setRestoring(null)}

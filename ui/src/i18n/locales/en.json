@@ -1408,6 +1408,7 @@
   "instructions.row.modifiedBlock": "The {name} block in this file was edited outside skillshare and has not been synced back.",
   "instructions.peek.label": "Show {target}'s file",
   "instructions.peek.open": "Open target page",
+  "instructions.peek.block": "Managed block: written from {name}, replaced in place when {name} changes. Everything outside it is the tool's own.",
   "instructions.editor.modified": "Modified",
   "instructions.editor.unchanged": "No changes",
   "instructions.editor.readers": "After saving, these targets read the new content right away:",

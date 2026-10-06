@@ -1408,6 +1408,7 @@
   "instructions.row.modifiedBlock": "بلوک {name} در این فایل خارج از skillshare ویرایش شده و هنوز همگام‌سازی نشده است.",
   "instructions.peek.label": "نمایش فایل {target}",
   "instructions.peek.open": "باز کردن صفحهٔ مقصد",
+  "instructions.peek.block": "بلوک مدیریت‌شده: از {name} نوشته شده و با تغییر {name} در جای خود جایگزین می‌شود. هر چیز بیرون آن متعلق به خود ابزار است.",
   "instructions.editor.modified": "تغییر یافته",
   "instructions.editor.unchanged": "بدون تغییر",
   "instructions.editor.readers": "پس از ذخیره، این هدف‌ها بلافاصله محتوای تازه را می‌خوانند:",

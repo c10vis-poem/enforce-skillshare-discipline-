@@ -1408,6 +1408,7 @@
   "instructions.row.modifiedBlock": "El bloque de {name} en este archivo se editó fuera de skillshare y aún no se ha sincronizado.",
   "instructions.peek.label": "Ver el archivo de {target}",
   "instructions.peek.open": "Ir a la página del destino",
+  "instructions.peek.block": "Bloque gestionado: escrito desde {name}, se reemplaza en su sitio cuando {name} cambia. Todo lo demás es propio de la herramienta.",
   "instructions.editor.modified": "Modificado",
   "instructions.editor.unchanged": "Sin cambios",
   "instructions.editor.readers": "Al guardar, estos destinos leen el contenido nuevo de inmediato:",

@@ -306,6 +306,26 @@ export function rowHint(target: SharedInstructionsTarget, file: SharedInstructio
 /** A mode that writes the shared file into the target as a content block, so Collect and Reapply touch only that block. */
 export const blockMode = (mode: string) => mode === 'prepend' || mode === 'append';
 
+/** A managed block in a target file: the source it was written from and its 1-based line range, markers included. */
+export interface ManagedBlock { src: string; start: number; end: number }
+
+// ponytail: markers inside code fences are taken as real; the server's parser decides what counts, this only tints lines.
+/** The managed blocks in a target file's content. */
+export function managedBlocks(content: string): ManagedBlock[] {
+  const out: ManagedBlock[] = [];
+  let open: ManagedBlock | null = null;
+  content.split('\n').forEach((raw, i) => {
+    const line = raw.trim();
+    const m = /^<!-- skillshare:extra src="([^"]+)" sha256=[0-9a-f]{16} -->$/.exec(line);
+    if (m && !open) open = { src: m[1], start: i + 1, end: i + 1 };
+    else if (line === '<!-- /skillshare:extra -->' && open) { out.push({ ...open, end: i + 1 }); open = null; }
+  });
+  return out;
+}
+
+/** The shared file a block was written from, by the extras folder named in its source path. */
+export const blockOwner = (block: ManagedBlock, names: string[]) => names.find((n) => block.src.split('/').slice(0, -1).at(-1) === n) ?? null;
+
 /** Other locations a sync would fix: the file or its link is gone, or points elsewhere. */
 export const staleLocations = (locations: InstructionLocation[]) => locations.filter((l) => ['not synced', 'drift'].includes(l.status));
 

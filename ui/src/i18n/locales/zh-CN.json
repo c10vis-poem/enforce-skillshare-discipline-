@@ -1408,6 +1408,7 @@
   "instructions.row.modifiedBlock": "这个文件里 {name} 的区块在 skillshare 以外被修改过，还没同步回来。",
   "instructions.peek.label": "查看 {target} 的文件",
   "instructions.peek.open": "到目标页",
+  "instructions.peek.block": "受管理的区块：由 {name} 写入，{name} 变动时原地替换。区块外都是工具自己的内容。",
   "instructions.editor.modified": "已修改",
   "instructions.editor.unchanged": "无变更",
   "instructions.editor.readers": "保存后，这些目标会直接读到新内容：",

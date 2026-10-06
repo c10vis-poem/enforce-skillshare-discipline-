@@ -9,17 +9,20 @@ interface Props {
   line?: number;
   /** 1-based lines to tint as differing; without `line`, the first one is scrolled to. */
   marks?: number[];
+  /** 1-based lines to tint as managed (the accent tone), without scrolling to them. */
+  tints?: number[];
   className?: string;
 }
 
 /** Read-only code with line numbers. Markdown wraps (prose lines are long); code scrolls sideways. */
-export default function CodeView({ content, lang = '', line = 0, marks, className = '' }: Props) {
+export default function CodeView({ content, lang = '', line = 0, marks, tints, className = '' }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const cur = useRef<HTMLDivElement>(null);
   const lines = useMemo(() => highlightLines(content.replace(/\n$/, ''), lang), [content, lang]);
   const wrap = isMarkdown(lang);
   const digits = String(lines.length).length;
   const marked = useMemo(() => new Set(marks), [marks]);
+  const tinted = useMemo(() => new Set(tints), [tints]);
   const target = line || marks?.[0] || 0;
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export default function CodeView({ content, lang = '', line = 0, marks, classNam
           <div
             key={i}
             ref={i + 1 === target ? cur : undefined}
-            className={`grid grid-cols-[auto_minmax(0,1fr)] ${i + 1 === line ? 'cur' : marked.has(i + 1) ? 'mark' : ''}`}
+            className={`grid grid-cols-[auto_minmax(0,1fr)] ${i + 1 === line || tinted.has(i + 1) ? 'cur' : marked.has(i + 1) ? 'mark' : ''}`}
           >
             <span className="ln text-right" style={{ minWidth: `${digits}ch` }}>{i + 1}</span>
             <span className={wrap ? 'whitespace-pre-wrap [overflow-wrap:anywhere]' : ''}>{node}</span>

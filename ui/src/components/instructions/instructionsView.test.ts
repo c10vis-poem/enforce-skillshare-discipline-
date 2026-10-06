@@ -2,7 +2,7 @@ import { ApiError } from '../../api/client';
 import { translate } from '../../i18n';
 import { describe, expect, it } from 'vitest';
 import type { SharedInstructionsFile, SharedInstructionsTarget } from '../../api/client';
-import { instructionsErrorMessage, instructionsWarningMessage, connectPlan, defaultShareName, readChain, saveCopiesSummary, importDecor, importLines, previewParts, lineCount, lineDiff, lineRanges, modeOptions, needsSync, overLimit, restorePlan, rowHint, setupPathOf, setupPathProblem, sharedNameProblem, sharedOfImport, worstStatus } from './instructionsView';
+import { instructionsErrorMessage, instructionsWarningMessage, blockOwner, connectPlan, defaultShareName, managedBlocks, readChain, saveCopiesSummary, importDecor, importLines, previewParts, lineCount, lineDiff, lineRanges, modeOptions, needsSync, overLimit, restorePlan, rowHint, setupPathOf, setupPathProblem, sharedNameProblem, sharedOfImport, worstStatus } from './instructionsView';
 
 describe('importLines', () => {
   it('finds @path lines outside code fences', () => {
@@ -167,6 +167,13 @@ describe('connect and restore plans', () => {
 
   it('tells an import target which other files it also uses', () => {
     expect(rowHint(claude, general)).toEqual({ kind: 'alsoUses', names: ['team'] });
+  });
+
+  it('finds the managed blocks in a target file and the shared file each came from', () => {
+    const content = '<!-- skillshare:extra src="/h/.config/skillshare/extras/security/AGENTS.md" sha256=0123456789abcdef -->\n# S\n<!-- /skillshare:extra -->\n\n<!-- skillshare:extra src="../extras/team/AGENTS.md" sha256=0123456789abcdef -->\n# T\nrule\n<!-- /skillshare:extra -->\n\n# Mine\n';
+    const blocks = managedBlocks(content);
+    expect(blocks.map((b) => [b.start, b.end])).toEqual([[1, 3], [5, 8]]);
+    expect(blocks.map((b) => blockOwner(b, ['team', 'security']))).toEqual(['security', 'team']);
   });
 
   it('tells a target holding another file as a block that it also uses it, since a block joins instead of replacing', () => {
