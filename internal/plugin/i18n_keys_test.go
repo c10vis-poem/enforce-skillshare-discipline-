@@ -12,10 +12,36 @@ import (
 	"testing"
 )
 
-// Keys finished at run time: the literal is the part before the value, and each value
-// that can follow it is listed here. A new prefix fails the test until it is added.
-var dynamicTranslationKeys = map[string][]string{
-	"plugins.problem.": {"kimi", "hermes", "devin"}, // automationProblem's Agents
+// Keys finished at run time: the literal is the part before the value, and the values are
+// the cases of the function named here. A new prefix fails the test until it is added.
+var dynamicTranslationKeys = map[string]string{
+	"plugins.problem.": "automationProblem",
+}
+
+// switchCases lists the string cases of the switch in function name.
+func switchCases(files []*ast.File, name string) []string {
+	var cases []string
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != name {
+				continue
+			}
+			ast.Inspect(fn, func(n ast.Node) bool {
+				if c, ok := n.(*ast.CaseClause); ok {
+					for _, e := range c.List {
+						if lit, ok := e.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+							if v, err := strconv.Unquote(lit.Value); err == nil {
+								cases = append(cases, v)
+							}
+						}
+					}
+				}
+				return true
+			})
+		}
+	}
+	return cases
 }
 
 // The dashboard translates the messageKey, errorKey, noteKey, reasonKey and problemKey this
@@ -31,13 +57,13 @@ func TestTranslationKeysExistInDashboard(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, err := filepath.Glob("*.go")
+	names, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fset := token.NewFileSet()
-	checked := 0
-	for _, name := range files {
+	var files []*ast.File
+	for _, name := range names {
 		if strings.HasSuffix(name, "_test.go") {
 			continue
 		}
@@ -45,6 +71,11 @@ func TestTranslationKeysExistInDashboard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		files = append(files, file)
+	}
+
+	checked := 0
+	for _, file := range files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			lit, ok := n.(*ast.BasicLit)
 			if !ok || lit.Kind != token.STRING {
@@ -56,14 +87,17 @@ func TestTranslationKeysExistInDashboard(t *testing.T) {
 			}
 			keys := []string{key}
 			if strings.HasSuffix(key, ".") {
-				values, known := dynamicTranslationKeys[key]
+				fn, known := dynamicTranslationKeys[key]
 				if !known {
-					t.Errorf("%s: %q is completed at run time; list its values in dynamicTranslationKeys", fset.Position(lit.Pos()), key)
+					t.Errorf("%s: %q is completed at run time; name the function that lists its values in dynamicTranslationKeys", fset.Position(lit.Pos()), key)
 					return true
 				}
 				keys = nil
-				for _, v := range values {
+				for _, v := range switchCases(files, fn) {
 					keys = append(keys, key+v)
+				}
+				if len(keys) == 0 {
+					t.Errorf("%s: found no cases in %s to complete %q", fset.Position(lit.Pos()), fn, key)
 				}
 			}
 			for _, k := range keys {
