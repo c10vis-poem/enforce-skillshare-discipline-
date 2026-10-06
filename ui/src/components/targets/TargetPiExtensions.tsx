@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, ArrowRight, ChevronDown, CircleCheck, FileDiff, Folder, Info, Lock, Package, Puzzle, RotateCcw, X } from 'lucide-react';
-import { ApiError } from '../../api/client';
 import { piExtensionsApi } from '../../api/piExtensions';
 import PiPackageIcon from '../PiPackageIcon';
 import type { PiExtensionAction, PiExtensionChange, PiExtensionFolder, PiExtensionPackage, PiExtensionRow, PiExtensionsPlan, PiExtensionsView, PiSelection } from '../../api/piExtensions';
 import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import Button from '../Button';
-import DialogShell from '../DialogShell';
 import EmptyState from '../EmptyState';
+import ExtensionsReviewDialog from './ExtensionsReviewDialog';
 import { PageSkeleton } from '../Skeleton';
 import Tooltip from '../Tooltip';
 
@@ -47,7 +46,7 @@ function ExtensionsView({ name, view, applied, setApplied, t }: { name: string; 
     const source = view.packages.find((p) => p.scope === scope && p.index === Number(index))?.source ?? '';
     return { scope, index: Number(index), source, path, action };
   });
-  const pendingLabel = t(changes.length === 1 ? 'targetDetail.piExtensions.pending.one' : 'targetDetail.piExtensions.pending.other', { count: changes.length });
+  const pendingLabel = t(plural('targetDetail.piExtensions.pending', changes.length), { count: changes.length });
   const set: SetAction = (scope, index, path, action) => {
     setApplied('');
     setPending((prev) => {
@@ -354,74 +353,51 @@ function OddSelection({ value, t }: { value: PiSelection; t: T }) {
 function ReviewDialog({ name, view, changes, onClose, onApplied, t }: {
   name: string; view: PiExtensionsView; changes: PiExtensionChange[]; onClose: () => void; onApplied: (plan: PiExtensionsPlan) => void; t: T;
 }) {
-  const queryClient = useQueryClient();
-  const preview = useQuery({ queryKey: ['pi-extensions-preview', name, changes], queryFn: () => piExtensionsApi.preview(name, changes), retry: false, gcTime: 0, staleTime: Infinity });
-  const [applying, setApplying] = useState(false);
-  const [error, setError] = useState<ApiError | Error | null>(null);
-  const plan = preview.data;
   const project = view.scope === 'project';
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.piExtensions(name) });
-  const apply = async () => {
-    if (!plan) return;
-    setApplying(true);
-    setError(null);
-    try {
-      const done = await piExtensionsApi.apply(name, changes, plan.revision);
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: queryKeys.plugins })]);
-      onApplied(done);
-    } catch (err) {
-      setError(err as Error);
-      setApplying(false);
-    }
-  };
-  const failure = error ?? preview.error;
-  const code = failure instanceof ApiError ? failure.code : undefined;
-  const stale = code === 'pi_extensions_stale';
-  const title = t(project ? 'targetDetail.piExtensions.dialog.titleProject' : 'targetDetail.piExtensions.dialog.title', { name });
   const pkgName = (scope: Scope | undefined, index: number, identity?: string) => {
     const p = view.packages.find((x) => x.scope === (scope ?? 'global') && x.index === index);
     return identity || p?.identity || p?.source || String(index);
   };
   return (
-    <DialogShell open onClose={onClose} padding="none" preventClose={applying} ariaLabel={title} className="!max-w-[680px]">
-      <div className="dh">
-        <div className="flex flex-col gap-1">
-          <h2 className="ss-h2">{title}</h2>
-          <p className="text-[13px] text-ink-2">{t(project ? 'targetDetail.piExtensions.dialog.subtitleProject' : 'targetDetail.piExtensions.dialog.subtitle', { path: shortenHome(view.settingsPath) })}</p>
-        </div>
-        <button type="button" className="ss-ib" aria-label={t('common.close')} onClick={onClose} disabled={applying}><X size={16} /></button>
-      </div>
-      <div className="db !gap-3 text-[13.5px]">
-        {!plan && !failure && <p className="text-ink-3">{t('targetDetail.piExtensions.dialog.loading')}</p>}
-        {plan && (
-          <>
-            <ul className="flex flex-col gap-1">
-              {plan.rows.map((r) => (
-                <li key={keyOf(r.scope ?? 'global', r.index, r.path)} className="flex flex-wrap items-center gap-x-2">
-                  <span className="font-mono text-[13px] font-semibold">{r.path}</span>
-                  <span className="text-[12px] text-ink-3">{pkgName(r.scope, r.index)}</span>
-                  <span className="flex-1" />
-                  <span>{t(`targetDetail.piExtensions.sel.${r.before}`)} → <span className="font-semibold">{t(`targetDetail.piExtensions.sel.${r.after}`)}</span></span>
-                </li>
-              ))}
-            </ul>
-            {plan.entries.map((e) => (
-              <EntryDiff key={`${e.scope ?? 'global'}:${e.index}`} entry={e} pkg={pkgName(e.scope, e.index, e.identity)} t={t} />
+    <ExtensionsReviewDialog
+      kind="pi"
+      name={name}
+      text={{
+        title: t(project ? 'targetDetail.piExtensions.dialog.titleProject' : 'targetDetail.piExtensions.dialog.title', { name }),
+        subtitle: t(project ? 'targetDetail.piExtensions.dialog.subtitleProject' : 'targetDetail.piExtensions.dialog.subtitle', { path: shortenHome(view.settingsPath) }),
+        loading: t('targetDetail.piExtensions.dialog.loading'),
+        apply: t(project ? 'targetDetail.piExtensions.dialog.applyProject' : 'targetDetail.piExtensions.dialog.apply'),
+        reviewAgain: t('targetDetail.piExtensions.reviewAgain'),
+        stale: t('targetDetail.piExtensions.stale'),
+        busy: t('targetDetail.piExtensions.busy'),
+      }}
+      previewKey={queryKeys.piExtensionsPreview(name, changes)}
+      preview={() => piExtensionsApi.preview(name, changes)}
+      apply={(revision) => piExtensionsApi.apply(name, changes, revision)}
+      onClose={onClose}
+      onApplied={onApplied}
+    >
+      {(plan) => (
+        <>
+          <ul className="flex flex-col gap-1">
+            {plan.rows.map((r) => (
+              <li key={keyOf(r.scope ?? 'global', r.index, r.path)} className="flex flex-wrap items-center gap-x-2">
+                <span className="font-mono text-[13px] font-semibold">{r.path}</span>
+                <span className="text-[12px] text-ink-3">{pkgName(r.scope, r.index)}</span>
+                <span className="flex-1" />
+                <span>{t(`targetDetail.piExtensions.sel.${r.before}`)} → <span className="font-semibold">{t(`targetDetail.piExtensions.sel.${r.after}`)}</span></span>
+              </li>
             ))}
-            <p className="text-[12.5px] text-ink-2">{t('targetDetail.piExtensions.dialog.kept')}</p>
-            {project && <p className="text-[12.5px] text-ink-2">{t('targetDetail.piExtensions.dialog.mayNotLoad')}</p>}
-            <p className="text-[12.5px] text-ink-3">{t('targetDetail.piExtensions.dialog.revision', { revision: plan.revision.slice(0, 7) })}</p>
-          </>
-        )}
-        {failure && <ReviewFailure failure={failure} code={code} t={t} />}
-      </div>
-      <div className="df">
-        <Button variant="ghost" onClick={onClose} disabled={applying}>{t('common.cancel')}</Button>
-        {stale
-          ? <Button variant="secondary" onClick={() => { void refresh(); onClose(); }}>{t('targetDetail.piExtensions.reviewAgain')}</Button>
-          : <Button variant="primary" onClick={apply} loading={applying} disabled={!plan || Boolean(preview.error)}>{t(project ? 'targetDetail.piExtensions.dialog.applyProject' : 'targetDetail.piExtensions.dialog.apply')}</Button>}
-      </div>
-    </DialogShell>
+          </ul>
+          {plan.entries.map((e) => (
+            <EntryDiff key={`${e.scope ?? 'global'}:${e.index}`} entry={e} pkg={pkgName(e.scope, e.index, e.identity)} t={t} />
+          ))}
+          <p className="text-[12.5px] text-ink-2">{t('targetDetail.piExtensions.dialog.kept')}</p>
+          {project && <p className="text-[12.5px] text-ink-2">{t('targetDetail.piExtensions.dialog.mayNotLoad')}</p>}
+          <p className="text-[12.5px] text-ink-3">{t('targetDetail.piExtensions.dialog.revision', { revision: plan.revision.slice(0, 7) })}</p>
+        </>
+      )}
+    </ExtensionsReviewDialog>
   );
 }
 
@@ -439,17 +415,6 @@ function EntryDiff({ entry: e, pkg, t }: { entry: PiExtensionsPlan['entries'][nu
       {e.removed && <span className="text-[12.5px] text-ink-2">{t('targetDetail.piExtensions.dialog.removed')}</span>}
       {e.converted && <span className="text-[12.5px] text-ink-3">{t('targetDetail.piExtensions.dialog.converted')}</span>}
       {!e.created && e.keptKeys.length > 0 && <span className="text-[12.5px] text-ink-3">{t('targetDetail.piExtensions.dialog.keptKeys', { keys: e.keptKeys.join(', ') })}</span>}
-    </div>
-  );
-}
-
-function ReviewFailure({ failure, code, t }: { failure: Error; code?: string; t: T }) {
-  const stale = code === 'pi_extensions_stale';
-  const busy = code === 'pi_extensions_busy';
-  return (
-    <div className={`ss-note ${stale || busy ? 'warn' : 'bad'}`} role="alert">
-      <AlertCircle size={16} />
-      <span className="flex-1">{stale ? t('targetDetail.piExtensions.stale') : busy ? t('targetDetail.piExtensions.busy') : failure.message}</span>
     </div>
   );
 }

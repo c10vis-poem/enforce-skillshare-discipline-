@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import MarkdownView from '../MarkdownView';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { formatSize, lineCount, previewParts } from './instructionsView';
 
 /**
@@ -57,7 +57,7 @@ export function BoxHeader<V extends string>({ content, view, views, onChange, ch
     // Body font even inside a code box, so every box header reads the same.
     <div className="flex h-[38px] shrink-0 items-center gap-2 border-b border-line bg-sunken pr-2 pl-4" style={{ fontFamily: 'var(--f)' }}>
       <span className="flex-1 text-[12.5px] text-ink-2">
-        {content === undefined ? '…' : t(lineCount(content) === 1 ? 'instructions.preview.stats.one' : 'instructions.preview.stats.other', { lines: lineCount(content), size: formatSize(new TextEncoder().encode(content).length) })}
+        {content === undefined ? '…' : t(plural('instructions.preview.stats', lineCount(content)), { lines: lineCount(content), size: formatSize(new TextEncoder().encode(content).length) })}
       </span>
       {/* Shorter tabs, centred, so the underline sits clear of the strip's divider. */}
       <ViewTabs view={view} views={views} onChange={onChange} className="mr-2 [&>button]:mb-0 [&>button]:h-7" />

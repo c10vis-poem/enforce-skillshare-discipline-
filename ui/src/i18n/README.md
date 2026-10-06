@@ -8,6 +8,27 @@ The dashboard uses one JSON file per locale in `ui/src/i18n/locales/`.
 - Every other locale must contain exactly the same keys.
 - Run the UI test suite after editing translations; the parity test checks missing keys, extra keys, and placeholder mismatches.
 
+## Key Checks
+
+`t` takes any string, so a mistyped key would only show up as the key on screen. Two tests catch it instead:
+
+- `keys.test.ts` reads the dashboard's source. Every dotted name written out in a namespace `en.json` has, and every string passed straight to `t()`, must be a key in `en.json`. A string passed straight to `plural()` must have both its forms there.
+- `internal/plugin/i18n_keys_test.go` does the same for the keys the Go plugin package sends (`messageKey`, `errorKey`, `noteKey`, `reasonKey`, `problemKey`): each `"plugins."` string literal there must be in `en.json`.
+
+A key built at run time cannot be checked whole. In the dashboard, `` `sync.edited.${mode}` `` is checked by its fixed head: some key must start with `sync.edited.`. In Go, a literal ending in a dot, such as `"plugins.problem."+agent`, must be listed in `dynamicTranslationKeys` with the function whose `switch` cases are its values.
+
+A string that looks like a key but is not one (a file name, an API code, a config path) fails `keys.test.ts` until it is named in `notKeys` or its file in `notKeyFiles`, with a word on what it is. A file in `notKeyFiles` is skipped only by the checks of bare dotted names and built-key heads; what it passes to `t()` and `plural()` is still checked. Do not add a real key there.
+
+## Plurals
+
+A counted sentence has two keys, `<key>.one` and `<key>.other`, in every locale. Pick between them with `plural`, never by hand:
+
+```ts
+t(plural('sync.changes', n), { count: n })
+```
+
+`plural` returns `.one` for exactly 1 and `.other` for everything else, the same in every locale. Languages without a singular form repeat the sentence under both keys.
+
 ## Key Style
 
 - Use dot-separated keys grouped by area, for example `layout.nav.dashboard` or `api.error.not_found`.

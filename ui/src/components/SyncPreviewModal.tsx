@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../api/client';
-import { invalidateAfterSync } from '../lib/sync';
 import Button from './Button';
 import DialogShell from './DialogShell';
 import Spinner from './Spinner';
@@ -12,6 +11,7 @@ import SyncResultList, { SyncUpToDate } from './SyncResultList';
 import { countChanges, resourceGroups, type Part } from './sync/syncView';
 import { useT } from '../i18n';
 import { useDiffQuery, useSyncedTargetsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 interface SyncPreviewModalProps {
   open: boolean;
@@ -52,7 +52,7 @@ export default function SyncPreviewModal({ open, onClose, kind }: SyncPreviewMod
       const res = await api.sync({ dryRun: false, kind });
       setWarnings(res.warnings ?? []);
       setSynced(true);
-      invalidateAfterSync(queryClient);
+      void invalidate(queryClient, 'synced');
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {

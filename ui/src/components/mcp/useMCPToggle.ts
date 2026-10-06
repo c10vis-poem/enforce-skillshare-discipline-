@@ -4,6 +4,7 @@ import { useToast } from '../Toast';
 import { useT } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { describeError, reachOf } from './mcpView';
+import { invalidate } from '../../lib/queryEvents';
 
 type MCPList = Awaited<ReturnType<typeof mcpApi.list>>;
 
@@ -30,7 +31,6 @@ export function useMCPToggle(order: readonly string[]) {
       cache.setQueryData(queryKeys.mcp, prev);
       toast(describeError(t, (e as Error).message), 'error');
     }
-    void cache.invalidateQueries({ queryKey: queryKeys.mcp });
-    void cache.invalidateQueries({ queryKey: queryKeys.config });
+    void invalidate(cache, 'mcpChanged');
   };
 }

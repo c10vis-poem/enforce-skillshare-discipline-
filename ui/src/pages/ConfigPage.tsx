@@ -30,6 +30,7 @@ import { formatYaml } from '../lib/formatYaml';
 import { yamlKeyOffset } from '../lib/yamlSection';
 import { shortenHome } from '../lib/paths';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type ConfigTab = 'config' | 'skillignore' | 'agentignore' | 'extensions';
 
@@ -89,16 +90,7 @@ export default function ConfigPage() {
       }
       setShowSyncBanner(true);
       // Invalidate all data that depends on config
-      queryClient.invalidateQueries({ queryKey: queryKeys.config });
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcp });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.extras });
-      queryClient.invalidateQueries({ queryKey: queryKeys.extrasDiff() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.diff() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncMatrix() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.doctor });
+      void invalidate(queryClient, 'configSaved');
       return formatted;
     },
   });
@@ -192,11 +184,7 @@ export default function ConfigPage() {
     save: async (value) => {
       await api.putSkillignore(value);
       toast(t('config.skillignore.savedSuccess'), 'success');
-      queryClient.invalidateQueries({ queryKey: queryKeys.skillignore });
-      queryClient.invalidateQueries({ queryKey: queryKeys.diff() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.doctor });
+      void invalidate(queryClient, 'skillignoreSaved');
     },
   });
 
@@ -222,11 +210,7 @@ export default function ConfigPage() {
     save: async (value) => {
       await api.putAgentignore(value);
       toast(t('config.agentignore.savedSuccess'), 'success');
-      queryClient.invalidateQueries({ queryKey: queryKeys.agentignore });
-      queryClient.invalidateQueries({ queryKey: queryKeys.diff() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.doctor });
+      void invalidate(queryClient, 'agentignoreSaved');
     },
   });
 
@@ -482,7 +466,7 @@ function ExtensionsSection({ isProjectMode }: { isProjectMode: boolean }) {
   const [removeTarget, setRemoveTarget] = useState<{ name: string; usedBy: string[] } | null>(null);
 
   const { data, isPending } = useQuery({
-    queryKey: ['extensions'],
+    queryKey: queryKeys.extensions,
     queryFn: () => api.listExtensions(),
     staleTime: staleTimes.extras,
   });
@@ -496,8 +480,7 @@ function ExtensionsSection({ isProjectMode }: { isProjectMode: boolean }) {
     try {
       await api.installExtension(name);
       toast(t('config.extensions.toast.installed', { name }, `Installed ${name}`), 'success');
-      queryClient.invalidateQueries({ queryKey: ['extensions'] });
-      queryClient.invalidateQueries({ queryKey: ['extras', 'extensions'] });
+      void invalidate(queryClient, 'extensionsChanged');
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {
@@ -534,8 +517,7 @@ function ExtensionsSection({ isProjectMode }: { isProjectMode: boolean }) {
     try {
       await api.removeExtension(name);
       toast(t('config.extensions.toast.removed', { name }, `Removed ${name}`), 'success');
-      queryClient.invalidateQueries({ queryKey: ['extensions'] });
-      queryClient.invalidateQueries({ queryKey: ['extras', 'extensions'] });
+      void invalidate(queryClient, 'extensionsChanged');
       setRemoveTarget(null);
     } catch (err: any) {
       toast(err.message, 'error');

@@ -11,7 +11,8 @@ import { useT } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import InstructionsEditorDialog from './InstructionsEditorDialog';
 import ProjectSharedFiles from './ProjectSharedFiles';
-import { instructionsErrorMessage, formatSize, refreshInstructions } from './instructionsView';
+import { instructionsErrorMessage, formatSize } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 /** ⑤ Extras › Instructions (project): one ./AGENTS.md, whether each target reads it, and the project's shared files. */
 export default function ProjectInstructions({ creating, setCreating }: { creating: boolean; setCreating: (open: boolean) => void }) {
@@ -30,7 +31,7 @@ export default function ProjectInstructions({ creating, setCreating }: { creatin
     try {
       await api.addProjectInstructionsShim(r.target);
       toast(t('instructions.project.shimDone', { name: r.target, file: r.file }), 'success');
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     } catch (err) {
       toast(instructionsErrorMessage(err, t), 'error');
     } finally {
@@ -103,7 +104,7 @@ export default function ProjectInstructions({ creating, setCreating }: { creatin
           note={t('instructions.project.editNote')}
           onSave={async (content) => {
             await api.putProjectInstructions(content);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
           }}
           onClose={() => setEditing(false)}
         />

@@ -12,6 +12,7 @@ import { Select } from '../Select';
 import { queryKeys, staleTimes } from '../../lib/queryKeys';
 import { useT } from '../../i18n';
 import { useSkillsQuery } from '../../hooks/useSharedQueries';
+import { invalidate } from '../../lib/queryEvents';
 
 interface Props {
   title: string;
@@ -170,7 +171,7 @@ export default function HubView({ title, draftId, url, actions }: Props) {
           initialSource={installing}
           onClose={() => {
             setInstalling(null);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
+            void invalidate(queryClient, 'installDialogClosed');
           }}
         />
       )}

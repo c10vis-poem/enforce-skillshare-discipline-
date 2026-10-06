@@ -9,6 +9,7 @@ import Spinner from '../Spinner';
 import { formatDateTime, useI18n } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { backupTime, describeMessage } from './mcpView';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface Props {
   backups: { id: string; target: string; path: string }[];
@@ -23,7 +24,7 @@ export default function MCPRestoreDialog({ backups, initialId, onClose, onRestor
   const [selected, setSelected] = useState(initialId ?? backups[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const preview = useQuery({ queryKey: ['mcp-restore-preview', selected], queryFn: () => mcpApi.previewRestore(selected), enabled: Boolean(selected), gcTime: 0, retry: false });
+  const preview = useQuery({ queryKey: queryKeys.mcpRestorePreview(selected), queryFn: () => mcpApi.previewRestore(selected), enabled: Boolean(selected), gcTime: 0, retry: false });
   const conflict = preview.data?.changes.find((c) => c.action === 'conflict');
   const title = t('mcp.backups');
 

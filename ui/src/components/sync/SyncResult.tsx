@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, CircleCheck, TriangleAlert } from 'lucide-react';
 import AgentIcon from '../AgentIcon';
 import Button from '../Button';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { failureExplanation, type SyncFailure } from './syncView';
 import SyncError from './SyncError';
 
@@ -30,7 +30,7 @@ export default function SyncResult({ failures, warnings, synced, force, onForce 
         <>
           <div className="flex items-center gap-2.5 bg-bad-bg px-4 py-3">
             <AlertCircle size={18} className="text-bad" />
-            <h2 id="sync-result-title" className="flex-1 text-[15px] font-semibold">{t(failedTargets === 1 ? 'sync.result.failed.one' : 'sync.result.failed.other', { count: failedTargets })}</h2>
+            <h2 id="sync-result-title" className="flex-1 text-[15px] font-semibold">{t(plural('sync.result.failed', failedTargets), { count: failedTargets })}</h2>
           </div>
           {failures.map((f) => (
             <div key={`${f.part}/${f.extra ?? ''}/${f.target}`} className="ss-r">
@@ -61,7 +61,7 @@ export default function SyncResult({ failures, warnings, synced, force, onForce 
       {failures.length > 0 && synced > 0 && (
         <div className="ss-r !min-h-0 text-[13px]">
           <CircleCheck size={16} className="text-ok" />
-          <span className="flex-1">{t(synced === 1 ? 'sync.result.synced.one' : 'sync.result.synced.other', { count: synced })}</span>
+          <span className="flex-1">{t(plural('sync.result.synced', synced), { count: synced })}</span>
         </div>
       )}
     </section>

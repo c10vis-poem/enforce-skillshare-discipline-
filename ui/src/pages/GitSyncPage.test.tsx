@@ -213,7 +213,7 @@ describe('discard changes', () => {
     await waitFor(() => expect(api.gitDiscard).toHaveBeenCalledWith({ dryRun: false }));
     expect(await screen.findByText('Changes discarded')).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Discard changes' })).toBeNull());
-    expect(invalidate).toHaveBeenCalledWith();
+    expect(invalidate).toHaveBeenCalledWith({});
   });
 
   it('previews without opening the destructive confirmation when dry run is on', async () => {

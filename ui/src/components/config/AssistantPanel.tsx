@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import type { EditorView } from '@codemirror/view';
 import type { ValidationError } from '../../hooks/useYamlValidation';
 import type { DiffResult } from '../../hooks/useLineDiff';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import ErrorList from './ErrorList';
 import FieldDocs from './FieldDocs';
 import StructureTree from './StructureTree';
@@ -90,8 +90,8 @@ export default function AssistantPanel({
         ) : (
           <span className={`ss-st ${errorCount > 0 ? 'bad' : 'warn'}`}>
             {[
-              errorCount > 0 && t(errorCount === 1 ? 'config.panel.errors.one' : 'config.panel.errors.other', { count: errorCount }),
-              warningCount > 0 && t(warningCount === 1 ? 'config.panel.warnings.one' : 'config.panel.warnings.other', { count: warningCount }),
+              errorCount > 0 && t(plural('config.panel.errors', errorCount), { count: errorCount }),
+              warningCount > 0 && t(plural('config.panel.warnings', warningCount), { count: warningCount }),
             ].filter(Boolean).join(', ')}
           </span>
         )}
@@ -99,7 +99,7 @@ export default function AssistantPanel({
           {errorCount > 0
             ? t('config.panel.saveBlocked')
             : changeCount > 0
-              ? t(changeCount === 1 ? 'config.panel.changes.one' : 'config.panel.changes.other', { count: changeCount })
+              ? t(plural('config.panel.changes', changeCount), { count: changeCount })
               : t('config.panel.noChanges')}
         </span>
       </div>

@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
 import Spinner from '../Spinner';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import { instructionsErrorMessage, formatSize, lineCount, lineDiff } from './instructionsView';
@@ -73,7 +73,7 @@ export default function RestorePreviewDialog({ name, target, label, mode, busy, 
               <div className="ss-lh !normal-case">
                 <span className="flex-1 text-[12.5px]">
                   {tab === 'content'
-                    ? t(lineCount(data.content) === 1 ? 'instructions.preview.stats.one' : 'instructions.preview.stats.other', { lines: lineCount(data.content), size: formatSize(new TextEncoder().encode(data.content).length) })
+                    ? t(plural('instructions.preview.stats', lineCount(data.content)), { lines: lineCount(data.content), size: formatSize(new TextEncoder().encode(data.content).length) })
                     : shortenHome(data.path)}
                 </span>
               </div>

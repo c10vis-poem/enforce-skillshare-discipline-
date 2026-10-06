@@ -7,6 +7,7 @@ import {
   interpolate,
   messagesByLocale,
   normalizeLocale,
+  plural,
   supportedLocales,
   translate,
 } from './index';
@@ -65,6 +66,11 @@ describe('i18n dictionaries', () => {
   it('interpolates named placeholders and preserves missing placeholders', () => {
     expect(interpolate('Updated {name}', { name: 'demo' })).toBe('Updated demo');
     expect(interpolate('Updated {name}')).toBe('Updated {name}');
+  });
+
+  it('picks the singular form for exactly one and the other form for everything else', () => {
+    expect([0, 1, 2, undefined].map((count) => plural('sync.changes', count))).toEqual(['sync.changes.other', 'sync.changes.one', 'sync.changes.other', 'sync.changes.other']);
+    expect(translate('en', plural('sync.changes', 1), { count: 1 })).not.toBe(translate('en', plural('sync.changes', 2), { count: 1 }));
   });
 
   it('falls back to English or the provided fallback', () => {

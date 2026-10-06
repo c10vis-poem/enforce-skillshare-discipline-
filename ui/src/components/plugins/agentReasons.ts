@@ -1,5 +1,6 @@
 import type { PluginCandidate, PluginTarget, PluginTargetDefinition } from '../../api/plugins';
 import type { useT } from '../../i18n';
+import { keyedText } from './outcomeText';
 
 type T = ReturnType<typeof useT>;
 
@@ -8,10 +9,10 @@ export function agentReasons(candidate: PluginCandidate | undefined, definitions
   return (Object.keys(definitions) as PluginTarget[]).map((target) => {
     const definition = definitions[target];
     const info = candidate?.targetInfo?.[target];
-    const reason = (info?.problemKey ? t(info.problemKey, info.problemArgs, info.problem) : info?.problem)
+    const reason = keyedText(t, info?.problemKey, info?.problem, info?.problemArgs)
       || (!candidate?.targets.includes(target) ? t('plugins.unsupported')
         : isProjectMode && !definition.project ? t('plugins.globalOnly')
-          : !definition.operations.includes('add') ? (definition.reasonKey ? t(definition.reasonKey, undefined, definition.reason) : definition.reason) || t('plugins.unsupported')
+          : !definition.operations.includes('add') ? keyedText(t, definition.reasonKey, definition.reason) || t('plugins.unsupported')
             : '');
     return { target, definition, reason };
   });

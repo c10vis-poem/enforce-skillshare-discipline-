@@ -11,7 +11,8 @@ import AddSkillDialog from './AddSkillDialog';
 import HubEntryEditor from './HubEntryEditor';
 import { newEntryId } from './hubShared';
 import { queryKeys } from '../../lib/queryKeys';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
+import { invalidate } from '../../lib/queryEvents';
 
 interface Props {
   response: DraftResponse;
@@ -80,7 +81,7 @@ export default function HubEditor({ response, onDone }: Props) {
     try {
       const res = await hubDrafts.save(draft);
       queryClient.setQueryData(queryKeys.hub.draft(res.draft.id), res);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+      void invalidate(queryClient, 'hubDraftsChanged');
       setBase(res);
       setDraft(res.draft);
       setVersions(res.refs ?? {});
@@ -95,7 +96,7 @@ export default function HubEditor({ response, onDone }: Props) {
 
   function cancel() {
     // Reload what is saved, which also recovers from an edit made in another window.
-    void queryClient.invalidateQueries({ queryKey: queryKeys.hub.draft(draft.id) });
+    void invalidate(queryClient, 'hubDraftReverted', draft.id);
     onDone();
   }
 
@@ -159,8 +160,8 @@ export default function HubEditor({ response, onDone }: Props) {
         <div className="ss-box sticky bottom-4 z-10 flex items-center gap-2.5 !py-3 shadow-[var(--sh-float)]">
           <span className="h-2 w-2 shrink-0 rounded-full bg-warn" />
           <span className="flex-1 text-[13px] text-ink-2">
-            {t(changes === 1 ? 'hubs.edit.changes.one' : 'hubs.edit.changes.other', { count: changes })}
-            {blocked > 0 && ` · ${t(blocked === 1 ? 'hubs.edit.blocked.one' : 'hubs.edit.blocked.other', { count: blocked })}`}
+            {t(plural('hubs.edit.changes', changes), { count: changes })}
+            {blocked > 0 && ` · ${t(plural('hubs.edit.blocked', blocked), { count: blocked })}`}
           </span>
           <Button variant="secondary" onClick={cancel} disabled={busy}>{t('common.cancel')}</Button>
           <Button onClick={() => void save()} loading={busy}>{t('common.save')}</Button>

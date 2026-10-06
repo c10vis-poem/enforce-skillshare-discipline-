@@ -11,6 +11,7 @@ import { useT } from '../../i18n';
 import { useAppContext } from '../../context/AppContext';
 import { shortenPath } from '../../lib/paths';
 import PiPackageIcon from '../PiPackageIcon';
+import { queryKeys } from '../../lib/queryKeys';
 
 const STACK = 6;
 
@@ -75,7 +76,7 @@ function Row({ name, pi, inventory, updates, busy, working, onToggle, onMenu, on
   // ponytail: one discovery per plugin per session; give it a refresh control if sources change under an open dashboard.
   const found = useQuery({
     // The name picks the snapshot: two plugins of one source can be at different commits.
-    queryKey: ['plugin-discover', source, sourceRef, entry, name],
+    queryKey: queryKeys.pluginDiscover(source, sourceRef, entry, name),
     queryFn: () => pluginsApi.discover(source!, sourceRef, entry, name),
     enabled: !!source,
     staleTime: Infinity,

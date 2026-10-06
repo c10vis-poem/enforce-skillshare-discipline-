@@ -15,6 +15,7 @@ import { getCachedAuditResult } from '../lib/auditCache';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import AuditRulesYaml from './AuditRulesYaml';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const PROFILES = ['default', 'strict', 'permissive'];
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
@@ -40,23 +41,19 @@ export default function AuditRulesPage() {
 
   const onYamlSaveState = useCallback((dirty: boolean, saving: boolean, save: () => void) => setYamlSave({ dirty, saving, save }), []);
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.audit.compiled });
-    queryClient.invalidateQueries({ queryKey: queryKeys.audit.rules });
-  };
   const toggle = useMutation({
     mutationFn: (req: { id?: string; pattern?: string; enabled: boolean; severity?: string }) => api.toggleRule(req),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(queryClient, 'auditRulesChanged'),
     onError: (e: Error) => toast(e.message, 'error'),
   });
   const reset = useMutation({
     mutationFn: () => api.resetRules(),
-    onSuccess: () => { invalidate(); toast(t('auditRules.toast.resetSuccess'), 'success'); },
+    onSuccess: () => { void invalidate(queryClient, 'auditRulesChanged'); toast(t('auditRules.toast.resetSuccess'), 'success'); },
     onError: (e: Error) => toast(e.message, 'error'),
   });
   const setProfile = useMutation({
     mutationFn: (profile: string) => api.setAuditProfile(profile),
-    onSuccess: (res) => { invalidate(); toast(t('auditRules.toast.profileSaved', { profile: res.profile }), 'success'); },
+    onSuccess: (res) => { void invalidate(queryClient, 'auditRulesChanged'); toast(t('auditRules.toast.profileSaved', { profile: res.profile }), 'success'); },
     onError: (e: Error) => toast(e.message, 'error'),
   });
 

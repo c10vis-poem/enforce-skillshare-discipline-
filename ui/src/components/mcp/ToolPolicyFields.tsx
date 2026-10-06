@@ -97,7 +97,7 @@ export default function ToolPolicyFields({ tools, onChange, disabled, probe, mut
   const loaded: typeof result = result.key === key ? result : {};
   const names = loaded.names;
   // The same preview the config view reads, so opening it after this costs nothing.
-  const view = useQuery({ queryKey: [...queryKeys.mcp, 'render', JSON.stringify(mutation)], queryFn: () => mcpApi.render(mutation!), enabled: set && Boolean(mutation), placeholderData: keepPreviousData });
+  const view = useQuery({ queryKey: queryKeys.mcpRender(JSON.stringify(mutation)), queryFn: () => mcpApi.render(mutation!), enabled: set && Boolean(mutation), placeholderData: keepPreviousData });
   const outcomes = toolOutcomes(set ? (view.data?.rendered ?? []).filter((r) => mutation?.server?.targets?.includes(r.target)) : []);
   // Entries a loaded row stands for are edited by ticking it; the rest stay as rules, and before loading every entry is one.
   const rules = toolRules(tools, names ?? []);

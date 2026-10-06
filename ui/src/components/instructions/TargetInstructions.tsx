@@ -15,7 +15,7 @@ import { targetLabel } from '../mcp/mcpView';
 import { PageSkeleton } from '../Skeleton';
 import { useToast } from '../Toast';
 import { useAppContext } from '../../context/AppContext';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
 import ConvertDialog from './ConvertDialog';
@@ -23,7 +23,8 @@ import InstructionFileList from './InstructionFileList';
 import { useFillHeight } from './useFillHeight';
 import { BoxHeader, InstructionsPreview } from './ViewTabs';
 import { useSaveShortcut } from './useSaveShortcut';
-import { connectedTo, instructionsErrorMessage, importDecor, refreshInstructions, setupPathOf, setupPathProblem, sharedOfImport } from './instructionsView';
+import { connectedTo, instructionsErrorMessage, importDecor, setupPathOf, setupPathProblem, sharedOfImport } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 
 // The page's bottom padding, and the least height the tab keeps on a short window.
@@ -125,7 +126,7 @@ function useSetupForm(data: Data, onDone?: () => void) {
     setFailure('');
     try {
       await api.setTargetInstructionsSetup(data.target, { path: path.trim(), import: imports });
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.setup.saved'), 'success');
       onDone?.();
     } catch (err) {
@@ -141,7 +142,7 @@ function useSetupForm(data: Data, onDone?: () => void) {
     setFailure('');
     try {
       await api.removeTargetInstructionsSetup(data.target);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.setup.removed'), 'success');
       onDone?.();
     } catch (err) {
@@ -257,7 +258,7 @@ function Editor({ data }: { data: Data }) {
     setSaving(true);
     try {
       await api.putTargetInstructions(data.target, draft);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.saved', { path: shortenHome(path) }), 'success');
     } catch (err) {
       toast(instructionsErrorMessage(err, t), 'error');
@@ -372,7 +373,7 @@ function SourceCard({ data, onChangeLocation, onConvert, convertable, dirty }: {
             <span className="ss-stack" role="img" aria-label={others.join(', ')} title={others.join(', ')}>
               {others.slice(0, 5).map((n) => <span key={n} className="ss-at !h-5 !w-5"><AgentIcon target={n} size={11} /></span>)}
             </span>
-            <span className="text-[12.5px] text-ink-3">{t(others.length === 1 ? 'instructions.card.alsoUsed.one' : 'instructions.card.alsoUsed.other', { count: others.length })}</span>
+            <span className="text-[12.5px] text-ink-3">{t(plural('instructions.card.alsoUsed', others.length), { count: others.length })}</span>
           </>
         )}
         <span className="flex-1" />
@@ -437,7 +438,7 @@ function ChangeMenu({ target, current, linked, files }: { target: string; curren
     } finally {
       setBusy(false);
       setPicked(null);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     }
   };
   const pick = (name: string) => {

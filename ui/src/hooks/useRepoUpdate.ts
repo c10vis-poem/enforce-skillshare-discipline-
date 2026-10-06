@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { queryKeys } from '../lib/queryKeys';
 import { clearAuditCache } from '../lib/auditCache';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n';
+import { invalidate } from '../lib/queryEvents';
 
 /** Pulls one tracked repo and reports the outcome as a toast. Used by the Dashboard and the Skills page. */
 export function useRepoUpdate() {
@@ -24,11 +24,7 @@ export function useRepoUpdate() {
       else if (item?.action === 'error') toast(item.message ?? t('dashboard.toast.updateFailedFor', { name }), 'error');
       else toast(item?.message ?? t('dashboard.toast.repoSkipped', { name }), 'warning');
       clearAuditCache(queryClient);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.skills.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.trash }),
-      ]);
+      await invalidate(queryClient, 'reposChanged');
     } catch (e: unknown) {
       toast((e as Error).message, 'error');
     } finally {

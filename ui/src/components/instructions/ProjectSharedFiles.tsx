@@ -8,15 +8,16 @@ import ConfirmDialog from '../ConfirmDialog';
 import { PageSkeleton } from '../Skeleton';
 import { SkillContextMenu } from '../TargetMenu';
 import { useToast } from '../Toast';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import AddLocationDialog from './AddLocationDialog';
 import InstructionsEditorDialog from './InstructionsEditorDialog';
 import LocationRows from './LocationRows';
 import NewSharedDialog from './NewSharedDialog';
 import {
-  instructionsErrorMessage, instructionsWarningMessage, locationLabel, projectSourcePath, refreshInstructions, saveCopiesSummary, staleLocations,
+  instructionsErrorMessage, instructionsWarningMessage, locationLabel, projectSourcePath, saveCopiesSummary, staleLocations,
 } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 type Pending = { title: string; message: string; confirm: string; danger?: boolean; run: () => Promise<void> };
 
@@ -56,7 +57,7 @@ export default function ProjectSharedFiles({ creating, setCreating }: { creating
           targets={[]}
           onClose={() => setCreating(false)}
           onCreated={async () => {
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             await queryClient.refetchQueries({ queryKey: queryKeys.instructions.shared });
             setCreating(false);
           }}
@@ -96,14 +97,14 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
       toast(instructionsErrorMessage(err, t), 'error');
     } finally {
       setBusy(false);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     }
   };
   const warn = (warnings?: InstructionsWarning[]) => warnings?.forEach((w) => toast(instructionsWarningMessage(w, t), 'warning'));
 
   const resolve = (label: string, path: string, action: 'collect' | 'reapply') => setPending({
     title: t(`instructions.resolve.${action}.title`, { name, target: label }),
-    message: t(action === 'collect' ? `instructions.resolve.collect.message.${locations.length === 1 ? 'one' : 'other'}` : 'instructions.resolve.reapply.message', { name, target: label, count: locations.length }),
+    message: t(action === 'collect' ? plural('instructions.resolve.collect.message', locations.length) : 'instructions.resolve.reapply.message', { name, target: label, count: locations.length }),
     confirm: t(`instructions.resolve.${action}.item`, { name }),
     run: async () => {
       await api.resolveSharedInstructions(name, { path }, action);
@@ -120,7 +121,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
 
   const remove = () => setPending({
     title: t('instructions.delete.title', { name }),
-    message: locations.length ? t(locations.length === 1 ? 'instructions.projectShared.deleteMessage.one' : 'instructions.projectShared.deleteMessage.other', { name, count: locations.length }) : t('instructions.delete.unused', { name }),
+    message: locations.length ? t(plural('instructions.projectShared.deleteMessage', locations.length), { name, count: locations.length }) : t('instructions.delete.unused', { name }),
     confirm: t('instructions.detail.delete.confirm'),
     danger: true,
     run: async () => {
@@ -136,13 +137,13 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2">
             <span className="truncate font-mono font-semibold">{name}</span>
-            <span className="shrink-0 text-[12.5px] text-ink-2">{t(locations.length === 1 ? 'instructions.locations.count.one' : 'instructions.locations.count.other', { count: locations.length })}</span>
+            <span className="shrink-0 text-[12.5px] text-ink-2">{t(plural('instructions.locations.count', locations.length), { count: locations.length })}</span>
           </span>
           <span className="truncate font-mono text-[12px] text-ink-3" title={file.path}>{projectSourcePath(file.path)}</span>
         </span>
         {stale.length > 0 && (
           <>
-            <span className="text-[12.5px] text-warn">{t(stale.length === 1 ? 'instructions.projectShared.needSync.one' : 'instructions.projectShared.needSync.other', { count: stale.length })}</span>
+            <span className="text-[12.5px] text-warn">{t(plural('instructions.projectShared.needSync', stale.length), { count: stale.length })}</span>
             <Button variant="primary" size="sm" onClick={() => void sync()} loading={busy}>{t('extras.sync')}</Button>
           </>
         )}
@@ -165,7 +166,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
             warn(warnings);
             toast(t('instructions.locations.added', { path, name }), 'success');
             setAdding(false);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
           }} />
       )}
       {editing && content.data && (
@@ -175,7 +176,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
           content={content.data.content}
           onSave={async (next) => {
             const res = await api.putSharedInstructionsContent(name, next);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             // Copies were rewritten; say which, and any problem, like the sync button.
             const copies = saveCopiesSummary(res.copies ?? []);
             copies.warnings.forEach((w) => toast(w, 'warning'));

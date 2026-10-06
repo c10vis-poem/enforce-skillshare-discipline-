@@ -9,7 +9,8 @@ import Button from '../Button';
 import DialogShell from '../DialogShell';
 import { blockedEntries, downloadIndex, publishable } from './hubShared';
 import { queryKeys } from '../../lib/queryKeys';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
+import { invalidate } from '../../lib/queryEvents';
 
 function Step({ n, children }: { n: number; children: ReactNode }) {
   return (
@@ -45,7 +46,7 @@ export default function ShareDialog({ response, onClose }: { response: DraftResp
     try {
       const res = await hubDrafts.save({ ...draft, fields: { ...draft.fields, publishUrl: location.trim() } });
       queryClient.setQueryData(queryKeys.hub.draft(res.draft.id), res);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+      void invalidate(queryClient, 'hubDraftsChanged');
       return true;
     } catch (err) {
       fail(err);
@@ -88,8 +89,8 @@ export default function ShareDialog({ response, onClose }: { response: DraftResp
             {empty
               ? t('hubBuilder.problem.empty')
               : blocked > 0
-                ? t(blocked === 1 ? 'hubBuilder.blocked.one' : 'hubBuilder.blocked.other', { count: blocked })
-                : t(draft.entries.length === 1 ? 'hubs.share.ready.one' : 'hubs.share.ready.other', { count: draft.entries.length })}
+                ? t(plural('hubBuilder.blocked', blocked), { count: blocked })
+                : t(plural('hubs.share.ready', draft.entries.length), { count: draft.entries.length })}
           </p>
         </div>
         <button type="button" className="ss-ib" onClick={() => void close()} aria-label={t('common.close')} disabled={busy}>

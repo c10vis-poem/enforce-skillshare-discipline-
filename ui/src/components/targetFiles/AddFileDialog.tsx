@@ -8,8 +8,8 @@ import DialogShell from '../DialogShell';
 import { useToast } from '../Toast';
 import { targetLabel } from '../mcp/mcpView';
 import { useT } from '../../i18n';
-import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
+import { invalidate } from '../../lib/queryEvents';
 
 /** The root with the separator it uses at the end, as the fixed start of the path. */
 const withSep = (root: string) => (/[\\/]$/.test(root) ? root : root + (root.lastIndexOf('\\') > root.lastIndexOf('/') ? '\\' : '/'));
@@ -36,7 +36,7 @@ export default function AddFileDialog({ target, root, onClose, onAdded }: { targ
     setFailure('');
     try {
       const res = await api.addTargetFile(target, rel);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.targetFiles.list(target) });
+      await invalidate(queryClient, 'targetFilesChanged', target);
       // The new entry comes last, in the clean form the list uses.
       const added = res.files[res.files.length - 1]?.path ?? rel;
       toast(t('targetFiles.added', { file: added }), 'success');

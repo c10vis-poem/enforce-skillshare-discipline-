@@ -16,9 +16,10 @@ import { parseStatusLine } from '../components/git/gitView';
 import PullConflictDialog from '../components/git/PullConflictDialog';
 import type { GitPullConflict, GitPullResolution } from '../api/types/git';
 import { useAppContext } from '../context/AppContext';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
+import { invalidate } from '../lib/queryEvents';
 
 const SCOPES = ['skills', 'agents', 'extras', 'root'];
 const TONE = { New: 'ok', Changed: 'warn', Renamed: 'warn', Deleted: 'bad' } as const;
@@ -39,7 +40,7 @@ export default function GitSyncPage() {
     queryFn: async () => {
       // An offline or unauthenticated fetch must not empty the branch list.
       const res = await api.gitBranches({ fetch: !!status?.hasRemote }).catch(() => api.gitBranches());
-      void queryClient.invalidateQueries({ queryKey: queryKeys.gitStatus });
+      void invalidate(queryClient, 'gitFetched');
       return res;
     },
     staleTime: staleTimes.gitStatus,
@@ -65,11 +66,7 @@ export default function GitSyncPage() {
   const [pulled, setPulled] = useState<PullResponse | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
 
-  const refresh = () => {
-    for (const queryKey of [queryKeys.gitStatus, queryKeys.gitBranches, queryKeys.skills.all, queryKeys.overview, queryKeys.config, queryKeys.targets.all, queryKeys.diff()]) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  };
+  const refresh = () => void invalidate(queryClient, 'gitChanged');
   const run = async (kind: NonNullable<typeof busy>, work: () => Promise<void>) => {
     setBusy(kind);
     setRunError('');
@@ -108,13 +105,13 @@ export default function GitSyncPage() {
     if (dryRun) return setNote(t('gitSync.discard.preview'));
     setPulled(null);
     // Root scope can change any of the source resources shown elsewhere.
-    void queryClient.invalidateQueries();
+    void invalidate(queryClient, 'sourceDiscarded');
     toast(t('gitSync.toast.discarded'), 'success');
   });
   // A clean tree with commits the remote lacks: push them as they are.
   const upload = (count: number) => run('upload', async () => {
     await api.push({});
-    toast(t(count === 1 ? 'gitSync.toast.uploaded.one' : 'gitSync.toast.uploaded.other', { count }), 'success');
+    toast(t(plural('gitSync.toast.uploaded', count), { count }), 'success');
   });
   const pull = (force = false, resolution?: GitPullResolution) => run('pull', async () => {
     setPulled(null);
@@ -198,7 +195,7 @@ export default function GitSyncPage() {
   const branchNames = branches.data ? [...branches.data.local, ...branches.data.remote] : [status.branch];
   const writing = busy !== null;
   const diverged = status.hasRemote && status.ahead > 0 && status.behind > 0;
-  const pullLabel = diverged ? t('gitSync.actions.pullMerge') : status.behind > 0 ? t(status.behind === 1 ? 'gitSync.actions.pullCommits.one' : 'gitSync.actions.pullCommits.other', { count: status.behind }) : t('gitSync.actions.pull');
+  const pullLabel = diverged ? t('gitSync.actions.pullMerge') : status.behind > 0 ? t(plural('gitSync.actions.pullCommits', status.behind), { count: status.behind }) : t('gitSync.actions.pull');
 
   return (
     <div className="animate-fade-in">
@@ -207,7 +204,7 @@ export default function GitSyncPage() {
           {status.hasRemote && !status.isDirty && status.ahead > 0 && status.behind === 0 && (
             <Button variant="secondary" onClick={() => upload(status.ahead)} loading={busy === 'upload'} disabled={writing || nested.length > 0}>
               {busy !== 'upload' && <ArrowUpFromLine size={16} />}
-              {t(status.ahead === 1 ? 'gitSync.actions.pushCommits.one' : 'gitSync.actions.pushCommits.other', { count: status.ahead })}
+              {t(plural('gitSync.actions.pushCommits', status.ahead), { count: status.ahead })}
             </Button>
           )}
           <Button variant="secondary" onClick={() => pull()} loading={busy === 'pull'} disabled={writing || !status.hasRemote || status.isDirty} title={!status.hasRemote ? t('gitSync.noRemoteHint') : undefined}>
@@ -267,7 +264,7 @@ export default function GitSyncPage() {
             <CircleCheck size={16} />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <span>
-                {pulled.commits.length > 0 ? t(pulled.commits.length === 1 ? 'gitSync.pull.pulled.one' : 'gitSync.pull.pulled.other', { count: pulled.commits.length }) : t('gitSync.pull.pulledNone')}{' '}
+                {pulled.commits.length > 0 ? t(plural('gitSync.pull.pulled', pulled.commits.length), { count: pulled.commits.length }) : t('gitSync.pull.pulledNone')}{' '}
                 {t('gitSync.pull.synced')}
               </span>
               {pulled.commits.slice(0, PULLED_SHOWN).map((c) => (
@@ -366,13 +363,13 @@ export default function GitSyncPage() {
                 <dt>{t('gitSync.repo.status')}</dt>
                 <dd>
                   {status.isDirty
-                    ? <span className="ss-st warn">{t(files.length === 1 ? 'gitSync.repo.dirty.one' : 'gitSync.repo.dirty.other', { count: files.length })}</span>
+                    ? <span className="ss-st warn">{t(plural('gitSync.repo.dirty', files.length), { count: files.length })}</span>
                     : diverged
                       ? <span className="ss-st warn">{t('gitSync.repo.diverged', { ahead: status.ahead, behind: status.behind })}</span>
                     : status.hasRemote && status.behind > 0
-                      ? <span className="ss-st warn">{t(status.behind === 1 ? 'gitSync.actions.pullCommits.one' : 'gitSync.actions.pullCommits.other', { count: status.behind })}</span>
+                      ? <span className="ss-st warn">{t(plural('gitSync.actions.pullCommits', status.behind), { count: status.behind })}</span>
                     : status.hasRemote && status.ahead > 0
-                      ? <span className="ss-st warn">{t(status.ahead === 1 ? 'gitSync.repo.ahead.one' : 'gitSync.repo.ahead.other', { count: status.ahead })}</span>
+                      ? <span className="ss-st warn">{t(plural('gitSync.repo.ahead', status.ahead), { count: status.ahead })}</span>
                       : <span className="ss-st ok">{t('gitSync.repo.clean')}</span>}
                 </dd>
                 {status.headHash && (
@@ -429,8 +426,8 @@ export default function GitSyncPage() {
           <div className="flex flex-col gap-3">
             <span>{t('gitSync.syncBoth.intro')}</span>
             <ol className="flex list-decimal flex-col gap-1 pl-5">
-              <li>{status.isDirty ? t(files.length === 1 ? 'gitSync.syncBoth.step.commit.one' : 'gitSync.syncBoth.step.commit.other', { count: files.length }) : t('gitSync.syncBoth.step.commitNone')}</li>
-              <li>{status.behind > 0 ? t(status.behind === 1 ? 'gitSync.syncBoth.step.pull.one' : 'gitSync.syncBoth.step.pull.other', { count: status.behind }) : t('gitSync.syncBoth.step.pullCheck')}</li>
+              <li>{status.isDirty ? t(plural('gitSync.syncBoth.step.commit', files.length), { count: files.length }) : t('gitSync.syncBoth.step.commitNone')}</li>
+              <li>{status.behind > 0 ? t(plural('gitSync.syncBoth.step.pull', status.behind), { count: status.behind }) : t('gitSync.syncBoth.step.pullCheck')}</li>
               <li>{t('gitSync.syncBoth.step.sync', { scope })}</li>
               <li>{t('gitSync.syncBoth.step.push', { remote: platform ? remote!.ownerRepo : status.remoteURL })}</li>
             </ol>

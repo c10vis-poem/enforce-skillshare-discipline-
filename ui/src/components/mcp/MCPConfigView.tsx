@@ -10,7 +10,7 @@ import CopyButton from '../CopyButton';
 import DialogShell from '../DialogShell';
 import IconButton from '../IconButton';
 import Spinner from '../Spinner';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { inside, targetLabel, toolGapKey } from './mcpView';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
@@ -35,7 +35,7 @@ export default function MCPConfigView({ mutation }: { mutation: MCPMutation }) {
   const items = [SOURCE, ...targets];
   const shown = picked !== undefined && items.includes(picked) ? picked : targets[0] ?? SOURCE;
   // Pi previews read native settings and ownership; keep the previous view while refreshing.
-  const view = useQuery({ queryKey: [...queryKeys.mcp, 'render', JSON.stringify(mutation)], queryFn: () => mcpApi.render(mutation), placeholderData: keepPreviousData });
+  const view = useQuery({ queryKey: queryKeys.mcpRender(JSON.stringify(mutation)), queryFn: () => mcpApi.render(mutation), placeholderData: keepPreviousData });
   const renderedFor = (target: string) => view.data?.rendered.find((r) => r.target === target);
   const files = view.data?.rendered.filter((r) => r.content !== undefined && !r.error).length ?? 0;
 
@@ -74,7 +74,7 @@ export default function MCPConfigView({ mutation }: { mutation: MCPMutation }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2.5">
-        {view.data && <span className="text-sm font-semibold">{t(files === 1 ? 'mcp.viewConfigFiles.one' : 'mcp.viewConfigFiles.other', { count: files })}</span>}
+        {view.data && <span className="text-sm font-semibold">{t(plural('mcp.viewConfigFiles', files), { count: files })}</span>}
         <span className="inline-flex h-[26px] min-w-0 items-center gap-1.5 rounded-full border border-line bg-sunken px-2.5 text-xs text-ink-2" title={root}>
           <Folder size={13} aria-hidden="true" />
           <span className="truncate">{root ? `${t('app.project')} ${fileName(root)} · ${shortenHome(root)}` : t('app.global')}</span>

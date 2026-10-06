@@ -8,6 +8,7 @@ export {
   isLocale,
   messagesByLocale,
   normalizeLocale,
+  plural,
   supportedLocales,
   translate,
   type Locale,

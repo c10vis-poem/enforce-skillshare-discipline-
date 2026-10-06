@@ -7,7 +7,7 @@ import { mcpTargets } from '../../api/mcp';
 import { staleTimes } from '../../lib/queryKeys';
 import { useAppContext } from '../../context/AppContext';
 import { shortenHome } from '../../lib/paths';
-import { useI18n } from '../../i18n';
+import { useI18n, plural } from '../../i18n';
 import AgentIcon from '../AgentIcon';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
@@ -124,7 +124,7 @@ export default function AddTargetDialog({ available, initial, existing, targets 
   const readsHint = (a: AvailableTarget) => {
     const from = targets.find((tg) => tg.name === a.readsFrom?.[0]);
     if (!from) return t('targets.add.readsFromHintShort', { name: a.name, from: a.readsFrom?.[0] ?? '' });
-    return t(from.linkedCount === 1 ? 'targets.add.readsFromHint.one' : 'targets.add.readsFromHint.other', { name: a.name, from: from.name, path: shortenHome(from.path), count: from.linkedCount });
+    return t(plural('targets.add.readsFromHint', from.linkedCount), { name: a.name, from: from.name, path: shortenHome(from.path), count: from.linkedCount });
   };
 
   const mcpWrites = (a: AvailableTarget) => (mcpTargets as readonly string[]).includes(mcpClient(a.name));
@@ -268,7 +268,7 @@ export default function AddTargetDialog({ available, initial, existing, targets 
           <>
             <span className="ss-inp">
               <Search size={15} className="shrink-0 text-ink-3" />
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} placeholder={t(pool.length === 1 ? 'targets.add.search.one' : 'targets.add.search.other', { count: pool.length })} aria-label={t(pool.length === 1 ? 'targets.add.search.one' : 'targets.add.search.other', { count: pool.length })} />
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} placeholder={t(plural('targets.add.search', pool.length), { count: pool.length })} aria-label={t(plural('targets.add.search', pool.length), { count: pool.length })} />
             </span>
             <div className="ss-list max-h-[440px] overflow-y-auto !shadow-none" role="radiogroup" aria-label={t('targets.add.title')}>
               {shared && (
@@ -302,7 +302,7 @@ export default function AddTargetDialog({ available, initial, existing, targets 
                   {shownOthers.map((a) => row(a))}
                   {shownOthers.length < others.length && (
                     <button type="button" className="ss-r !min-h-10 w-full text-[13px] text-ink-2 hover:text-ink" onClick={() => setShowAll(true)}>
-                      <span className="flex-1 text-left">{t(others.length - shownOthers.length === 1 ? 'targets.add.moreTools.one' : 'targets.add.moreTools.other', { count: others.length - shownOthers.length })}</span>
+                      <span className="flex-1 text-left">{t(plural('targets.add.moreTools', others.length - shownOthers.length), { count: others.length - shownOthers.length })}</span>
                       <ChevronDown size={15} />
                     </button>
                   )}

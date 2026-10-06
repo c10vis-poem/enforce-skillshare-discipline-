@@ -11,6 +11,7 @@ import { useT } from '../../i18n';
 import { CODE_EXT, fileTree } from '../../lib/fileTree';
 import { isMarkdown } from '../../lib/highlight';
 import { shortenPath } from '../../lib/paths';
+import { queryKeys } from '../../lib/queryKeys';
 
 const NUL = String.fromCharCode(0);
 
@@ -19,10 +20,10 @@ export default function PluginFilesDialog({ name, source, onClose }: { name: str
   const t = useT();
   const [picked, setPicked] = useState('');
   const [raw, setRaw] = useState(false);
-  const list = useQuery({ queryKey: ['plugin-files', name], queryFn: () => pluginsApi.files(name) });
+  const list = useQuery({ queryKey: queryKeys.pluginFiles(name), queryFn: () => pluginsApi.files(name) });
   const files = list.data?.files ?? [];
   const selected = files.includes(picked) ? picked : files.find((f) => /^readme\.md$/i.test(f)) ?? files[0];
-  const file = useQuery({ queryKey: ['plugin-file', name, selected], queryFn: () => pluginsApi.file(name, selected), enabled: !!selected });
+  const file = useQuery({ queryKey: queryKeys.pluginFile(name, selected), queryFn: () => pluginsApi.file(name, selected), enabled: !!selected });
   const content = file.data?.content;
   const markdown = isMarkdown(selected ?? '');
   const error = list.error ?? file.error;

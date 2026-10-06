@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { useRegexTester } from '../../hooks/useRegexTester';
 
 interface RegexTesterProps {
@@ -69,7 +69,7 @@ export default function RegexTester({ pattern, excludePattern, onPatternChange }
         <div className="ss-kv">
           <span>Exclude</span>
           <code className="font-mono text-[12.5px] break-all">{excludePattern}</code>
-          <span>{t(excludedLines.length === 1 ? 'auditRules.regex.suppressed.one' : 'auditRules.regex.suppressed.other', { count: excludedLines.length })}</span>
+          <span>{t(plural('auditRules.regex.suppressed', excludedLines.length), { count: excludedLines.length })}</span>
         </div>
       )}
     </div>

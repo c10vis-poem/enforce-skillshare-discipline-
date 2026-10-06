@@ -15,6 +15,7 @@ import EmptyState from '../components/EmptyState';
 import SyncPreviewModal from '../components/SyncPreviewModal';
 import { useToast } from '../components/Toast';
 import { useSkillsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 /* -- Types ---------------------------------------- */
 
@@ -245,8 +246,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
 
   const invalidateSkillData = useCallback(() => {
     clearAuditCache(queryClient);
-    queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-    queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
+    void invalidate(queryClient, 'skillsChanged');
   }, [queryClient]);
 
   const applyUpdateResults = useCallback((results: UpdateResultItem[]) => {
@@ -339,7 +339,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
       const failed = results.filter((r) => r.action !== 'rehydrated');
       if (failed.length > 0) toast(t('update.missingRepos.rehydratePartial', { count: failed.length }), 'error');
       else toast(t('update.missingRepos.rehydrateSuccess', { count: results.length }), 'success');
-      queryClient.invalidateQueries({ queryKey: queryKeys.missingTrackedRepos });
+      void invalidate(queryClient, 'missingReposChanged');
       invalidateSkillData();
     } catch (err) {
       toast((err as Error).message, 'error');

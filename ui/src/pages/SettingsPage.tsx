@@ -11,6 +11,7 @@ import { supportedLocales, useI18n, useT, type Locale } from '../i18n';
 import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const MODES = ['merge', 'copy', 'symlink'];
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
@@ -58,15 +59,14 @@ export default function SettingsPage() {
   const cfg = (config.data?.config ?? {}) as ConfigShape;
   const [threshold, setThreshold] = useState<string | null>(null);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.config });
   const patch = useMutation({
     mutationFn: (body: { mode?: string; logMaxEntries?: number }) => api.patchConfig(body),
-    onSuccess: () => { invalidate(); toast(t('settings.toast.saved'), 'success'); },
+    onSuccess: () => { void invalidate(queryClient, 'settingsSaved'); toast(t('settings.toast.saved'), 'success'); },
     onError: (e: Error) => toast(e.message, 'error'),
   });
   const setAuditThreshold = useMutation({
     mutationFn: (value: string) => api.setAuditThreshold(value),
-    onSuccess: (res) => { setThreshold(res.threshold); invalidate(); toast(t('settings.toast.saved'), 'success'); },
+    onSuccess: (res) => { setThreshold(res.threshold); void invalidate(queryClient, 'settingsSaved'); toast(t('settings.toast.saved'), 'success'); },
     onError: (e: Error) => toast(e.message, 'error'),
   });
 

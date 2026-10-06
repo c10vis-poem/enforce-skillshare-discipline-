@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Folder, Lock, TriangleAlert, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { hooksApi, type HookMutation } from '../../api/hooks';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { fileName, shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import AgentIcon from '../AgentIcon';
@@ -28,7 +28,7 @@ export function HooksConfigView({ mutation, sourcePath }: { mutation: HookMutati
   const { isProjectMode, projectRoot } = useAppContext();
   const root = mutation.project ?? (isProjectMode ? projectRoot : undefined);
   const entry = mutation.entry;
-  const view = useQuery({ queryKey: [...queryKeys.hooks, 'render', JSON.stringify(mutation)], queryFn: () => hooksApi.render(mutation) });
+  const view = useQuery({ queryKey: queryKeys.hooksRender(JSON.stringify(mutation)), queryFn: () => hooksApi.render(mutation) });
   const files = view.data?.rendered ?? [];
   // A disabled hook still renders so its definition can be checked, but sync writes none of it.
   const written = entry?.enabled === false ? 0 : files.filter((f) => f.content !== undefined && !f.error).length;
@@ -63,7 +63,7 @@ export function HooksConfigView({ mutation, sourcePath }: { mutation: HookMutati
   return (
     <>
       <div className="flex flex-wrap items-center gap-2.5">
-        {view.data && <span className="text-sm font-semibold">{t(written === 1 ? 'mcp.viewConfigFiles.one' : 'mcp.viewConfigFiles.other', { count: written })}</span>}
+        {view.data && <span className="text-sm font-semibold">{t(plural('mcp.viewConfigFiles', written), { count: written })}</span>}
         <span className="inline-flex h-[26px] min-w-0 items-center gap-1.5 rounded-full border border-line bg-sunken px-2.5 text-xs text-ink-2" title={root}>
           <Folder size={13} aria-hidden="true" />
           <span className="truncate">{root ? `${t('app.project')} ${fileName(root)} · ${shortenHome(root)}` : t('app.global')}</span>

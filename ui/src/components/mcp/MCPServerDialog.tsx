@@ -8,7 +8,7 @@ import Button from '../Button';
 import DialogShell from '../DialogShell';
 import SegmentedControl from '../SegmentedControl';
 import { Select } from '../Input';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { useAppContext } from '../../context/AppContext';
 import PiSettingsFields from './PiSettingsFields';
 import ToolPolicyFields from './ToolPolicyFields';
@@ -256,7 +256,7 @@ function ServerFooter({ targets, off, complete, canSave, saving, onView, onClose
       <span className="flex-1 text-[13px]">
         {targets.length === 0
           ? (off ? <span className="ss-st warn">{t('mcp.pickTarget')}</span> : <span className="text-ink-2">{t('mcp.noTargetsNote')}</span>)
-          : <span className="text-ink-2">{t(targets.length === 1 ? 'mcp.writes.one' : 'mcp.writes.other', { count: targets.length })}{complete && <button type="button" className="ss-more ml-1.5" onClick={() => onView()}>{t('mcp.viewConfigShort')}</button>}</span>}
+          : <span className="text-ink-2">{t(plural('mcp.writes', targets.length), { count: targets.length })}{complete && <button type="button" className="ss-more ml-1.5" onClick={() => onView()}>{t('mcp.viewConfigShort')}</button>}</span>}
       </span>
       <Button variant="ghost" onClick={onClose} disabled={saving}>{t('common.cancel')}</Button>
       <Button type="submit" form="mcp-server" variant="primary" loading={saving} disabled={!canSave}>{t('common.save')}</Button>

@@ -8,10 +8,11 @@ import { Checkbox } from '../Checkbox';
 import DialogShell from '../DialogShell';
 import { Select } from '../Select';
 import { useToast } from '../Toast';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { fileName, shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
-import { instructionsErrorMessage, defaultShareName, importLines, isOtherExtra, lineDiff, refreshInstructions, sharedNameProblem, takenName } from './instructionsView';
+import { instructionsErrorMessage, defaultShareName, importLines, isOtherExtra, lineDiff, sharedNameProblem, takenName } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 const METHODS: ConvertMethod[] = ['import', 'rename', 'copy'];
 // The share picker's choice for a new shared file; real names are extras names.
@@ -56,7 +57,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
   const sharedDest = shareAs ?? shareInto;
 
   const preview = useQuery({
-    queryKey: ['instructions', 'convert', data.target, body],
+    queryKey: queryKeys.instructions.convert(data.target, body),
     queryFn: () => api.convertTargetInstructions(data.target, { ...body, apply: false }),
     // Off while applying: the refresh after success would re-plan against the
     // shared file that now exists.
@@ -69,7 +70,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
     setBusy(true);
     try {
       await api.convertTargetInstructions(data.target, { ...body, apply: true });
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.convert.done', { file }), 'success');
       onClose();
     } catch (err) {
@@ -146,7 +147,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
             {method === 'import' && (tool > 0 || !data.project) && (
               <div className="flex flex-col gap-2.5 border-t border-line-soft pt-3.5 text-[12.5px] text-ink-2">
                 {tool > 0 && (
-                  <Checkbox size="sm" label={t(tool === 1 ? 'instructions.convert.keep.one' : 'instructions.convert.keep.other', { count: tool, file })} checked={keep} onChange={setKeep} disabled={busy} />
+                  <Checkbox size="sm" label={t(plural('instructions.convert.keep', tool), { count: tool, file })} checked={keep} onChange={setKeep} disabled={busy} />
                 )}
                 {!data.project && (
                   <>
