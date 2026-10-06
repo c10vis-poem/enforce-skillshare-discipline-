@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"skillshare/internal/audit"
 	"skillshare/internal/install"
 	"skillshare/internal/sourcefs"
 	"skillshare/internal/sourcewalk"
@@ -28,17 +27,6 @@ type updateContext struct {
 
 func (uc *updateContext) isProject() bool {
 	return uc.projectRoot != ""
-}
-
-func (uc *updateContext) auditScanFn() auditScanFunc {
-	if uc.isProject() {
-		return func(path string) (*audit.Result, error) {
-			return audit.ScanSkillForProject(path, uc.projectRoot, uc.follow)
-		}
-	}
-	return func(path string) (*audit.Result, error) {
-		return audit.ScanSkillWithFollow(path, uc.follow)
-	}
 }
 
 func (uc *updateContext) makeInstallOpts() install.InstallOptions {

@@ -681,7 +681,7 @@ func TestUpdate_RegularSkill_Force_OverridesAuditBlock(t *testing.T) {
 }
 
 // TestUpdate_Force_OverridesAuditBlock covers the tracked-repo update path,
-// where the gate lives in auditGateAfterPull rather than install.handleUpdate.
+// where the gate runs in update.TrackedRepo rather than install.handleUpdate.
 func TestUpdate_Force_OverridesAuditBlock(t *testing.T) {
 	sb := testutil.NewSandbox(t)
 	defer sb.Cleanup()
@@ -911,7 +911,7 @@ func TestUpdate_RegularSkill_Force_RecordsAcceptedFindings(t *testing.T) {
 }
 
 // TestUpdate_BatchAll_HonoursAcceptedFindings covers the batch path
-// (updateTrackedRepo → auditTrackedRepoUpdate).
+// (updateTrackedRepoQuick → update.TrackedRepo).
 func TestUpdate_BatchAll_HonoursAcceptedFindings(t *testing.T) {
 	sb := testutil.NewSandbox(t)
 	defer sb.Cleanup()

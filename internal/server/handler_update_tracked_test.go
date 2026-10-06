@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"skillshare/internal/install"
 	"skillshare/internal/testutil"
 )
 
@@ -154,5 +155,42 @@ func TestUpdateTrackedRepo_PullErrorSuggestsForce(t *testing.T) {
 	got := f.s.updateSingle("_team", false, false)
 	if got.Action != "error" || !got.IsRepo || !strings.HasSuffix(got.Message, " (try force update)") {
 		t.Fatalf("got %+v, want pull error with force hint", got)
+	}
+}
+
+func TestUpdateTrackedRepo_UnreadableStatusIsError(t *testing.T) {
+	f := newTrackedUpdateFixture(t)
+	f.push(t, trackedCleanSkill+"More help.\n")
+	if err := os.WriteFile(filepath.Join(f.repo, ".git", "index"), []byte("garbage"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := f.s.updateSingle("_team", false, false)
+	if got.Action != "error" || !got.IsRepo || !strings.HasPrefix(got.Message, "failed to check git status: ") {
+		t.Fatalf("got %+v, want a git status error", got)
+	}
+	if f.head(t) != f.before {
+		t.Error("update ran despite an unreadable status")
+	}
+}
+
+// A tracked repo that is itself a skill has file hashes in metadata; the
+// dashboard refreshes them like the CLI does.
+func TestUpdateTrackedRepo_RefreshesRootSkillMetadata(t *testing.T) {
+	f := newTrackedUpdateFixture(t)
+	if err := os.WriteFile(filepath.Join(f.seed, "SKILL.md"), []byte("---\nname: team\n---\n# Root skill\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.push(t, trackedCleanSkill+"More help.\n")
+	f.s.skillsStore.Set("_team", &install.MetadataEntry{Tracked: true})
+	if err := f.s.skillsStore.Save(filepath.Dir(f.repo)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := f.s.updateSingle("_team", false, false); got.Action != "updated" {
+		t.Fatalf("got %+v, want updated", got)
+	}
+	if entry := f.s.skillsStore.GetByPath("_team"); entry == nil || entry.FileHashes["SKILL.md"] == "" {
+		t.Errorf("root skill hashes were not refreshed: %+v", entry)
 	}
 }

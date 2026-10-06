@@ -12,9 +12,9 @@ import (
 
 	"skillshare/internal/audit"
 	"skillshare/internal/config"
-	"skillshare/internal/git"
 	"skillshare/internal/install"
 	"skillshare/internal/sourcewalk"
+	"skillshare/internal/update"
 	"skillshare/internal/utils"
 )
 
@@ -185,7 +185,7 @@ func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) up
 		return updateResultItem{Name: name, Action: "error", Message: err.Error()}
 	}
 	if repoPath != "" {
-		return s.updateTrackedRepo(repoName, repoPath, force, skipAudit, walk.Follow)
+		return s.updateTrackedRepo(repoName, repoPath, s.cfg.EffectiveSkillsSource(), force, skipAudit, walk.Follow)
 	}
 
 	return updateResultItem{
@@ -208,7 +208,7 @@ func (s *Server) updateAgent(name string, force, skipAudit bool) updateResultIte
 
 	if localAgent.RepoRelPath != "" {
 		repoPath := filepath.Join(agentsSource, filepath.FromSlash(localAgent.RepoRelPath))
-		return s.updateTrackedRepo(agentMetaKey(localAgent.RelPath), repoPath, force, skipAudit)
+		return s.updateTrackedRepo(agentMetaKey(localAgent.RelPath), repoPath, "", force, skipAudit)
 	}
 
 	metaKey := agentMetaKey(localAgent.RelPath)
@@ -299,126 +299,84 @@ func (s *Server) updateAgent(name string, force, skipAudit bool) updateResultIte
 	}
 }
 
-func (s *Server) updateTrackedRepo(name, repoPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
+// updateTrackedRepo runs the shared tracked-repo update and reports it as a
+// result item. sourceDir is the source root whose metadata is refreshed; pass
+// "" for repos that have none there (agent repos).
+func (s *Server) updateTrackedRepo(name, repoPath, sourceDir string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
 	if refusal := s.refuseFollowedCheckout(name, repoPath, follow); refusal != nil {
 		return *refusal
 	}
-	// Check for uncommitted changes
-	if isDirty, _ := git.IsDirty(repoPath); isDirty {
+	// AcceptedFindings stays off: a dashboard force update is not remembered,
+	// and findings accepted from the CLI still block here.
+	opts := update.TrackedRepoOptions{
+		SourceDir: sourceDir,
+		Force:     force,
+		SkipAudit: skipAudit,
+		Threshold: s.updateAuditThreshold(),
+	}
+	if len(follow) > 0 {
+		opts.Follow = follow[0]
+	}
+	if s.IsProjectMode() {
+		opts.ProjectRoot = s.projectRoot
+	}
+	res, err := update.TrackedRepo(repoPath, opts)
+
+	item := updateResultItem{Name: name, IsRepo: true}
+	var blocked *install.AuditGateError
+	var opErr *update.Error
+	switch {
+	case errors.As(err, &blocked):
+		item.Action = "blocked"
+		item.Message = trackedBlockMessage(blocked)
+		return item
+	case errors.As(err, &opErr) && opErr.Stage == update.StagePull:
+		item.Action = "error"
+		item.Message = opErr.Err.Error()
 		if !force {
-			return updateResultItem{
-				Name:    name,
-				Action:  "skipped",
-				Message: "has uncommitted changes (use force to discard)",
-				IsRepo:  true,
-			}
+			item.Message += " (try force update)"
 		}
-		if err := git.Restore(repoPath); err != nil {
-			return updateResultItem{
-				Name:    name,
-				Action:  "error",
-				Message: "failed to discard changes: " + err.Error(),
-				IsRepo:  true,
-			}
-		}
+		return item
+	case err != nil:
+		item.Action = "error"
+		item.Message = err.Error()
+		return item
 	}
 
-	var info *git.UpdateInfo
-	var err error
-	if force {
-		info, err = git.ForcePullWithAuth(repoPath)
-	} else {
-		info, err = git.PullWithAuth(repoPath)
-	}
-	if err != nil {
-		msg := err.Error()
-		if !force {
-			msg += " (try force update)"
-		}
-		return updateResultItem{
-			Name:    name,
-			Action:  "error",
-			Message: msg,
-			IsRepo:  true,
+	if sourceDir != "" && res.Status != update.StatusDirty {
+		if st, loadErr := install.LoadMetadataWithMigration(sourceDir, ""); loadErr == nil && st != nil {
+			s.skillsStore = st
 		}
 	}
-
-	if info.UpToDate {
-		return updateResultItem{Name: name, Action: "up-to-date", IsRepo: true}
-	}
-
-	// Post-pull audit gate
-	item := updateResultItem{
-		Name:    name,
-		Action:  "updated",
-		Message: fmt.Sprintf("%d commits, %d files changed", len(info.Commits), info.Stats.FilesChanged),
-		IsRepo:  true,
-	}
-	if !skipAudit {
-		blocked, auditResult := s.auditGateTrackedRepo(name, repoPath, info.BeforeHash, force, s.updateAuditThreshold(), follow...)
-		if blocked != nil {
-			return *blocked
-		}
-		if auditResult != nil {
-			item.AuditRiskScore = auditResult.RiskScore
-			item.AuditRiskLabel = auditResult.RiskLabel
+	switch res.Status {
+	case update.StatusDirty:
+		item.Action = "skipped"
+		item.Message = "has uncommitted changes (use force to discard)"
+	case update.StatusUpToDate:
+		item.Action = "up-to-date"
+	default:
+		item.Action = "updated"
+		item.Message = fmt.Sprintf("%d commits, %d files changed", len(res.Info.Commits), res.Info.Stats.FilesChanged)
+		if res.Audit != nil {
+			item.AuditRiskScore = res.Audit.RiskScore
+			item.AuditRiskLabel = res.Audit.RiskLabel
 		}
 	}
-
 	return item
 }
 
-// auditGateTrackedRepo scans a tracked repo after pull and rolls back if findings are detected
-// at or above the active threshold.
-// Returns (blocked item, audit result). blocked is non-nil when the update should be rejected.
-func (s *Server) auditGateTrackedRepo(name, repoPath, beforeHash string, force bool, threshold string, follow ...*sourcewalk.Follow) (*updateResultItem, *audit.Result) {
-	var result *audit.Result
-	var err error
-	var policy *sourcewalk.Follow
-	if len(follow) > 0 {
-		policy = follow[0]
+// trackedBlockMessage words a blocked update for the dashboard, which offers
+// Force Retry only for messages containing "blocked by security audit".
+func trackedBlockMessage(e *install.AuditGateError) string {
+	switch {
+	case e.Rollback == install.RollbackUnavailable:
+		return "security audit failed (" + e.RollbackNote() + ")"
+	case e.ScanErr != nil:
+		return "security audit failed: " + e.ScanErr.Error() + " (" + e.RollbackNote() + ")"
+	case e.Rollback == install.RolledBack:
+		return fmt.Sprintf("blocked by security audit — findings at/above %s detected, rolled back", e.Threshold)
 	}
-	if s.IsProjectMode() {
-		result, err = audit.ScanSkillForProject(repoPath, s.projectRoot, policy)
-	} else {
-		result, err = audit.ScanSkillWithFollow(repoPath, policy)
-	}
-
-	if err != nil {
-		msg := "security audit failed: " + err.Error()
-		if beforeHash == "" {
-			msg += " (rollback commit unavailable, repository state is unknown)"
-		} else if resetErr := git.ResetHard(repoPath, beforeHash); resetErr != nil {
-			msg += " (WARNING: rollback also failed: " + resetErr.Error() + " — malicious content may remain)"
-		} else {
-			msg += " (rolled back)"
-		}
-		return &updateResultItem{
-			Name:    name,
-			Action:  "blocked",
-			Message: msg,
-			IsRepo:  true,
-		}, nil
-	}
-
-	if result.HasSeverityAtOrAbove(threshold) && !force {
-		msg := fmt.Sprintf("blocked by security audit — findings at/above %s detected", threshold)
-		if beforeHash == "" {
-			msg += " (rollback commit unavailable, repository state is unknown)"
-		} else if resetErr := git.ResetHard(repoPath, beforeHash); resetErr != nil {
-			msg += " (WARNING: rollback failed: " + resetErr.Error() + " — malicious content may remain)"
-		} else {
-			msg += ", rolled back"
-		}
-		return &updateResultItem{
-			Name:    name,
-			Action:  "blocked",
-			Message: msg,
-			IsRepo:  true,
-		}, result
-	}
-
-	return nil, result
+	return fmt.Sprintf("blocked by security audit — findings at/above %s detected (%s)", e.Threshold, e.RollbackNote())
 }
 
 func (s *Server) updateRegularSkill(name, skillPath string, force, skipAudit bool, follow ...*sourcewalk.Follow) updateResultItem {
@@ -488,7 +446,7 @@ func (s *Server) updateAll(force, skipAudit bool) []updateResultItem {
 	if err == nil {
 		for _, repo := range repos {
 			repoPath := filepath.Join(s.cfg.EffectiveSkillsSource(), repo)
-			results = append(results, s.updateTrackedRepo(repo, repoPath, force, skipAudit, walk.Follow))
+			results = append(results, s.updateTrackedRepo(repo, repoPath, s.cfg.EffectiveSkillsSource(), force, skipAudit, walk.Follow))
 		}
 	}
 
