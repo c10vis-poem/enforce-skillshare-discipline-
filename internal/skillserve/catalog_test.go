@@ -122,6 +122,22 @@ func TestBuild_SkipsParentOfExcludedNestedSkill(t *testing.T) {
 	}
 }
 
+// A parent and its nested skill list the same files under the same URIs; an
+// unchanged tree serves both.
+func TestBuild_ServesParentAndNestedSkillTogether(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "suite/SKILL.md"), skillMD("suite"))
+	writeFile(t, filepath.Join(src, "suite/child/SKILL.md"), skillMD("child"))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 2 {
+		t.Errorf("skills=%v warnings=%v, want suite and suite/child served", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsParentOfInvalidNestedSkill(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "suite/SKILL.md"), skillMD("suite"))

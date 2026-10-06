@@ -104,6 +104,14 @@ func (b *Builder) Build() (*Catalog, error) {
 		if j := slices.IndexFunc(unserved, func(o string) bool { return strings.HasPrefix(o, s.RelPath+"/") }); reason == "" && j >= 0 {
 			reason = fmt.Sprintf("contains %s, which is not served", unserved[j])
 		}
+		// A parent lists its nested skills' files under the same URIs. If one changed
+		// between the two reads, the entries disagree; serve the parent next refresh
+		// rather than overwrite what the nested skill advertises.
+		for uri, f := range files {
+			if old, ok := c.byFile[uri]; reason == "" && ok && old.digest != f.digest {
+				reason = "a nested skill changed while it was read; it is served after the next refresh"
+			}
+		}
 		if reason != "" {
 			c.Skipped = append(c.Skipped, Skip{Path: s.RelPath, Reason: reason})
 			unserved = append(unserved, s.RelPath)
