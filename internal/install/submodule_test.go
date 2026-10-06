@@ -112,6 +112,33 @@ func TestInstallTrackedRepo_RefusesSubmoduleSubdir(t *testing.T) {
 	}
 }
 
+func TestSubmoduleError_FailsClosedWhenTreeUnreadable(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	t.Setenv("GIT_CEILING_DIRECTORIES", os.TempDir()) // keep git from finding an enclosing repo
+	if err := submoduleError(t.TempDir(), "vendor/up", nil); err == nil {
+		t.Fatal("expected an error when the tree cannot be listed")
+	}
+}
+
+func TestInstallTrackedRepo_UpdateWarnsSkippedSubmodule(t *testing.T) {
+	hubURL, _ := newHubWithSubmodule(t)
+	sourceDir := t.TempDir()
+	source := &Source{Type: SourceTypeGitHTTPS, Raw: hubURL, CloneURL: hubURL, Name: "hub"}
+	if _, err := InstallTrackedRepo(source, sourceDir, InstallOptions{Name: "hub"}); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := InstallTrackedRepo(source, sourceDir, InstallOptions{Name: "hub", Update: true, SkipAudit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Action != "updated" || !strings.Contains(strings.Join(result.Warnings, "\n"), `skipped git submodule "vendor/up"`) {
+		t.Fatalf("expected an update with a submodule warning, got action %q warnings %q", result.Action, result.Warnings)
+	}
+}
+
 func TestGitlinkString_EscapesControlCharacters(t *testing.T) {
 	got := gitlink{Path: "vendor/\x1b]52;c;Zm9v\x07up\n✓ fake", Commit: "abc", URL: "https://example.com/\x1b[31mup.git"}.String()
 	if strings.ContainsAny(got, "\x1b\x07\n") {

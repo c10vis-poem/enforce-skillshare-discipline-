@@ -45,9 +45,9 @@ func displayURL(raw string) string {
 }
 
 // repoGitlinks lists the submodules recorded in HEAD of repoPath. extraEnv
-// authenticates the lazy .gitmodules fetch in a partial clone. Any git failure
-// returns nil: callers only use the result to explain an empty directory.
-func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
+// authenticates the lazy .gitmodules fetch in a partial clone. Only listing the
+// tree can fail; a missing or unreadable .gitmodules just leaves URLs empty.
+func repoGitlinks(repoPath string, extraEnv []string) ([]gitlink, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
 
@@ -55,7 +55,7 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 	cmd.Dir = repoPath
 	out, err := cmd.Output()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("list submodules: %w", err)
 	}
 	var links []gitlink
 	for _, entry := range strings.Split(string(out), "\x00") {
@@ -66,7 +66,7 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 		}
 	}
 	if len(links) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	cmd = gitCommand(ctx, "config", "-z", "--blob", "HEAD:.gitmodules", "--get-regexp", `^submodule\..*\.(path|url)$`)
@@ -74,7 +74,7 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 	cmd.Env = append(cmd.Env, extraEnv...)
 	out, err = cmd.Output()
 	if err != nil {
-		return links
+		return links, nil
 	}
 	paths, urls := map[string]string{}, map[string]string{}
 	for _, entry := range strings.Split(string(out), "\x00") {
@@ -92,7 +92,7 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 			}
 		}
 	}
-	return links
+	return links, nil
 }
 
 // submoduleError refuses a subdir that is a submodule or lies inside one,
@@ -103,7 +103,12 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 func submoduleError(repoPath, subdir string, extraEnv []string) error {
 	subdir = strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(subdir)), "/")
 	parts := strings.Split(subdir, "/")
-	for _, l := range repoGitlinks(repoPath, extraEnv) {
+	links, err := repoGitlinks(repoPath, extraEnv)
+	if err != nil {
+		// Fail closed: an unchecked path may be an empty submodule directory.
+		return fmt.Errorf("check %q for git submodules: %w", subdir, err)
+	}
+	for _, l := range links {
 		linkDir := filepath.Join(repoPath, filepath.FromSlash(l.Path))
 		for i := range parts {
 			ancestor := strings.Join(parts[:i+1], "/")
@@ -121,10 +126,12 @@ func sameDir(a, b string) bool {
 	return errA == nil && errB == nil && os.SameFile(ai, bi)
 }
 
-// submoduleWarnings names each submodule whose contents a whole-repo install skips.
+// submoduleWarnings names each submodule whose contents a whole-repo install
+// skips. It is best effort: a failed listing only loses the warnings.
 func submoduleWarnings(repoPath string, extraEnv []string) []string {
+	links, _ := repoGitlinks(repoPath, extraEnv)
 	var warnings []string
-	for _, l := range repoGitlinks(repoPath, extraEnv) {
+	for _, l := range links {
 		warnings = append(warnings, fmt.Sprintf("skipped git submodule %s: skillshare does not fetch submodules", l))
 	}
 	return warnings
