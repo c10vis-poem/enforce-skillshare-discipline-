@@ -54,6 +54,7 @@ $_skillshareCompleter = {
             @{ Name = 'list'; Desc = 'MCP list' }
             @{ Name = 'remove'; Desc = 'MCP remove' }
             @{ Name = 'restore'; Desc = 'MCP restore' }
+            @{ Name = 'serve'; Desc = 'MCP serve' }
         )
         'hooks' = @(
             @{ Name = 'add'; Desc = 'Hooks add' }
@@ -207,7 +208,7 @@ $_skillshareCompleter = {
         'enable' = '--dry-run', '-n', '--kind', '--help', '-h', '--project', '-p', '--global', '-g'
         'disable' = '--dry-run', '-n', '--kind', '--help', '-h', '--project', '-p', '--global', '-g'
         'analyze' = '--verbose', '-v', '--filter', '--no-tui', '--json', '--help', '-h', '--project', '-p', '--global', '-g'
-        'mcp' = '--tools-allow', '--tools-deny', '--pi-options', '--target', '--from', '--url', '--file', '--sync', '--replace', '--disabled', '--keep-files', '--revision', '--dry-run', '-n', '--json', '--no-dns', '--live', '--timeout', '--no-tui', '--help', '-h', '--project', '-p', '--global', '-g'
+        'mcp' = '--tools-allow', '--tools-deny', '--pi-options', '--target', '--from', '--url', '--file', '--sync', '--replace', '--disabled', '--keep-files', '--revision', '--dry-run', '-n', '--json', '--no-dns', '--live', '--timeout', '--http', '--check', '--no-tui', '--help', '-h', '--project', '-p', '--global', '-g'
         'plugin' = '--target', '--from', '--plugin', '--name', '--source-ref', '--entry', '--revision', '--dry-run', '-n', '--json', '--no-tui', '--help', '-h', '--project', '-p', '--global', '-g'
         'extras memory' = '--from', '--version', '--search', '--update-mode', '--json', '--help', '-h', '--project', '-p', '--global', '-g'
         'extras' = '--mode', '--target', '--source', '--file', '--as', '--flatten', '--no-flatten', '--add-target', '--remove-target', '--prune', '--from', '--dry-run', '--force', '-f', '--json', '--no-tui', '--help', '-h', '--project', '-p', '--global', '-g'

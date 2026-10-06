@@ -70,11 +70,11 @@ func TestCompletion_MCPCheck_AllShells(t *testing.T) {
 	defer sb.Cleanup()
 
 	for shell, subcommands := range map[string]string{
-		"bash":       "add check edit import list remove restore",
-		"zsh":        "(add check edit import list remove restore)",
-		"fish":       "-a 'add check edit import list remove restore'",
-		"powershell": "@{ Name = 'edit'; Desc = 'MCP edit' }",
-		"nushell":    "[add check edit import list remove restore]",
+		"bash":       "add check edit import list remove restore serve",
+		"zsh":        "(add check edit import list remove restore serve)",
+		"fish":       "-a 'add check edit import list remove restore serve'",
+		"powershell": "@{ Name = 'serve'; Desc = 'MCP serve' }",
+		"nushell":    "[add check edit import list remove restore serve]",
 	} {
 		result := sb.RunCLI("completion", shell)
 		result.AssertSuccess(t)

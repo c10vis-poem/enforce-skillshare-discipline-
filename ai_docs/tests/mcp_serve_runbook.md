@@ -1,0 +1,178 @@
+# CLI E2E Runbook: `skillshare mcp serve`
+
+Validates the read-only SEP-2640 skills server over stdio and Streamable HTTP.
+
+**Origin**: issue #428 — Agents that only reach an MCP endpoint need the skills Skillshare manages.
+
+## Scope
+
+- `server/discover` declares `resources` and the `io.modelcontextprotocol/skills` extension
+- `skills/list` returns one entry per valid, enabled skill with frontmatter and a complete sha256 manifest
+- A skill whose `name` differs from its directory is skipped with a stderr warning; a disabled skill is not served
+- `--check` lists skipped skills and the served count without serving
+- `--target` applies that target's `exclude` filter
+- `resources/read` returns a listed file and rejects a URI that escapes the skill
+- Over HTTP: bearer token required, a newly added skill appears without a restart
+- A non-loopback `--http` address without `SKILLSHARE_MCP_TOKEN` is refused
+
+## Environment
+
+Run inside the devcontainer with a fresh ssenv HOME:
+
+```bash
+ssenv create mcp-serve-e2e --init
+ssenv enter mcp-serve-e2e -- mdproof --report json /workspace/ai_docs/tests/mcp_serve_runbook.md
+```
+
+Every step works from `$HOME` and points `SKILLSHARE_CONFIG` at `$HOME/mcp-serve/config.yaml`.
+The server drops requests still in flight when stdin closes, so stdio steps keep stdin open
+with `sleep 1`. Step 6 listens on port 47941; pick another free port if it is taken.
+
+## Steps
+
+### Step 1: Discover and list over stdio
+
+```bash
+set -eu
+cd "$HOME"
+CASE="$HOME/mcp-serve"
+rm -rf "$CASE"
+mkdir -p "$CASE/skills"
+export SKILLSHARE_CONFIG="$CASE/config.yaml"
+cat > "$SKILLSHARE_CONFIG" <<YAML
+source: $CASE/skills
+targets:
+  claude:
+    skills:
+      path: $CASE/claude-skills
+      exclude: [notes]
+YAML
+for n in pdf notes off; do
+  mkdir -p "$CASE/skills/$n"
+  printf -- '---\nname: %s\ndescription: Use when testing %s\n---\n# %s\n' "$n" "$n" "$n" > "$CASE/skills/$n/SKILL.md"
+done
+mkdir -p "$CASE/skills/pdf/references" "$CASE/skills/renamed"
+echo forms > "$CASE/skills/pdf/references/FORMS.md"
+printf -- '---\nname: original\ndescription: Use when testing\n---\n# Renamed\n' > "$CASE/skills/renamed/SKILL.md"
+echo off > "$CASE/skills/.skillignore"
+M='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"e2e","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}'
+{ printf '%s\n' "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{$M}}" "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"skills/list\",\"params\":{$M}}"; sleep 1; } \
+  | ss mcp serve -g 2>"$CASE/stderr" | jq -sc 'map({(.id|tostring): .result}) | add'
+```
+
+Expected:
+- exit_code: 0
+- jq: .["1"].capabilities.extensions | has("io.modelcontextprotocol/skills")
+- jq: .["1"].capabilities.resources == {}
+- jq: [.["2"].skills[].uri] == ["skill://notes/SKILL.md", "skill://pdf/SKILL.md"]
+- jq: .["2"].resultType == "complete"
+- jq: (.["2"].skills[] | select(.uri == "skill://pdf/SKILL.md") | [.resources[].uri] | sort) == ["skill://pdf/SKILL.md", "skill://pdf/references/FORMS.md"]
+- jq: [.["2"].skills[].resources[].digest | test("^sha256:[0-9a-f]{64}$")] | all
+
+### Step 2: The renamed skill is reported on stderr
+
+```bash
+cat "$HOME/mcp-serve/stderr"
+```
+
+Expected:
+- exit_code: 0
+- skipped renamed: SKILL.md name "original" does not match directory name "renamed"
+
+### Step 3: `--check` lists the skipped skill without serving
+
+```bash
+cd "$HOME"
+export SKILLSHARE_CONFIG="$HOME/mcp-serve/config.yaml"
+NO_COLOR=1 ss mcp serve --check -g < /dev/null
+```
+
+Expected:
+- exit_code: 0
+- SKILL.md name "original" does not match directory name "renamed"
+- 2 skills served, 1 skipped
+
+### Step 4: `--target` applies the target's exclude filter
+
+```bash
+set -eu
+cd "$HOME"
+export SKILLSHARE_CONFIG="$HOME/mcp-serve/config.yaml"
+M='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"e2e","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}'
+{ printf '%s\n' "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"skills/list\",\"params\":{$M}}"; sleep 1; } \
+  | ss mcp serve -g --target claude 2>/dev/null | jq -c .result
+```
+
+Expected:
+- exit_code: 0
+- jq: [.skills[].uri] == ["skill://pdf/SKILL.md"]
+
+### Step 5: Read a listed file; reject an escaping URI
+
+```bash
+set -eu
+cd "$HOME"
+export SKILLSHARE_CONFIG="$HOME/mcp-serve/config.yaml"
+M='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"e2e","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}'
+{ printf '%s\n' \
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"resources/read\",\"params\":{$M,\"uri\":\"skill://pdf/references/FORMS.md\"}}" \
+    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/read\",\"params\":{$M,\"uri\":\"skill://pdf/%2e%2e/notes/SKILL.md\"}}"; sleep 1; } \
+  | ss mcp serve -g 2>/dev/null | jq -sc 'map({(.id|tostring): .}) | add'
+```
+
+Expected:
+- exit_code: 0
+- jq: .["1"].result.contents[0].text == "forms\n"
+- jq: .["2"].error.code == -32602
+
+### Step 6: HTTP needs the token and picks up a new skill without a restart
+
+```bash
+set -eu
+cd "$HOME"
+CASE="$HOME/mcp-serve"
+export SKILLSHARE_CONFIG="$CASE/config.yaml"
+export SKILLSHARE_MCP_TOKEN=e2e-token
+ss mcp serve -g --http 127.0.0.1:47941 2>/dev/null &
+PID=$!
+trap 'kill $PID 2>/dev/null || true' EXIT
+for _ in 1 2 3 4 5 6 7 8 9 10; do curl -s -o /dev/null http://127.0.0.1:47941/ && break; sleep 0.5; done
+M='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"e2e","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}'
+list() {
+  curl -s -X POST http://127.0.0.1:47941/ -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -H 'MCP-Protocol-Version: 2026-07-28' \
+    -H 'Mcp-Method: skills/list' "$@" \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"skills/list\",\"params\":{$M}}"
+}
+UNAUTH=$(list -o /dev/null -w '%{http_code}')
+BEFORE=$(list -H "Authorization: Bearer $SKILLSHARE_MCP_TOKEN" | sed -n 's/^data: //p' | jq '.result.skills | length')
+mkdir -p "$CASE/skills/late"
+printf -- '---\nname: late\ndescription: Use when testing late\n---\n# late\n' > "$CASE/skills/late/SKILL.md"
+sleep 6
+AFTER=$(list -H "Authorization: Bearer $SKILLSHARE_MCP_TOKEN" | sed -n 's/^data: //p' | jq '.result.skills | length')
+jq -nc --arg u "$UNAUTH" --argjson b "$BEFORE" --argjson a "$AFTER" '{unauth: $u, before: $b, after: $a}'
+```
+
+Expected:
+- exit_code: 0
+- jq: .unauth == "401"
+- jq: .before == 2
+- jq: .after == 3
+
+### Step 7: A network listener without a token is refused
+
+```bash
+cd "$HOME"
+export SKILLSHARE_CONFIG="$HOME/mcp-serve/config.yaml"
+unset SKILLSHARE_MCP_TOKEN
+ss mcp serve -g --http 0.0.0.0:47942
+```
+
+Expected:
+- exit_code: 1
+- SKILLSHARE_MCP_TOKEN
+
+## Pass Criteria
+
+- All steps marked PASS
+- No `ss mcp serve` process remains after Step 6

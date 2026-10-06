@@ -211,6 +211,19 @@ func extractFrontmatterRaw(filePath string) string {
 	return strings.Join(lines, "\n")
 }
 
+// ParseFrontmatterMap returns the complete YAML frontmatter of SKILL.md content.
+func ParseFrontmatterMap(content []byte) (map[string]any, error) {
+	raw := extractFrontmatterRawFromBytes(content)
+	if raw == "" {
+		return nil, fmt.Errorf("no frontmatter")
+	}
+	var fm map[string]any
+	if err := yaml.Unmarshal([]byte(raw), &fm); err != nil {
+		return nil, fmt.Errorf("invalid frontmatter: %w", err)
+	}
+	return fm, nil
+}
+
 // ParseFrontmatterFields reads a SKILL.md file once and returns the values of
 // multiple frontmatter fields. This avoids opening the same file repeatedly
 // when multiple fields are needed (e.g. description + license).

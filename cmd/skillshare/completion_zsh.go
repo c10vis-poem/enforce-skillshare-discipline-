@@ -96,7 +96,7 @@ _skillshare() {
                     ;;
                 mcp)
                     _arguments \
-                        '1:command:(add check edit import list remove restore)' \
+                        '1:command:(add check edit import list remove restore serve)' \
                         '--tools-allow[Only these tools, comma-separated, * matches any characters; empty clears]:tools:' \
                         '--tools-deny[Never these tools, comma-separated, * matches any characters; empty clears]:tools:' \
                         '--pi-options[Other Pi built-in per-server fields as JSON]:json:' \
@@ -115,6 +115,8 @@ _skillshare() {
                         '--no-dns[Skip host lookups]' \
                         '--live[check: start or call each server]' \
                         '--timeout[check --live: per-server timeout]:duration:' \
+                        '--http[serve: Streamable HTTP listen address]:address:' \
+                        '--check[serve: list skipped skills without serving]' \
                         '--no-tui[Disable interactive menus]' \
                         $global_flags \
                         '--help[Show help]' \

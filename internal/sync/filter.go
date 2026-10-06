@@ -194,6 +194,18 @@ func suggestFlatNames(pattern string, skills []DiscoveredSkill) []string {
 	return names
 }
 
+// SelectTargetSkills returns the source skills a target receives: enabled
+// skills that pass its include/exclude filters and whose frontmatter targets
+// name it or declare none.
+func SelectTargetSkills(skills []DiscoveredSkill, targetName string, sc config.ResourceTargetConfig) ([]DiscoveredSkill, error) {
+	enabled := slices.DeleteFunc(slices.Clone(skills), func(s DiscoveredSkill) bool { return s.Disabled })
+	filtered, err := FilterSkills(enabled, sc.Include, sc.Exclude)
+	if err != nil {
+		return nil, err
+	}
+	return FilterSkillsByTarget(filtered, targetName), nil
+}
+
 // FilterSkillsByTarget removes skills whose Targets field does not include
 // the given target name.  Skills with nil Targets (no field declared) pass
 // through unconditionally.
