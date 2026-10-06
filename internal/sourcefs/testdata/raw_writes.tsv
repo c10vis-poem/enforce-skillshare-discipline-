@@ -84,6 +84,10 @@ internal/backup/cleanup.go	cleanEmptyDirs	os.Remove	subPath	backup
 internal/backup/delete.go	DeleteInDir	os.RemoveAll	path	backup
 internal/backup/restore.go	RestoreToPath	os.Remove	destPath	target
 internal/backup/restore.go	RestoreToPath	os.RemoveAll	destPath	target
+internal/check/checktest/fixture.go	Seed	os.WriteFile	filepath.Join(seed, "skills", "changed", "SKILL.md")	test-helper
+internal/check/checktest/fixture.go	Seed	os.RemoveAll	filepath.Join(seed, "skills", "doomed")	test-helper
+internal/check/checktest/fixture.go	Seed	os.MkdirAll	dir	test-helper
+internal/check/checktest/fixture.go	Seed	os.WriteFile	filepath.Join(dir, "SKILL.md")	test-helper
 internal/check/tree_check.go	FetchRemoteTreeHashesForRef	os.MkdirTemp	""	tmp
 internal/check/tree_check.go	FetchRemoteTreeHashesForRef	os.RemoveAll	tmpDir	tmp
 internal/config/config.go	(*Config).Save	os.MkdirAll	dir	config
