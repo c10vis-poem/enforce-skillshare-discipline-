@@ -243,7 +243,7 @@ func putBackExtraRestorePoint(path string) error {
 	case fileExists(filepath.Join(dir, attachRestoreJunction)):
 		dest, err := os.ReadFile(filepath.Join(dir, attachRestoreJunction))
 		if err == nil {
-			err = createJunction(path, string(dest))
+			err = utils.CreateJunction(path, string(dest))
 		}
 		if err != nil {
 			return fmt.Errorf("failed to restore %s: %w", path, err)
