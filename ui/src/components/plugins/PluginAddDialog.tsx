@@ -3,6 +3,7 @@ import { pluginsApi, targetMap, type PluginBinding, type PluginDiscovery, type P
 import { Check, ChevronDown, ChevronRight, Search, X } from 'lucide-react';
 import AgentIcon from '../AgentIcon';
 import { agentReasons } from './agentReasons';
+import { keyedText } from './outcomeText';
 import SourceHint from './SourceHint';
 import { pluginErrorMessage } from './pluginError';
 import PluginDocsLink from './PluginDocsLink';
@@ -165,7 +166,7 @@ export default function PluginAddDialog({ onClose, onPreview, initialSource = ''
                     <span className={`ss-chk rad self-start mt-0.5 ${name === c.name ? 'on' : ''}`} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex items-center gap-2"><span className="font-mono font-semibold">{c.name}</span>{c.version && <span className="ss-tag">{c.version}</span>}</span>
-                      {(c.problem || c.description) && <span className={`text-[13px] ${c.problem ? 'text-bad' : 'text-ink-2'}`}>{c.problemKey ? t(c.problemKey, c.problemArgs, c.problem) : c.problem || c.description}</span>}
+                      {(c.problem || c.description) && <span className={`text-[13px] ${c.problem ? 'text-bad' : 'text-ink-2'}`}>{keyedText(t, c.problemKey, c.problem, c.problemArgs) || c.description}</span>}
                       {c.components.length > 0 && <span className="text-xs text-ink-3">{c.components.join(' · ')}</span>}
                     </span>
                     <span className="ss-stack" aria-hidden="true">{c.targets.map((target) => <span key={target} className="ss-at"><AgentIcon target={target} size={13} /></span>)}</span>

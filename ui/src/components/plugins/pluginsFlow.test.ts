@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pluginsApi, type PluginInventory, type PluginPlan } from '../../api/plugins';
-import { changedRuns, failureText, isPiPackage, reviewChanges, syncTodo, updatesFound, updatesLeft, usePluginsFlow } from './pluginsFlow';
+import { changedRuns, failureText, piPackageTest, reviewChanges, syncTodo, updatesFound, updatesLeft, usePluginsFlow } from './pluginsFlow';
 
 vi.mock('../../api/plugins', async (importOriginal) => ({ ...await importOriginal<typeof import('../../api/plugins')>(), pluginsApi: { preview: vi.fn(), apply: vi.fn() } }));
 
@@ -167,7 +167,7 @@ describe('plugins flow rules', () => {
     expect(syncTodo(undefined)).toEqual([]);
   });
   it('calls a package Pi installs itself, bound only to Pi targets, a Pi package', () => {
-    expect(['demo', 'driver', 'powers', 'unbound', 'gone'].filter((name) => isPiPackage(inventory, name))).toEqual(['driver']);
+    expect(['demo', 'driver', 'powers', 'unbound', 'gone'].filter(piPackageTest(inventory))).toEqual(['driver']);
   });
   it('splits a preview into what it changes and what it leaves alone, with the version each has', () => {
     const { active, idle } = reviewChanges(plan('r', { action: 'update' }, { action: 'noop' }, { name: 'driver', target: 'omo', action: 'noop', binding: { id: 'npm:@scope/driver', version: '3.0.0' } }), inventory);

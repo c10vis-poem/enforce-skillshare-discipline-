@@ -46,13 +46,15 @@ export function syncTodo(inventory?: PluginInventory) {
  * A package Pi installs itself (no source Skillshare copies from) and bound only to Pi targets
  * is a Pi package: it gets its own list, in the same rows. A plugin Skillshare installs stays above.
  */
-export function isPiPackage(inventory: PluginInventory | undefined, name: string) {
-  // A run can name a package config no longer has, such as one it just removed.
-  const pack = inventory?.packages[name];
-  if (!pack) return false;
+export function piPackageTest(inventory: PluginInventory | undefined) {
   const piTargets = new Set((inventory?.targetDefinitions ?? []).filter((d) => d.npm).map((d) => d.target));
-  const bound = Object.entries(pack.bindings);
-  return !pack.source && bound.length > 0 && bound.every(([target, b]) => piTargets.has(target) && !b?.source);
+  return (name: string) => {
+    // A run can name a package config no longer has, such as one it just removed.
+    const pack = inventory?.packages[name];
+    if (!pack) return false;
+    const bound = Object.entries(pack.bindings);
+    return !pack.source && bound.length > 0 && bound.every(([target, b]) => piTargets.has(target) && !b?.source);
+  };
 }
 
 export function installedVersion(inventory: PluginInventory | undefined, name: string, target: string) {
@@ -140,6 +142,6 @@ export function usePluginsFlow({ t, inventory, refresh, onPreviewed }: {
     todo: syncTodo(inventory),
     ...reviewChanges(review?.plan, inventory),
     changed: changedRuns(t, outcomes),
-    isPi: (name: string) => isPiPackage(inventory, name),
+    isPi: piPackageTest(inventory),
   };
 }
