@@ -14,11 +14,12 @@ import (
 	"skillshare/internal/utils"
 )
 
-// Per-skill limits from SEP-2640, and the Agent Skills description limit.
+// Per-skill limits from SEP-2640, and the Agent Skills field limits in characters.
 const (
-	MaxFiles       = 512
-	MaxBytes       = 16 << 20
-	MaxDescription = 1024
+	MaxFiles         = 512
+	MaxBytes         = 16 << 20
+	MaxDescription   = 1024
+	MaxCompatibility = 500
 )
 
 // File is one regular file of a package.
@@ -58,6 +59,12 @@ func Load(dir string) (*Package, error) {
 	}
 	if n := utf8.RuneCountInString(desc); n > MaxDescription {
 		return nil, fmt.Errorf("description has %d characters; the limit is %d", n, MaxDescription)
+	}
+	// metadata is left unchecked: the format wants string values, but lists there are
+	// common and tool clients read them fine, so skipping those skills would cost more.
+	compat, _ := fm["compatibility"].(string)
+	if n := utf8.RuneCountInString(compat); n > MaxCompatibility {
+		return nil, fmt.Errorf("compatibility has %d characters; the limit is %d", n, MaxCompatibility)
 	}
 
 	p := &Package{Dir: dir, Frontmatter: fm}

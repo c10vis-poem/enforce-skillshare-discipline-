@@ -803,7 +803,8 @@ skill approval does not apply.
 - **Skipped skills.** A skill is skipped, with a warning on stderr, when its `SKILL.md`
   does not begin with its frontmatter, when its `name` breaks the Agent Skills naming
   rules or differs from its directory name (for example after `install --name`), when
-  its description is missing or over 1,024 characters, when it has more than 512 files
+  its description is missing or over 1,024 characters or its `compatibility` over 500,
+  when it has more than 512 files
   or 16 MiB, or when it contains a nested skill that is not served.
   `skillshare mcp serve --check` lists those skills and their reasons, with the same
   selection flags, and exits without serving.
