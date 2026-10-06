@@ -24,6 +24,9 @@ const extensionID = "io.modelcontextprotocol/skills"
 
 var errNotFound = errors.New("not found")
 
+// afterDiscover runs between discovery and the loads; tests change the tree there.
+var afterDiscover = func() {}
+
 // File is one manifest entry of a skill.
 type File struct {
 	URI    string `json:"uri"`
@@ -75,6 +78,31 @@ func (b *Builder) Build() (*Catalog, error) {
 	if err != nil {
 		return nil, err
 	}
+	afterDiscover()
+	// Discovery and the loads read the tree separately. A skill added, removed or
+	// toggled in between would leave a parent publishing the files of a skill the
+	// catalog does not list, so build again until discovery agrees with the loads.
+	for range 3 {
+		c, err := b.build(all)
+		if err != nil {
+			return nil, err
+		}
+		again, err := ssync.DiscoverSourceSkillsAll(b.Source, b.Walk)
+		if err != nil {
+			return nil, err
+		}
+		if slices.EqualFunc(all, again, func(x, y ssync.DiscoveredSkill) bool {
+			return x.RelPath == y.RelPath && x.Disabled == y.Disabled
+		}) {
+			return c, nil
+		}
+		all = again
+	}
+	return nil, errors.New("the skills source kept changing while it was read; list the skills again")
+}
+
+func (b *Builder) build(all []ssync.DiscoveredSkill) (*Catalog, error) {
+	var err error
 	var selected []ssync.DiscoveredSkill
 	if b.Skills != nil {
 		if selected, err = ssync.SelectTargetSkills(all, b.Target, *b.Skills); err != nil {

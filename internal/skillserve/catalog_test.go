@@ -138,6 +138,23 @@ func TestBuild_ServesParentAndNestedSkillTogether(t *testing.T) {
 	}
 }
 
+// A nested skill created after discovery would otherwise be published only as a
+// file of its parent.
+func TestBuild_ListsNestedSkillCreatedDuringTheBuild(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "suite/SKILL.md"), skillMD("suite"))
+	afterDiscover = func() { writeFile(t, filepath.Join(src, "suite/child/SKILL.md"), skillMD("child")) }
+	t.Cleanup(func() { afterDiscover = func() {} })
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 2 {
+		t.Errorf("skills=%v warnings=%v, want suite and suite/child served", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsParentOfInvalidNestedSkill(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "suite/SKILL.md"), skillMD("suite"))
