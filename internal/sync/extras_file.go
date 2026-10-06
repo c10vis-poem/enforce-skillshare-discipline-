@@ -210,6 +210,15 @@ func syncExtraFileReplace(f ExtraFile, dryRun bool, projectRoot string) (*ExtraR
 			// target later has nothing else to put back once the link is
 			// removed. Once attached, a differing file is an edit; keep it as
 			// a drift backup so the restore point stays the pre-attach state.
+			// A file a block created is the user's once they wrote lines
+			// outside the block: record those lines, not "no file".
+			if attached && extraCreated(f.Target) {
+				if data, err := os.ReadFile(f.Target); err == nil {
+					if rest, ok := f.removeContentBlock(string(data)); ok && strings.TrimSpace(rest) != "" {
+						attached = false
+					}
+				}
+			}
 			if !attached {
 				if err := recordExtraRestorePoint(f); err != nil {
 					return nil, err

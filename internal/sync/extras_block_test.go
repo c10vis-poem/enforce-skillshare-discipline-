@@ -427,6 +427,40 @@ func TestSyncExtraFile_SiblingPrependBlocksKeepTheirOrder(t *testing.T) {
 	}
 }
 
+func TestSyncExtraFile_SourceWithMarkerLineIsRefused(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "before\n"+contentBlockEnd+"\nafter\n")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend"), false, ""); err == nil || !strings.Contains(err.Error(), "marker") {
+		t.Fatalf("err = %v, want a marker-line refusal", err)
+	}
+	if got := readFile(t, target); got != "# Mine\n" {
+		t.Fatalf("a refused sync must leave the file alone:\n%s", got)
+	}
+}
+
+// A file a block created, with the user's lines added outside it, switched
+// to symlink: restoring the link later puts those lines back.
+func TestSyncExtraFile_CreatedBlockFileWithUserLinesSurvivesLinkRestore(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(target, []byte(readFile(t, target)+"\n# Mine\n"), 0644)
+
+	linked := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "symlink")
+	if _, err := SyncExtraFile(linked, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RestoreExtraTarget(linked); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, target); strings.TrimSpace(got) != "# Mine" {
+		t.Fatalf("restored =\n%s\nwant the user's lines", got)
+	}
+}
+
 func TestSyncExtraFile_ChangingPrependToAppendMovesTheBlock(t *testing.T) {
 	src, tgt := setupExtraFileTest(t, "rule")
 	target := filepath.Join(tgt, "CLAUDE.md")

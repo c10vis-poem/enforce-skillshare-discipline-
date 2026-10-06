@@ -296,6 +296,11 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 		next := append(append(append([]string{}, lines[:found.start]...), block...), lines[found.end+1:]...)
 		updated = strings.Join(next, "\n")
 	}
+	// Read the result back: a source line that reads as a marker would end the
+	// block early and leave the file damaged for every later sync.
+	if back, err := f.findContentBlock(strings.Split(updated, "\n")); err != nil || back == nil || back.body != body {
+		return nil, fmt.Errorf("%s has lines that read as skillshare block markers; change them before syncing it as a block", f.Source)
+	}
 	if dryRun {
 		return result, nil
 	}
