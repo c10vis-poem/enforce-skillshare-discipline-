@@ -4,6 +4,7 @@
 package skillpkg
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -26,20 +27,24 @@ const (
 	MaxCompatibility = 500
 )
 
-// File is one regular file of a package.
+// File is one regular file of a package. Digest and Size come from one read, so
+// they describe the same bytes even when the file changes while it is loaded.
 type File struct {
-	Path string // absolute
-	Rel  string // slash-separated, relative to the package directory
-	Size int64
+	Path   string // absolute
+	Rel    string // slash-separated, relative to the package directory
+	Digest string // sha256:<hex>
+	Size   int64
 }
 
-// Package is a valid skill directory.
+// Package is a valid skill directory. Its SKILL.md entry is the read the
+// frontmatter was parsed from.
 type Package struct {
 	Dir         string // resolved
 	Frontmatter map[string]any
-	SkillMD     []byte // the bytes Frontmatter was parsed from
 	Files       []File
 }
+
+var errTooLarge = fmt.Errorf("is larger than %d MiB", MaxBytes>>20)
 
 // Load reads the skill in dir. The error says why the directory is not a
 // valid package. .git directories are left out; links are neither listed nor read.
@@ -47,15 +52,15 @@ func Load(dir string) (*Package, error) {
 	dirName := filepath.Base(filepath.Clean(dir)) // a followed link's name, not its target's
 	dir = utils.ResolveSymlink(dir)
 	// A linked SKILL.md would be missing from the manifest, which lists no links.
-	info, err := os.Lstat(filepath.Join(dir, "SKILL.md"))
+	skillPath := filepath.Join(dir, "SKILL.md")
+	info, err := os.Lstat(skillPath)
 	if err != nil {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("SKILL.md is not a regular file")
 	}
-	// The read itself is bounded: the file can grow after the Lstat.
-	content, err := readAtMost(filepath.Join(dir, "SKILL.md"), MaxBytes)
+	content, err := readAtMost(skillPath, MaxBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +89,10 @@ func Load(dir string) (*Package, error) {
 		return nil, fmt.Errorf("compatibility has %d characters; the limit is %d", n, MaxCompatibility)
 	}
 
-	p := &Package{Dir: dir, Frontmatter: fm, SkillMD: content}
-	var total int64
+	p := &Package{Dir: dir, Frontmatter: fm, Files: []File{{Path: skillPath, Rel: "SKILL.md", Digest: Digest(content), Size: int64(len(content))}}}
+	// Every read is bounded by what is left of the package budget, so a file that
+	// grows while it is read cannot push the package past the limit.
+	left := MaxBytes - int64(len(content))
 	err = sourcewalk.Walk(dir, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -99,17 +106,19 @@ func Load(dir string) (*Package, error) {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil || rel == "SKILL.md" { // SKILL.md is listed from the read above
+			return err
+		}
 		if len(p.Files) == MaxFiles {
 			return fmt.Errorf("has more than %d files", MaxFiles)
 		}
-		if total += info.Size(); total > MaxBytes {
-			return fmt.Errorf("is larger than 16 MiB")
-		}
-		rel, err := filepath.Rel(dir, path)
+		sum, n, err := hashAtMost(path, left)
 		if err != nil {
 			return err
 		}
-		p.Files = append(p.Files, File{Path: path, Rel: filepath.ToSlash(rel), Size: info.Size()})
+		left -= n
+		p.Files = append(p.Files, File{Path: path, Rel: filepath.ToSlash(rel), Digest: sum, Size: n})
 		return nil
 	})
 	if err != nil {
@@ -118,7 +127,10 @@ func Load(dir string) (*Package, error) {
 	return p, nil
 }
 
-// readAtMost reads the file, failing once it holds more than limit bytes.
+// Digest is the manifest digest of b.
+func Digest(b []byte) string { return fmt.Sprintf("sha256:%x", sha256.Sum256(b)) }
+
+// readAtMost reads the file, failing past limit bytes.
 func readAtMost(path string, limit int64) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -130,9 +142,27 @@ func readAtMost(path string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("SKILL.md is over %d MiB", limit>>20)
+		return nil, errTooLarge
 	}
 	return data, nil
+}
+
+// hashAtMost streams the file into its digest and size, failing past limit bytes.
+func hashAtMost(path string, limit int64) (string, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, limit+1))
+	if err != nil {
+		return "", 0, err
+	}
+	if n > limit {
+		return "", 0, errTooLarge
+	}
+	return fmt.Sprintf("sha256:%x", h.Sum(nil)), n, nil
 }
 
 // ValidateName returns why a SKILL.md name breaks the Agent Skills naming rules

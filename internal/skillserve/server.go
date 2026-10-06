@@ -9,7 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"path"
-	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -159,12 +159,7 @@ func (s *service) list(_ context.Context, _ *mcp.ServerSession, p *listSkillsPar
 		if !strings.HasPrefix(p.Cursor, "skill://") {
 			return nil, invalidParams("invalid cursor")
 		}
-		start, _ = slices.BinarySearchFunc(c.Skills, p.Cursor, func(s *Skill, uri string) int {
-			if s.URI <= uri {
-				return -1
-			}
-			return 1
-		})
+		start = sort.Search(len(c.Skills), func(i int) bool { return c.Skills[i].URI > p.Cursor })
 	}
 	end := min(start+pageSize, len(c.Skills))
 	res := &listSkillsResult{Cacheable: s.cacheable(), ResultType: "complete", Skills: c.Skills[start:end]}

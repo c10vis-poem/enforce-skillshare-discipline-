@@ -4,7 +4,6 @@
 package skillserve
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -96,45 +95,32 @@ func (b *Builder) Build() (*Catalog, error) {
 	}
 	slices.SortFunc(selected, func(x, y ssync.DiscoveredSkill) int { return strings.Compare(x.RelPath, y.RelPath) })
 
-	type loaded struct {
-		skill  *Skill
-		files  map[string]servedFile
-		reason string
-	}
-	loads := make([]loaded, len(selected))
-	for i, s := range selected {
-		loads[i].skill, loads[i].files, loads[i].reason = load(s)
-	}
 	// Deepest first, so a nested skill skipped for any reason also skips its parents,
 	// which would otherwise publish its files as their own.
-	for i := len(loads) - 1; i >= 0; i-- {
-		for _, o := range unserved {
-			if loads[i].reason == "" && strings.HasPrefix(o, selected[i].RelPath+"/") {
-				loads[i].reason = fmt.Sprintf("contains %s, which is not served", o)
-			}
-		}
-		if loads[i].reason != "" {
-			unserved = append(unserved, selected[i].RelPath)
-		}
-	}
-
 	c := &Catalog{bySkill: map[string]*Skill{}, byFile: map[string]servedFile{}}
-	for i, l := range loads {
-		if l.reason != "" {
-			c.Skipped = append(c.Skipped, Skip{Path: selected[i].RelPath, Reason: l.reason})
+	for i := len(selected) - 1; i >= 0; i-- {
+		s := selected[i]
+		skill, files, reason := load(s)
+		if j := slices.IndexFunc(unserved, func(o string) bool { return strings.HasPrefix(o, s.RelPath+"/") }); reason == "" && j >= 0 {
+			reason = fmt.Sprintf("contains %s, which is not served", unserved[j])
+		}
+		if reason != "" {
+			c.Skipped = append(c.Skipped, Skip{Path: s.RelPath, Reason: reason})
+			unserved = append(unserved, s.RelPath)
 			continue
 		}
-		c.Skills = append(c.Skills, l.skill)
-		c.bySkill[l.skill.URI] = l.skill
-		maps.Copy(c.byFile, l.files)
+		c.Skills = append(c.Skills, skill)
+		c.bySkill[skill.URI] = skill
+		maps.Copy(c.byFile, files)
 	}
+	slices.Reverse(c.Skipped)
 	// By URI, which skills/list cursors continue from.
 	slices.SortFunc(c.Skills, func(x, y *Skill) int { return strings.Compare(x.URI, y.URI) })
 	return c, nil
 }
 
 // load builds one entry and its files, or returns why the skill is skipped.
-// Every build hashes every file: size and mtime cannot prove the content is
+// Every build reads every file again: size and mtime cannot prove the content is
 // unchanged (cp -p, rsync -t), and a stale digest makes hosts reject the file.
 func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	p, err := skillpkg.Load(s.SourcePath)
@@ -144,42 +130,12 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	base := "skill://" + escapePath(s.RelPath)
 	skill := &Skill{URI: base + "/SKILL.md", Frontmatter: p.Frontmatter}
 	files := make(map[string]servedFile, len(p.Files))
-	left := int64(skillpkg.MaxBytes) // the walk checked sizes too, but files can grow since
 	for _, f := range p.Files {
-		// SKILL.md is hashed from the bytes its frontmatter came from, so the entry
-		// never pairs old frontmatter with a newer file's digest.
-		sum, size := fmt.Sprintf("sha256:%x", sha256.Sum256(p.SkillMD)), int64(len(p.SkillMD))
-		if f.Rel != "SKILL.md" {
-			if sum, size, err = hashFile(f.Path, left); err != nil {
-				return nil, nil, err.Error()
-			}
-		}
-		left -= size
 		uri := base + "/" + escapePath(f.Rel)
-		files[uri] = servedFile{dir: p.Dir, rel: f.Rel, digest: sum}
-		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: size})
+		files[uri] = servedFile{dir: p.Dir, rel: f.Rel, digest: f.Digest}
+		skill.Resources = append(skill.Resources, File{URI: uri, Digest: f.Digest, Size: f.Size})
 	}
 	return skill, files, ""
-}
-
-// hashFile returns the digest and size of one read of the file, so both describe
-// the same bytes even when the file is replaced while the catalog is built. It
-// stops past limit bytes, so a file that grew cannot stall the build.
-func hashFile(path string, limit int64) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer f.Close()
-	h := sha256.New()
-	n, err := io.Copy(h, io.LimitReader(f, limit+1))
-	if err != nil {
-		return "", 0, err
-	}
-	if n > limit {
-		return "", 0, fmt.Errorf("is larger than %d MiB", skillpkg.MaxBytes>>20)
-	}
-	return fmt.Sprintf("sha256:%x", h.Sum(nil)), n, nil
 }
 
 // Skill returns the served skill whose SKILL.md URI is uri.
@@ -213,7 +169,7 @@ func (c *Catalog) Read(uri string) ([]byte, error) {
 	}
 	// A file edited since it was listed would fail the client's digest check;
 	// the next refresh lists it again.
-	if fmt.Sprintf("sha256:%x", sha256.Sum256(data)) != sf.digest {
+	if skillpkg.Digest(data) != sf.digest {
 		return nil, fmt.Errorf("%s changed since it was listed; list the skills again", uri)
 	}
 	return data, nil

@@ -83,14 +83,12 @@ func main() {
 	results = append(results, config.MigrateXDGDirs()...)
 	// mcp serve speaks the protocol on stdout, so its errors, notices and trailers stay off it.
 	serving := len(os.Args) > 2 && os.Args[1] == "mcp" && os.Args[2] == "serve"
+	stdout := os.Stdout
 	if serving {
-		stdout := os.Stdout
-		os.Stdout = os.Stderr
-		reportMigrationResults(results)
-		os.Stdout = stdout
-	} else {
-		reportMigrationResults(results)
+		os.Stdout = os.Stderr // ui writes through fmt.Printf
 	}
+	reportMigrationResults(results)
+	os.Stdout = stdout
 
 	// Set version for other packages to use
 	versioncheck.Version = version

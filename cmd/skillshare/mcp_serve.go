@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -27,27 +29,29 @@ const mcpServeTokenEnv = "SKILLSHARE_MCP_TOKEN"
 // cmdMCPServe serves the managed skills over MCP (SEP-2640). It never writes:
 // stdout carries the protocol, so diagnostics go to stderr.
 func cmdMCPServe(args []string) error {
-	mode, rest, err := parseModeArgs(args, "--target", "--http", "--tls-cert", "--tls-key")
+	var target, addr, certFile, keyFile string
+	valueFlags := map[string]*string{"--target": &target, "--http": &addr, "--tls-cert": &certFile, "--tls-key": &keyFile}
+	mode, rest, err := parseModeArgs(args, slices.Collect(maps.Keys(valueFlags))...)
 	if err != nil {
 		return err
 	}
-	values := map[string]string{}
 	check := false
 	for i := 0; i < len(rest); i++ {
-		switch a := rest[i]; a {
-		case "--check":
+		a := rest[i]
+		if a == "--check" {
 			check = true
-		case "--target", "--http", "--tls-cert", "--tls-key":
-			if i+1 == len(rest) {
-				return fmt.Errorf("%s requires a value", a)
-			}
-			i++
-			values[a] = rest[i]
-		default:
+			continue
+		}
+		v, ok := valueFlags[a]
+		if !ok {
 			return fmt.Errorf("unknown mcp serve argument %q; usage: %s", a, mcpServeUsage)
 		}
+		if i+1 == len(rest) {
+			return fmt.Errorf("%s requires a value", a)
+		}
+		i++
+		*v = rest[i]
 	}
-	target, addr, certFile, keyFile := values["--target"], values["--http"], values["--tls-cert"], values["--tls-key"]
 	if check && addr != "" {
 		return fmt.Errorf("--check starts no server; drop --http")
 	}

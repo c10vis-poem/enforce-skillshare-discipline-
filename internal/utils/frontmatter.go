@@ -223,11 +223,12 @@ func ParseFrontmatterMap(content []byte) (map[string]any, error) {
 	if strings.TrimSuffix(lines[0], "\r") != "---" {
 		return nil, fmt.Errorf("no frontmatter at the start")
 	}
-	if !slices.ContainsFunc(lines[1:], func(l string) bool { return strings.TrimSpace(l) == "---" }) {
+	end := slices.IndexFunc(lines[1:], func(l string) bool { return strings.TrimSpace(l) == "---" })
+	if end < 0 {
 		return nil, fmt.Errorf("unclosed frontmatter: no closing ---")
 	}
-	raw := extractFrontmatterRawFromBytes(content)
-	if raw == "" {
+	raw := strings.Join(lines[1:end+1], "\n")
+	if strings.TrimSpace(raw) == "" {
 		return nil, fmt.Errorf("no frontmatter")
 	}
 	var fm map[string]any

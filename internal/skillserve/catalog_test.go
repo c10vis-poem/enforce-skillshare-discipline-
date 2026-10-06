@@ -185,12 +185,18 @@ func TestBuild_SkipsSkillWhoseDescriptionOrCompatibilityIsTooLong(t *testing.T) 
 	}
 }
 
-// The size limit holds for the bytes hashed, not only the sizes the walk saw.
-func TestHashFile_StopsPastTheSizeLimit(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "big.bin")
-	writeFile(t, path, strings.Repeat("x", skillpkg.MaxBytes+1))
-	if _, _, err := hashFile(path, skillpkg.MaxBytes); err == nil {
-		t.Error("hashFile succeeded past the limit, want an error")
+// The 16 MiB limit counts the bytes read, SKILL.md included.
+func TestBuild_SkipsSkillOverTheSizeLimit(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))
+	writeFile(t, filepath.Join(src, "big/data.bin"), strings.Repeat("x", skillpkg.MaxBytes-len(skillMD("big"))+1))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped big: is larger than 16 MiB") {
+		t.Errorf("skills=%v warnings=%v, want big skipped", c.Skills, c.Skipped)
 	}
 }
 
@@ -347,7 +353,7 @@ func TestBuild_SkipsSkillWithNonStringCompatibilityOrOversizedSkillMD(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 0 || !hasWarning(c, "skipped list") || !hasWarning(c, "skipped huge: SKILL.md is over") {
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped list") || !hasWarning(c, "skipped huge: is larger than 16 MiB") {
 		t.Errorf("skills=%v warnings=%v, want list and huge skipped", c.Skills, c.Skipped)
 	}
 }
