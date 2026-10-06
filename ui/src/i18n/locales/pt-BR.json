@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} skills",
   "dashboard.trackedRepos.title": "Repositórios Rastreados",
   "dashboard.trackedRepos.uninstall": "Desinstalar",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" tem alterações não commitadas. Ao desinstalar, elas vão para a lixeira junto com o repo.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "Não foi possível ler o status do git de \"{name}\", então ele pode ter alterações não commitadas. Ao desinstalar, o repo vai para a lixeira como está.",
   "dashboard.trackedRepos.uninstallConfirm.message": "Remover repositório \"{name}\"? Todas as skills do repo serão movidas para a lixeira.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Desinstalar Repositório",
   "dashboard.trackedRepos.update": "Atualizar",

@@ -12,6 +12,7 @@ import (
 	"skillshare/internal/resource"
 	"skillshare/internal/trash"
 	"skillshare/internal/ui"
+	"skillshare/internal/uninstall"
 )
 
 // cmdUninstallAgents removes agents from the source directory by moving them to agent trash.
@@ -113,38 +114,29 @@ func cmdUninstallAgents(agentsDir string, opts *uninstallOptions, cfgPath string
 		width = max(width, ui.RowWidth(strings.TrimSuffix(t.RelPath, ".md")))
 	}
 
-	for _, t := range targets {
-		agentFile := filepath.Join(agentsDir, t.RelPath)
+	var errs []error
+	if !opts.dryRun {
+		agents := make([]uninstall.Agent, len(targets))
+		for i, t := range targets {
+			agents[i] = uninstall.Agent{Name: strings.TrimSuffix(t.RelPath, ".md"), File: filepath.Join(agentsDir, t.RelPath)}
+		}
+		errs, _ = uninstall.Agents(agents, agentsDir, trashBase, store)
+	}
 
+	for i, t := range targets {
 		displayName := strings.TrimSuffix(t.RelPath, ".md")
 		if opts.dryRun {
 			ui.Row(ui.MarkNone, displayName, "would move to trash", width)
 			removed = append(removed, displayName)
 			continue
 		}
-
-		// Trash the agent file (+ legacy sidecar if it still exists)
-		metaName := strings.TrimSuffix(filepath.Base(t.RelPath), ".md")
-		legacySidecar := filepath.Join(filepath.Dir(agentFile), metaName+".skillshare-meta.json")
-		_, err := trash.MoveAgentToTrash(agentFile, legacySidecar, displayName, trashBase)
-		if err != nil {
-			ui.Row(ui.MarkFail, displayName, err.Error(), width)
+		if errs[i] != nil {
+			ui.Row(ui.MarkFail, displayName, errs[i].Error(), width)
 			failed = append(failed, displayName)
 			continue
 		}
-
-		// Remove from centralized metadata store
-		if store != nil {
-			store.Remove(displayName)
-		}
-
 		ui.Row(ui.MarkOK, displayName, ui.DimText("→ trash, kept 7 days"), width)
 		removed = append(removed, displayName)
-	}
-
-	// Save store after all removals
-	if store != nil && len(removed) > 0 {
-		store.Save(agentsDir) //nolint:errcheck
 	}
 
 	// JSON output

@@ -160,42 +160,35 @@ func (e *MetadataEntry) EffectiveKind() string {
 	return e.Kind
 }
 
-// RemoveByNames removes entries matching the given names, including group members.
-// Handles direct key matches, full-path matches (group/name), and group membership.
-// Works with both legacy basename keys and full-path keys.
+// RemoveByNames removes what the store holds for uninstalled skills, groups
+// and tracked repos. names are their resolved source-relative paths: an entry
+// goes when it is one of them or lies below one, whether its key is a full
+// path or a legacy basename with a Group. A basename alone never matches, so
+// "foo" and "frontend/foo" stay independent.
 func (s *MetadataStore) RemoveByNames(names map[string]bool) {
 	for name := range names {
 		s.RemoveTargetOverrides(name)
 	}
 	for _, key := range s.List() {
 		entry := s.Get(key)
-		fullName := KeyToRelPath(key, entry)
-		if names[key] || names[fullName] {
-			s.Remove(key)
-			continue
-		}
-		// Also match by basename for backward compat (e.g. uninstall "foo" should
-		// remove full-path key "frontend/foo").
-		if entry != nil && entry.Group != "" {
-			basename := key
-			if idx := strings.LastIndex(key, "/"); idx >= 0 {
-				basename = key[idx+1:]
-			}
-			if names[basename] {
+		full := KeyToRelPath(key, entry)
+		for name := range names {
+			if full == name ||
+				strings.HasPrefix(key, name+"/") || strings.HasPrefix(full, name+"/") ||
+				inLegacyRepoGroup(entry, name) {
 				s.Remove(key)
-				continue
-			}
-		}
-		// Group directory uninstall: remove member skills
-		if entry != nil && entry.Group != "" {
-			for rn := range names {
-				if entry.Group == rn || strings.HasPrefix(entry.Group, rn+"/") {
-					s.Remove(key)
-					break
-				}
+				break
 			}
 		}
 	}
+}
+
+// inLegacyRepoGroup matches entries written when a top-level tracked repo
+// "_team" grouped its skills as "team". Untracked entries and nested repos are
+// left out: a plain group or a sibling repo may share that name.
+func inLegacyRepoGroup(entry *MetadataEntry, repo string) bool {
+	return entry != nil && entry.Tracked && entry.Group != "" &&
+		!strings.Contains(repo, "/") && repo == "_"+entry.Group
 }
 
 // WriteMetaToStore writes a SkillMeta to the centralized .metadata.json store.

@@ -732,3 +732,64 @@ targets: {}
 		t.Error("clean-a should still be removed")
 	}
 }
+
+// A bare name that resolves to a nested skill prunes that skill's metadata,
+// under its full-path key or a legacy basename key.
+func TestUninstall_NestedSkillByBasename_PrunesMetadata(t *testing.T) {
+	for _, key := range []string{"frontend/foo", "foo"} {
+		t.Run(key, func(t *testing.T) {
+			sb := testutil.NewSandbox(t)
+			defer sb.Cleanup()
+
+			sb.CreateSkill("frontend/foo", map[string]string{"SKILL.md": "# Foo"})
+			sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+			store := install.NewMetadataStore()
+			store.Set(key, &install.MetadataEntry{Source: "github.com/org/repo/foo", Group: "frontend"})
+			store.Save(sb.SourcePath)
+
+			sb.RunCLI("uninstall", "foo", "-f").AssertSuccess(t)
+
+			store, err := install.LoadMetadata(sb.SourcePath)
+			if err != nil {
+				t.Fatalf("load metadata: %v", err)
+			}
+			if store.Has(key) {
+				t.Errorf("metadata entry %q should be pruned", key)
+			}
+		})
+	}
+}
+
+// A top-level skill and a grouped skill may share a basename: uninstalling
+// one keeps the other's metadata and target overrides.
+func TestUninstall_SameBasename_KeepsOtherSkillMetadata(t *testing.T) {
+	for remove, keep := range map[string]string{"foo": "frontend/foo", "frontend/foo": "foo"} {
+		t.Run(remove, func(t *testing.T) {
+			sb := testutil.NewSandbox(t)
+			defer sb.Cleanup()
+
+			sb.CreateSkill("foo", map[string]string{"SKILL.md": "# Foo"})
+			sb.CreateSkill("frontend/foo", map[string]string{"SKILL.md": "# Nested foo"})
+			sb.WriteConfig("source: " + sb.SourcePath + "\ntargets: {}\n")
+			store := install.NewMetadataStore()
+			store.Set("foo", &install.MetadataEntry{Source: "github.com/org/repo/foo"})
+			store.Set("frontend/foo", &install.MetadataEntry{Source: "github.com/org/other/foo", Group: "frontend"})
+			store.SetTargetOverride("foo", []string{"claude"})
+			store.SetTargetOverride("frontend/foo", []string{"cursor"})
+			store.Save(sb.SourcePath)
+
+			sb.RunCLI("uninstall", remove, "-f").AssertSuccess(t)
+
+			store, err := install.LoadMetadata(sb.SourcePath)
+			if err != nil {
+				t.Fatalf("load metadata: %v", err)
+			}
+			if store.Has(remove) || !store.Has(keep) {
+				t.Errorf("expected only %q to remain, got %v", keep, store.List())
+			}
+			if _, ok := store.TargetOverrides[keep]; !ok || len(store.TargetOverrides) != 1 {
+				t.Errorf("expected only the override of %q to remain, got %v", keep, store.TargetOverrides)
+			}
+		})
+	}
+}

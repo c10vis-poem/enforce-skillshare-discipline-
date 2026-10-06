@@ -509,15 +509,13 @@ func cmdUninstall(args []string) error {
 			}
 			return ""
 		},
+		gitignoreDir: sourceDir,
 		// Only tracked repos are gitignored in the global source.
-		gitignoreEntries: func(succeeded []*uninstallTarget) (string, []string) {
-			var entries []string
-			for _, t := range succeeded {
-				if t.isTrackedRepo {
-					entries = append(entries, t.name)
-				}
+		gitignoreEntry: func(t *uninstallTarget) string {
+			if t.isTrackedRepo {
+				return t.name
 			}
-			return sourceDir, entries
+			return ""
 		},
 		preflight: globalUninstallPreflight,
 	}
