@@ -17,6 +17,7 @@ import { useAppContext } from '../../context/AppContext';
 import { shortenHome } from '../../lib/paths';
 import { describeEndpoint, describeError, hasToolPolicy, targetLabel, parsePiOptions } from './mcpView';
 import { MCPTargetOrder } from './targetOrder';
+import type { AddMode } from './mcpServerDraft';
 
 /** Where the configuration comes from. Each entry point fixes one; the dialog never switches. */
 type Source = 'target' | 'paste';
@@ -57,7 +58,7 @@ interface Props {
   /** Overrides the targets offered, for a project where only some Agents have a file. */
   availableTargets?: readonly string[];
   /** Present when this is the paste half of "add a server", so the user can swap back to the form. */
-  onMode?: (mode: 'form' | 'paste') => void;
+  onMode?: (mode: AddMode) => void;
   onClose: () => void;
   onImported: () => void;
 }
@@ -390,11 +391,11 @@ export default function MCPImportDialog(props: Props) {
       </div>
       <div className="db">
         {onMode && (
-          <SegmentedControl<'form' | 'paste'>
+          <SegmentedControl<AddMode>
             className="self-start"
             value="paste"
             onChange={onMode}
-            options={[{ value: 'form', label: t('mcp.manualTab') }, { value: 'paste', label: t('mcp.pasteTab') }]}
+            options={[{ value: 'form', label: t('mcp.manualTab') }, { value: 'paste', label: t('mcp.pasteTab') }, { value: 'serve', label: 'Skillshare' }]}
           />
         )}
 

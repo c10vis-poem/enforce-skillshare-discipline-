@@ -3,8 +3,23 @@ package sync
 import (
 	"testing"
 
+	"skillshare/internal/config"
 	"skillshare/internal/resource"
 )
+
+func TestSelectTargetSkills_AppliesDisabledFiltersAndTargets(t *testing.T) {
+	skills := []DiscoveredSkill{
+		{FlatName: "keep"},
+		{FlatName: "off", Disabled: true},
+		{FlatName: "dropped"},
+		{FlatName: "cursor-only", Targets: []string{"cursor"}},
+	}
+	got, err := SelectTargetSkills(skills, "claude", config.ResourceTargetConfig{Exclude: []string{"dropped"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFlatNames(t, got, []string{"keep"})
+}
 
 func TestFilterSkillsByTarget_NilPassesThrough(t *testing.T) {
 	skills := []DiscoveredSkill{

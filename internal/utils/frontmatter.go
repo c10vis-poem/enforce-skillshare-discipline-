@@ -2,6 +2,8 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -209,6 +211,48 @@ func extractFrontmatterRaw(filePath string) string {
 		return ""
 	}
 	return strings.Join(lines, "\n")
+}
+
+// ParseFrontmatterMap returns the complete YAML frontmatter of SKILL.md content.
+// The Agent Skills format requires the file to begin with it, closed by a second ---.
+func ParseFrontmatterMap(content []byte) (map[string]any, error) {
+	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
+	// Scan line by line up to the closing ---, keeping only offsets, so memory does
+	// not grow with the line count of a large body.
+	start, end := -1, -1
+	pos := 0
+	for line := range bytes.Lines(content) {
+		if start < 0 {
+			// Exactly ---: an indented delimiter does not open frontmatter. CRLF is fine.
+			if string(bytes.TrimRight(line, "\r\n")) != "---" {
+				return nil, fmt.Errorf("no frontmatter at the start")
+			}
+			start = len(line)
+		} else if string(bytes.TrimRight(line, "\r\n")) == "---" { // also exactly ---
+			end = pos
+			break
+		}
+		pos += len(line)
+	}
+	if start < 0 {
+		return nil, fmt.Errorf("no frontmatter at the start")
+	}
+	if end < 0 {
+		return nil, fmt.Errorf("unclosed frontmatter: no closing ---")
+	}
+	raw := string(content[start:end])
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("no frontmatter")
+	}
+	var fm map[string]any
+	if err := yaml.Unmarshal([]byte(raw), &fm); err != nil {
+		return nil, fmt.Errorf("invalid frontmatter: %w", err)
+	}
+	// A non-string key decodes to map[any]any, which JSON cannot carry.
+	if _, err := json.Marshal(fm); err != nil {
+		return nil, fmt.Errorf("frontmatter JSON cannot carry: %w", err)
+	}
+	return fm, nil
 }
 
 // ParseFrontmatterFields reads a SKILL.md file once and returns the values of

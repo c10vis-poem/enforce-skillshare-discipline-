@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"skillshare/internal/config"
+	"skillshare/internal/skillpkg"
 	"skillshare/internal/utils"
 )
 
@@ -54,11 +55,10 @@ func (r *TargetSkillResolution) UnmatchedIncludeWarnings() []string {
 // ResolveTargetSkillsForTarget applies a target's filters and target_naming
 // policy to discovered skills and returns the effective target-visible skills.
 func ResolveTargetSkillsForTarget(targetName string, sc config.ResourceTargetConfig, allSkills []DiscoveredSkill) (*TargetSkillResolution, error) {
-	filtered, err := FilterSkills(allSkills, sc.Include, sc.Exclude)
+	filtered, err := SelectTargetSkills(allSkills, targetName, sc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply filters for target %s: %w", targetName, err)
 	}
-	filtered = FilterSkillsByTarget(filtered, targetName)
 
 	naming := config.EffectiveTargetNaming(sc.TargetNaming)
 	result := &TargetSkillResolution{
@@ -159,29 +159,5 @@ func (r *TargetSkillResolution) LegacyFlatNames() map[string]ResolvedTargetSkill
 }
 
 func validateStandardTargetSkill(skill DiscoveredSkill, skillName string) string {
-	if skillName == "" {
-		return "SKILL.md is missing a name"
-	}
-	if len(skillName) > 64 {
-		return fmt.Sprintf("SKILL.md name %q is longer than 64 characters", skillName)
-	}
-	if strings.HasPrefix(skillName, "-") || strings.HasSuffix(skillName, "-") {
-		return fmt.Sprintf("SKILL.md name %q cannot start or end with '-'", skillName)
-	}
-	if strings.Contains(skillName, "--") {
-		return fmt.Sprintf("SKILL.md name %q cannot contain consecutive hyphens", skillName)
-	}
-	for _, r := range skillName {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			continue
-		}
-		return fmt.Sprintf("SKILL.md name %q must use only lowercase letters, numbers, and hyphens", skillName)
-	}
-
-	dirName := filepath.Base(filepath.Clean(skill.SourcePath))
-	if skillName != dirName {
-		return fmt.Sprintf("SKILL.md name %q does not match directory name %q", skillName, dirName)
-	}
-
-	return ""
+	return skillpkg.ValidateName(skillName, filepath.Base(filepath.Clean(skill.SourcePath)))
 }

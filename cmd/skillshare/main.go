@@ -81,7 +81,14 @@ func main() {
 
 	// Migrate legacy dirs (backups/trash/logs) to XDG data/state dirs
 	results = append(results, config.MigrateXDGDirs()...)
+	// mcp serve speaks the protocol on stdout, so its errors, notices and trailers stay off it.
+	serving := len(os.Args) > 2 && os.Args[1] == "mcp" && os.Args[2] == "serve"
+	stdout := os.Stdout
+	if serving {
+		os.Stdout = os.Stderr // ui writes through fmt.Printf
+	}
 	reportMigrationResults(results)
+	os.Stdout = stdout
 
 	// Set version for other packages to use
 	versioncheck.Version = version
@@ -131,6 +138,10 @@ func main() {
 		if errors.As(err, &silent) {
 			os.Exit(1)
 		}
+		if serving {
+			fmt.Fprintf(os.Stderr, "✗ %v\n", err)
+			os.Exit(1)
+		}
 		fmt.Println()
 		ui.Error("%v", err)
 		os.Exit(1)
@@ -140,7 +151,7 @@ func main() {
 	// --format json/sarif/markdown) must produce only structured data on
 	// stdout and nothing on stderr.  Skip the trailing newline and update
 	// check entirely so machine consumers get a clean payload.
-	if !isStructuredOutput(args) {
+	if !isStructuredOutput(args) && !serving {
 		fmt.Println()
 
 		// Check for updates (non-blocking, silent on errors)

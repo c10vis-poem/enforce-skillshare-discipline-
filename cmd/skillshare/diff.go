@@ -420,11 +420,10 @@ func cmdDiffGlobal(targetName string, kind resourceKindFilter, opts diffRenderOp
 	hasCopyMode := false
 	for _, e := range entries {
 		sc := e.target.SkillsConfig()
-		filtered, err := sync.FilterSkills(discovered, sc.Include, sc.Exclude)
+		filtered, err := sync.SelectTargetSkills(discovered, e.name, sc)
 		if err != nil {
 			return fmt.Errorf("target %s has invalid include/exclude config: %w", e.name, err)
 		}
-		filtered = sync.FilterSkillsByTarget(filtered, e.name)
 		fentries = append(fentries, filteredEntry{e, filtered})
 		totalSkills += len(filtered)
 		if e.mode == "copy" {

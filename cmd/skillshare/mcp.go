@@ -154,6 +154,9 @@ func cmdMCP(args []string) (resultErr error) {
 		args = append([]string{"list"}, args...)
 	}
 	sub, args := args[0], args[1:]
+	if sub == "serve" {
+		return cmdMCPServe(args)
+	}
 	service, rest, err := mcpContext(args)
 	if err != nil {
 		return err
@@ -387,6 +390,7 @@ func printMCPHelp() {
 			{"check [name...]", "Verify variables, commands, hosts and sync state (--no-dns);\n--live also starts or calls each server [--timeout 10s]"},
 			{"remove [name]", "Select and remove a source entry; optionally sync removal,\nor stop managing it and keep its Agent entries (--keep-files)"},
 			{"restore [id]", "Browse backups, preview and restore Agent entries"},
+			{"serve", "Serve skills read-only over MCP (SEP-2640) on stdio, or\n--http <addr> [--tls-cert <file> --tls-key <file>] [--target <name>];\nglobal unless -p; --check lists skipped skills without serving"},
 		}},
 		helpGroup{title: "Options", rows: []helpRow{
 			{"--target <client>", "Receiving client; repeat for several, or none to keep the\nserver in Skillshare without writing it to any Agent"},

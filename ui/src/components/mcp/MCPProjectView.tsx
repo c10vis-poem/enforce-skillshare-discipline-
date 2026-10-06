@@ -14,6 +14,7 @@ import MCPCheckNote from './MCPCheckNote';
 import MCPImportDialog from './MCPImportDialog';
 import MCPRemoveDialog from './MCPRemoveDialog';
 import MCPServerDialog from './MCPServerDialog';
+import { isServeCommand, type AddMode } from './mcpServerDraft';
 import MCPServerList from './MCPServerList';
 import MCPSyncBox, { MCPRailActions } from './MCPSyncBox';
 import MCPUnmanagedNote from './MCPUnmanagedNote';
@@ -71,8 +72,10 @@ function ProjectSettings({ model, offered, pickTargets, onPickTargets, busy, sav
   );
 }
 
-function ProjectServerEditor({ data, model, root, offered, editing, addingOff, addMode, onMode, onClose, onSaved }: { data: MCPList; model: ProjectModel; root: string; offered: readonly string[]; editing: string; addingOff: boolean; addMode: 'form' | 'paste'; onMode: (mode: 'form' | 'paste') => void; onClose: () => void; onSaved: () => void }) {
+function ProjectServerEditor({ data, model, root, offered, editing, addingOff, addMode, onMode, onClose, onSaved }: { data: MCPList; model: ProjectModel; root: string; offered: readonly string[]; editing: string; addingOff: boolean; addMode: AddMode; onMode: (mode: AddMode) => void; onClose: () => void; onSaved: () => void }) {
   const { servers, targets, own } = model;
+  const server = editing ? own[editing] : undefined;
+  const serve = editing === '' ? addMode === 'serve' : isServeCommand(server);
   return (
     editing === '' && addMode === 'paste' ? (
       <MCPImportDialog
@@ -89,9 +92,11 @@ function ProjectServerEditor({ data, model, root, offered, editing, addingOff, a
       />
     ) : (
       <MCPServerDialog
+        key={addMode}
         project={root}
         off={editing === '' && addingOff}
-        initial={editing ? { name: editing, server: own[editing] } : undefined}
+        serve={serve}
+        initial={editing && server ? { name: editing, server } : undefined}
         defaultTargets={targets}
         existingNames={Object.keys(servers)}
         availableTargets={offered}
@@ -109,7 +114,7 @@ export default function MCPProjectView({ data, root, offered, onChanged, onRemov
   const { toast } = useToast();
   const [pickTargets, setPickTargets] = useState(false);
   const [editing, setEditing] = useState<string | null>(null); // '' adds a new server
-  const [addMode, setAddMode] = useState<'form' | 'paste'>('form');
+  const [addMode, setAddMode] = useState<AddMode>('form');
   const [addingOff, setAddingOff] = useState(false); // the new entry is a switch, not a server
   const [removing, setRemoving] = useState('');
   const [dropping, setDropping] = useState(false);

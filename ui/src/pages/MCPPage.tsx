@@ -26,6 +26,7 @@ import { MCPConfigDialog } from '../components/mcp/MCPConfigView';
 import MCPRemoveDialog from '../components/mcp/MCPRemoveDialog';
 import MCPRestoreDialog from '../components/mcp/MCPRestoreDialog';
 import MCPServerDialog from '../components/mcp/MCPServerDialog';
+import { isServeCommand, type AddMode } from '../components/mcp/mcpServerDraft';
 import { buildMatrix, canImportConflict, describeError, describeMessage, isShadowed, isResolvable, mcpOrder, projectOf, targetLabel, writes, type MCPChange } from '../components/mcp/mcpView';
 import { MCPTargetOrder } from '../components/mcp/targetOrder';
 import { useMCPToggle } from '../components/mcp/useMCPToggle';
@@ -195,8 +196,11 @@ function MCPContent({ data, model, order, allFiles, onShowAll, busy, onToggle, o
   );
 }
 
-function MCPEditDialog({ data, model, editing, addingOff, addMode, onMode, onClose, onSaved }: { data: MCPList; model: PageModel; editing: string; addingOff: boolean; addMode: 'form' | 'paste'; onMode: (mode: 'form' | 'paste') => void; onClose: () => void; onSaved: () => void }) {
+function MCPEditDialog({ data, model, editing, addingOff, addMode, onMode, onClose, onSaved }: { data: MCPList; model: PageModel; editing: string; addingOff: boolean; addMode: AddMode; onMode: (mode: AddMode) => void; onClose: () => void; onSaved: () => void }) {
   const { servers, defaults, files } = model;
+  const server = editing ? servers[editing] : undefined;
+  // skillshare mcp serve has its own tab; an edit of such a server opens it again.
+  const serve = editing === '' ? addMode === 'serve' : isServeCommand(server);
   return (
     editing === '' && addMode === 'paste' ? (
       <MCPImportDialog
@@ -211,8 +215,10 @@ function MCPEditDialog({ data, model, editing, addingOff, addMode, onMode, onClo
       />
     ) : (
       <MCPServerDialog
+        key={addMode}
         off={editing === '' && addingOff}
-        initial={editing ? { name: editing, server: servers[editing] } : undefined}
+        serve={serve}
+        initial={editing && server ? { name: editing, server } : undefined}
         defaultTargets={defaults}
         existingNames={Object.keys(servers)}
         availableTargets={files}
@@ -299,7 +305,7 @@ export default function MCPPage() {
   const [addingOff, setAddingOff] = useState(false); // the new entry is a switch, not a server
   const [editing, setEditing] = useState<string | null>(null); // '' adds a new server
   // Adding takes two shapes: fill the fields, or paste a snippet. Both end up saving one source server.
-  const [addMode, setAddMode] = useState<'form' | 'paste'>('form');
+  const [addMode, setAddMode] = useState<AddMode>('form');
   const [importing, setImporting] = useState<ImportRequest | null>(null);
   const [removing, setRemoving] = useState('');
   const [viewing, setViewing] = useState('');

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { initialServerDraft } from './mcpServerDraft';
+import { initialServerDraft, serveSkillsCommand, serveSkillsTarget } from './mcpServerDraft';
+import { splitCommand } from './mcpView';
 
 describe('MCP server drafts', () => {
   it('starts from the Pi settings of a server being edited', () => {
@@ -12,5 +13,14 @@ describe('MCP server drafts', () => {
 
   it('keeps only Agents with a switch in the targets a new off switch starts with', () => {
     expect(initialServerDraft(undefined, '', ['claude', 'cursor', 'pi'], true).targets).toEqual(['claude', 'pi']);
+  });
+
+  it('reads back the skills target of a command it builds, and nothing from other commands', () => {
+    expect(serveSkillsTarget(splitCommand(serveSkillsCommand('claude', true)))).toBe('claude');
+    expect(serveSkillsTarget(splitCommand(serveSkillsCommand('', false)))).toBe('');
+    // A project's name may hold spaces: its target must survive as one word.
+    expect(serveSkillsTarget(splitCommand(serveSkillsCommand('my app@claude', false)))).toBe('my app@claude');
+    expect(serveSkillsTarget(['skillshare', 'mcp', 'serve', '--http', ':8765'])).toBeUndefined();
+    expect(serveSkillsTarget(['npx', 'skillshare', 'mcp', 'serve'])).toBeUndefined();
   });
 });

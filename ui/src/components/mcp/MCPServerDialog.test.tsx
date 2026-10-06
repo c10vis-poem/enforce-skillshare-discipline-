@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api, type Target } from '../../api/client';
 import { mcpApi } from '../../api/mcp';
 import { mcpCheckApi } from '../../api/mcpCheck';
 import { I18nProvider } from '../../i18n';
@@ -55,6 +56,8 @@ describe('MCP server dialog', () => {
   });
   beforeEach(() => {
     vi.clearAllMocks(); localStorage.clear();
+    vi.spyOn(api, 'listTargets').mockResolvedValue({ targets: [], sourceSkillCount: 0 });
+    vi.spyOn(api, 'availableTargets').mockResolvedValue({ targets: [] });
     HTMLElement.prototype.scrollIntoView = vi.fn();
     vi.mocked(mcpApi.save).mockResolvedValue({ applied: [], backupIds: [] });
   });
@@ -75,6 +78,50 @@ describe('MCP server dialog', () => {
       server: { command: 'npx', args: ['-y', '@scope/notes', '~/My Notes'], env: { NOTES_TOKEN: { fromEnv: 'NOTES_TOKEN' } } },
       replace: false,
     });
+  });
+
+  it('serves every enabled skill from the Skillshare tab, with no command to type', async () => {
+    const user = userEvent.setup();
+    renderDialog({ serve: true });
+    expect(screen.queryByLabelText('Command')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith({ name: 'skillshare', server: { command: 'skillshare', args: ['mcp', 'serve'] }, replace: false }));
+  });
+
+  // A root under mcp.projects is served from the global config, where its targets live, so no -p.
+  it("serves a project's own target selection from the global config", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listTargets).mockResolvedValue({
+      targets: [
+        { name: 'claude', skillsEnabled: true },
+        { name: 'app@claude', project: '/work/app', skillsEnabled: true },
+        { name: 'web@claude', project: '/work/web', skillsEnabled: true },
+      ] as Target[],
+      sourceSkillCount: 1,
+    });
+    renderDialog({ serve: true, project: '/work/app' });
+    await user.click(screen.getByRole('combobox', { name: 'Skills to serve' }));
+    const own = await screen.findByRole('option', { name: 'Same as target app@claude' });
+    expect(screen.queryByRole('option', { name: 'Same as target web@claude' })).not.toBeInTheDocument();
+    await user.click(own);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith(expect.objectContaining({ server: { command: 'skillshare', args: ['mcp', 'serve', '--target', 'app@claude'] } })));
+  });
+
+  it("keeps an existing command's -p when the served target changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listTargets).mockResolvedValue({ targets: [{ name: 'old', skillsEnabled: true }, { name: 'new', skillsEnabled: true }] as Target[], sourceSkillCount: 1 });
+    renderDialog({ serve: true, initial: { name: 'skillshare', server: { command: 'skillshare', args: ['mcp', 'serve', '-p', '--target', 'old'] } } });
+    await user.click(screen.getByRole('combobox', { name: 'Skills to serve' }));
+    await user.click(await screen.findByRole('option', { name: 'Same as target new' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith(expect.objectContaining({ server: expect.objectContaining({ command: 'skillshare', args: ['mcp', 'serve', '--target', 'new', '-p'] }) })));
+  });
+
+  it('warns that an Agent already getting skills by sync would see them twice', async () => {
+    vi.mocked(api.listTargets).mockResolvedValue({ targets: [{ name: 'claude', skillsEnabled: true } as Target], sourceSkillCount: 1 });
+    renderDialog({ serve: true });
+    expect(await screen.findByText(/already get these skills by sync/)).toBeInTheDocument();
   });
 
   it('pins targets when the selection differs from the inherited default', async () => {

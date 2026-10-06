@@ -50,7 +50,7 @@ def "nu-complete skillshare plugin" [] {
 }
 
 def "nu-complete skillshare mcp" [] {
-    [add check edit import list remove restore]
+    [add check edit import list remove restore serve]
 }
 
 def "nu-complete skillshare mcp-target" [] {
@@ -89,6 +89,10 @@ export extern "skillshare mcp" [
     --no-dns # Skip host lookups
     --live # check: start or call each server
     --timeout: string # check --live: per-server timeout, such as 10s
+    --http: string # serve: Streamable HTTP listen address
+    --tls-cert: string # serve --http: TLS certificate file
+    --tls-key: string # serve --http: TLS key file
+    --check # serve: list skipped skills without serving
     --no-tui
     --project(-p)
     --global(-g)
