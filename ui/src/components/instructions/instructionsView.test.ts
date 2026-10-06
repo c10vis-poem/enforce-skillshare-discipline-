@@ -100,6 +100,28 @@ describe('connect and restore plans', () => {
     expect(connectPlan([claude], general)).toEqual([{ target: 'claude', extras: ['team', 'general'], note: 'import' }]);
   });
 
+  it('adds a managed block for a target without @import and keeps its other blocks', () => {
+    const cursor = tg('cursor', { assigned: [{ name: 'team', mode: 'prepend', status: 'synced' }] });
+    expect(connectPlan([cursor], general)).toEqual([{ target: 'cursor', extras: ['team', 'general'], note: 'block' }]);
+  });
+
+  it('offers prepend and append to a target without @import, with import listed as blocked', () => {
+    const cursor = tg('cursor', { assigned: [{ name: 'team', mode: 'prepend', status: 'synced' }, { name: 'general', mode: 'append', status: 'synced' }] });
+    const options = modeOptions(cursor, true);
+    expect(options.map((o) => o.mode)).toEqual(['import', 'prepend', 'append', 'symlink', 'copy']);
+    expect(options.find((o) => o.isDefault)?.mode).toBe('prepend');
+    expect(options.map((o) => o.blocked)).toEqual(['noImport', undefined, undefined, 'several', 'several']);
+  });
+
+  it('keeps a link as the default for a target without @import that holds nothing yet', () => {
+    expect(modeOptions(tg('cursor'), true).find((o) => o.isDefault)?.mode).toBe('symlink');
+  });
+
+  it('removes only the block when restoring a block target that holds another file', () => {
+    const cursor = tg('cursor', { assigned: [{ name: 'team', mode: 'prepend', status: 'synced' }, { name: 'general', mode: 'append', status: 'synced' }] });
+    expect(restorePlan([cursor], 'general')).toEqual([{ target: 'cursor', note: 'blockKeep', others: ['team'] }]);
+  });
+
   it('skips a target another file holds by link, saying which', () => {
     expect(connectPlan([opencode], general)).toEqual([{ target: 'opencode', extras: ['general'], note: 'held', other: 'team' }]);
   });
@@ -146,6 +168,13 @@ describe('connect and restore plans', () => {
   it('tells an import target which other files it also uses', () => {
     expect(rowHint(claude, general)).toEqual({ kind: 'alsoUses', names: ['team'] });
   });
+
+  it('tells a target holding another file as a block that it also uses it, since a block joins instead of replacing', () => {
+    const held = tg('codex', { assigned: [{ name: 'team', mode: 'prepend', status: 'synced' }] });
+    expect(rowHint(held, general)).toEqual({ kind: 'alsoUses', names: ['team'] });
+    const both = tg('codex', { assigned: [{ name: 'team', mode: 'prepend', status: 'synced' }, { name: 'general', mode: 'append', status: 'synced' }] });
+    expect(rowHint(both, general)).toEqual({ kind: 'alsoUses', names: ['team'] });
+  });
 });
 
 describe('lineCount', () => {
@@ -159,16 +188,22 @@ describe('modeOptions', () => {
 
   it('offers import first and as the default where the tool reads @import lines', () => {
     expect(modeOptions(tg({ import: true }), true)).toEqual([
-      { mode: 'import', isDefault: true }, { mode: 'symlink', isDefault: false }, { mode: 'copy', isDefault: false },
+      { mode: 'import', isDefault: true }, { mode: 'prepend', isDefault: false }, { mode: 'append', isDefault: false },
+      { mode: 'symlink', isDefault: false }, { mode: 'copy', isDefault: false },
     ]);
   });
 
-  it('offers only symlink and copy to other tools, with symlink as the default', () => {
-    expect(modeOptions(tg({}), true)).toEqual([{ mode: 'symlink', isDefault: true }, { mode: 'copy', isDefault: false }]);
+  it('lists import as blocked for other tools, with symlink as the default', () => {
+    expect(modeOptions(tg({}), true)).toEqual([
+      { mode: 'import', isDefault: false, blocked: 'noImport' }, { mode: 'prepend', isDefault: false }, { mode: 'append', isDefault: false },
+      { mode: 'symlink', isDefault: true }, { mode: 'copy', isDefault: false },
+    ]);
   });
 
   it('blocks symlink and makes copy the default without file links', () => {
-    expect(modeOptions(tg({}), false)).toEqual([{ mode: 'symlink', isDefault: false, blocked: 'fileLinks' }, { mode: 'copy', isDefault: true }]);
+    expect(modeOptions(tg({}), false).filter((o) => o.mode === 'symlink' || o.mode === 'copy')).toEqual([
+      { mode: 'symlink', isDefault: false, blocked: 'fileLinks' }, { mode: 'copy', isDefault: true },
+    ]);
   });
 
   it('keeps an import target on several shared files to import', () => {

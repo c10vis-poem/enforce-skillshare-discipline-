@@ -70,10 +70,7 @@ func Assign(extras []config.ExtraConfig, t Target, want []string, r Resolver, wa
 		if targetIndex(extras[i], t.File, r) != -1 {
 			continue
 		}
-		tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), Mode: "symlink"}
-		if t.Import {
-			tc.Mode = "import"
-		}
+		tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), Mode: defaultAssignMode(t, extras, r)}
 		if base := filepath.Base(t.File); base != extras[i].File {
 			tc.As = base
 		}
@@ -99,7 +96,7 @@ func Assign(extras []config.ExtraConfig, t Target, want []string, r Resolver, wa
 // PlanAssign validates the complete desired ownership without changing files or
 // the caller's config. API batches use it before making their first mutation.
 func PlanAssign(extras []config.ExtraConfig, t Target, want []string, r Resolver) ([]config.ExtraConfig, error) {
-	if !t.Import && len(want) > 1 {
+	if !t.Import && len(want) > 1 && !holdsManaged(extras, t, r) {
 		return nil, &config.ExtraTargetConflict{Name: want[0], Target: t.Name}
 	}
 	for _, name := range want {
@@ -119,11 +116,7 @@ func PlanAssign(extras []config.ExtraConfig, t Target, want []string, r Resolver
 				next[i].Targets = slices.Delete(next[i].Targets, j, j+1)
 			}
 		} else if j == -1 {
-			mode := "symlink"
-			if t.Import {
-				mode = "import"
-			}
-			tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), As: filepath.Base(t.File), Mode: mode}
+			tc := config.ExtraTargetConfig{Path: filepath.Dir(t.File), As: filepath.Base(t.File), Mode: defaultAssignMode(t, next, r)}
 			next[i].Targets = append(next[i].Targets, tc)
 		}
 	}
@@ -131,6 +124,32 @@ func PlanAssign(extras []config.ExtraConfig, t Target, want []string, r Resolver
 		return nil, err
 	}
 	return next, nil
+}
+
+// holdsManaged reports whether the target's file already holds a shared file in
+// a managed block, which lets it take several.
+func holdsManaged(extras []config.ExtraConfig, t Target, r Resolver) bool {
+	return defaultAssignMode(Target{Name: t.Name, File: t.File}, extras, r) == "prepend"
+}
+
+// defaultAssignMode is how a newly connected target gets a shared file: one
+// @path line where the tool reads them; otherwise a link, unless the target's
+// file already holds another shared file in a managed block, in which case the
+// new one goes in a block of its own (a link would replace the file). A target
+// without @import is switched to prepend or append from the mode picker.
+func defaultAssignMode(t Target, extras []config.ExtraConfig, r Resolver) string {
+	if t.Import {
+		return "import"
+	}
+	for _, e := range extras {
+		if !IsShared(e) {
+			continue
+		}
+		if j := targetIndex(e, t.File, r); j != -1 && config.ManagedExtraMode(e.Targets[j].Mode) {
+			return "prepend"
+		}
+	}
+	return "symlink"
 }
 
 // Find returns the index of the named single-file extra's target that writes

@@ -101,15 +101,20 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
   };
   const warn = (warnings?: InstructionsWarning[]) => warnings?.forEach((w) => toast(instructionsWarningMessage(w, t), 'warning'));
 
-  const resolve = (label: string, path: string, action: 'collect' | 'reapply') => setPending({
-    title: t(`instructions.resolve.${action}.title`, { name, target: label }),
-    message: t(action === 'collect' ? `instructions.resolve.collect.message.${locations.length === 1 ? 'one' : 'other'}` : 'instructions.resolve.reapply.message', { name, target: label, count: locations.length }),
-    confirm: t(`instructions.resolve.${action}.item`, { name }),
-    run: async () => {
-      await api.resolveSharedInstructions(name, { path }, action);
-      toast(t(`instructions.resolve.${action}.done`, { name, target: label }), 'success');
-    },
-  });
+  // block: the location holds name as a content block, so only that block is collected or rewritten.
+  const resolve = (label: string, path: string, action: 'collect' | 'reapply', block: boolean) => {
+    const key = (part: string) => `instructions.resolve.${action}.${part}${block ? 'Block' : ''}`;
+    const message = action === 'collect' && !block ? `instructions.resolve.collect.message.${locations.length === 1 ? 'one' : 'other'}` : key('message');
+    setPending({
+      title: t(key('title'), { name, target: label }),
+      message: t(message, { name, target: label, count: locations.length }),
+      confirm: t(key('item'), { name }),
+      run: async () => {
+        await api.resolveSharedInstructions(name, { path }, action);
+        toast(t(key('done'), { name, target: label }), 'success');
+      },
+    });
+  };
 
   const sync = () => act(async () => {
     const res = await api.syncExtras({ name });

@@ -63,6 +63,28 @@ func TestSharedInstructionsMode_SymlinkNeedsFileLinks(t *testing.T) {
 	}
 }
 
+// A tool without @import can switch from the link to a managed block: its own
+// file comes back with the shared content in a block at the top.
+func TestSharedInstructionsMode_PrependKeepsOwnFile(t *testing.T) {
+	s, home := newInstructionsServer(t, "codex")
+	codex := writeHome(t, home, ".codex/AGENTS.md", "mine\n")
+	attachShared(t, s, "codex")
+
+	if rr := instructionsRequest(t, s, http.MethodPut, "/api/instructions/team/targets/codex/mode", `{"mode":"prepend"}`); rr.Code != http.StatusOK {
+		t.Fatalf("mode: %d %s", rr.Code, rr.Body.String())
+	}
+	got := readFile(t, codex)
+	if !strings.HasPrefix(got, `<!-- skillshare:extra src="`) || !strings.HasSuffix(got, "team\n<!-- /skillshare:extra -->\n\nmine\n") {
+		t.Fatalf("after prepend AGENTS.md =\n%s", got)
+	}
+	if res := decodeBody[map[string]any](t, instructionsRequest(t, s, http.MethodPost, "/api/instructions/team/restore", `{"target":"codex"}`)); res["success"] != true {
+		t.Fatalf("restore: %v", res)
+	}
+	if got := readFile(t, codex); got != "mine\n" {
+		t.Errorf("restored AGENTS.md = %q, want only the file's own content", got)
+	}
+}
+
 func TestSharedInstructionsRestorePreview_ReplacedFile(t *testing.T) {
 	s, home := newInstructionsServer(t, "codex")
 	writeHome(t, home, ".codex/AGENTS.md", "mine\n")

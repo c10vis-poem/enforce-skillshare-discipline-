@@ -13,14 +13,15 @@ import (
 )
 
 // sharedInstructionsModes are the modes a shared instruction file can reach a
-// target with. import needs a target that follows @path lines.
-var sharedInstructionsModes = []string{"import", "symlink", "copy"}
+// target with. import needs a target that follows @path lines; prepend and
+// append write the content in a managed block for targets that do not.
+var sharedInstructionsModes = []string{"import", "prepend", "append", "symlink", "copy"}
 
 // checkSharedMode answers 400 and returns false when a shared file cannot
 // reach a target with mode here.
 func checkSharedMode(w http.ResponseWriter, mode string) bool {
 	if !slices.Contains(sharedInstructionsModes, mode) {
-		writeCodedError(w, http.StatusBadRequest, "instructions_invalid_mode", "mode must be import, symlink, or copy", map[string]string{"mode": mode})
+		writeCodedError(w, http.StatusBadRequest, "instructions_invalid_mode", "mode must be import, prepend, append, symlink, or copy", map[string]string{"mode": mode})
 		return false
 	}
 	if mode == "symlink" && !syncpkg.CanCreateFileLink() {

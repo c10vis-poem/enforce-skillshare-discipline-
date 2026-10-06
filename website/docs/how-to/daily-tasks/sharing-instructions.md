@@ -172,9 +172,13 @@ How a target uses a shared file depends on whether it follows `@` imports:
   Your own Claude-only instructions stay here.
   ```
 
-- **Other targets** (codex, gemini and the rest) use one shared file. Their file is
+- **Other targets** (codex, gemini and the rest) get one shared file by default. Their file is
   backed up, then replaced by a link (symlink) to the shared file. On Windows without
   Developer Mode, file links aren't available, so it is replaced by a copy instead.
+  To keep the target's own content, switch the target to `prepend` or `append` in the
+  mode picker: the shared file's content is then written into a managed block at the
+  top or end of the target's file, and the file can hold several shared files, each in
+  its own block.
 
 In global mode, one shared file reaches each target like this:
 
@@ -217,8 +221,8 @@ Some targets are special:
   is a target too, their rows follow universal.
 - cursor isn't listed: its user rules live in Cursor's settings, not in a file.
 
-A target file in link or `copy` mode can belong to only one shared file. It cannot also import
-another shared file. **Connect all** skips targets held by another shared file, including links you
+A target file in link or `copy` mode can belong to only one shared file. It cannot also hold
+another shared file's import line or block. **Connect all** skips targets held by another shared file, including links you
 created yourself; restore that connection before attaching a different file.
 
 ## Manage one shared file
@@ -229,6 +233,8 @@ the target gets the shared file:
 | Mode | Target file | Available |
 |------|-------------|-----------|
 | `import` | Your own file, with one `@import` line in the managed block. Changes to the shared file apply right away | Targets that follow `@` imports |
+| `prepend` | Your own file, with the shared file's content in a managed block at the top. Changes to the shared file are written on the next sync; a block edited by hand shows as `modified` until you collect or reapply it | Always |
+| `append` | The same block, at the end of your file | Always |
 | `symlink` | A link to the shared file. Changes apply right away | Not on Windows without Developer Mode |
 | `copy` | A copy of the shared file. Saving the shared file in the dashboard updates the copy; after editing the shared file elsewhere, sync again with **Sync** on this page | Always |
 
@@ -237,8 +243,10 @@ the target gets the shared file:
 When file links are unavailable, an info tooltip beside **Targets** explains Windows Developer Mode. Instruction warnings and errors use the dashboard language, with the original English message as a fallback for unknown codes.
 
 The picker marks the default: `import` for targets that follow `@` imports, otherwise
-`symlink`, or `copy` on Windows without Developer Mode. A target that uses more than
-one shared file can only use `import`. Changing the mode syncs the target right away.
+`symlink`, or `copy` on Windows without Developer Mode; `prepend` once the target's file
+already holds a shared file in a managed block. A target that uses more than
+one shared file can only use `import`, `prepend` or `append`; `import` is listed but
+blocked for targets that do not follow `@` imports. Changing the mode syncs the target right away.
 Switching back to `import` restores your last content from `import` mode (or the
 pre-attach content if you have not used `import`), plus the import block.
 
