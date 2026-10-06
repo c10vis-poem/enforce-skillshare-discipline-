@@ -38,7 +38,6 @@ export const queryKeys = {
 
   audit: {
     all: (kind?: string) => ['audit', kind ?? 'skills'] as const,
-    skill: (name: string) => ['audit', 'skill', name] as const,
     skillOfKind: (name: string, kind?: string) => ['audit', 'skill', name, kind] as const,
     skills: ['audit', 'skill'] as const,
     rules: ['audit', 'rules'] as const,
