@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -220,6 +221,10 @@ func ParseFrontmatterMap(content []byte) (map[string]any, error) {
 	var fm map[string]any
 	if err := yaml.Unmarshal([]byte(raw), &fm); err != nil {
 		return nil, fmt.Errorf("invalid frontmatter: %w", err)
+	}
+	// A non-string key decodes to map[any]any, which JSON cannot carry.
+	if _, err := json.Marshal(fm); err != nil {
+		return nil, fmt.Errorf("frontmatter JSON cannot carry: %w", err)
 	}
 	return fm, nil
 }

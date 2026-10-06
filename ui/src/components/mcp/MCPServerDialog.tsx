@@ -1,10 +1,8 @@
 import { useContext, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Check, KeyRound, Link2, Plus, SquareTerminal, X } from 'lucide-react';
-import { api } from '../../api/client';
 import { mcpApi, mcpOffTargets, type MCPMutation, type MCPServer } from '../../api/mcp';
-import { useAvailableTargetsQuery } from '../../hooks/useSharedQueries';
-import { queryKeys, staleTimes } from '../../lib/queryKeys';
+import { useAvailableTargetsQuery, useSyncedTargetsQuery } from '../../hooks/useSharedQueries';
+import { shortenHome } from '../../lib/paths';
 import AgentIcon from '../AgentIcon';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
@@ -19,13 +17,16 @@ import { cleanToolPolicy, describeError, hasToolPolicy, targetLabel } from './mc
 import { MCPTargetOrder } from './targetOrder';
 import { initialServerDraft, serveSkillsCommand, serveSkillsTarget, validateServerDraft, type AddMode, type DraftPatch, type EnvRow, type ServerDraft, type ServerValidation } from './mcpServerDraft';
 
-/** For the Skillshare tab: the skills targets that can be served, and the Agents that already get skills by sync. */
-function useSkillTargets(enabled: boolean) {
-  const own = useQuery({ queryKey: queryKeys.targets.all, queryFn: () => api.listTargets(), staleTime: staleTimes.targets, enabled });
+/**
+ * For the Skillshare tab: the skills targets that can be served, and the Agents that already get skills by sync.
+ * A root under mcp.projects adds its own project targets (app@claude), which live in the global config too.
+ */
+function useSkillTargets(enabled: boolean, project?: string) {
+  const own = useSyncedTargetsQuery({ enabled });
   const tools = useAvailableTargetsQuery({ enabled });
-  const on = (own.data?.targets ?? []).filter((x) => x.skillsEnabled);
-  // A target syncs skills to its Agent; a tool also reads other targets' folders (universal's ~/.agents/skills).
-  const synced = new Set([...on.map((x) => x.agent ?? x.name), ...(tools.data?.targets ?? []).filter((x) => x.readsFrom?.length).map((x) => x.name)]);
+  const on = (own.data?.targets ?? []).filter((x) => x.skillsEnabled && (!x.project || (project !== undefined && shortenHome(x.project) === shortenHome(project))));
+  // A target syncs skills to its Agent, named after the @ in a project target; a tool also reads other targets' folders (universal's ~/.agents/skills).
+  const synced = new Set([...on.map((x) => x.agent ?? x.name.slice(x.name.lastIndexOf('@') + 1)), ...(tools.data?.targets ?? []).filter((x) => x.readsFrom?.length).map((x) => x.name)]);
   return { names: on.map((x) => x.name), synced };
 }
 
@@ -99,6 +100,7 @@ interface ServerFormProps {
   order: readonly string[];
   visibleTargets: Set<string>;
   isProject: boolean;
+  project?: string;
   serve: boolean;
   onMode: Props['onMode'];
   onSave: () => Promise<void>;
@@ -109,12 +111,13 @@ interface ServerFormProps {
   mutation?: MCPMutation;
 }
 
-function ServerForm({ draft, validation, patch, off, saving, editing, order, visibleTargets, isProject, serve, onMode, onSave, error, probe, mutation }: ServerFormProps) {
+function ServerForm({ draft, validation, patch, off, saving, editing, order, visibleTargets, isProject, project, serve, onMode, onSave, error, probe, mutation }: ServerFormProps) {
   const t = useT();
+  const { isProjectMode } = useAppContext();
   const { name, http, targets } = draft;
   const { nameError } = validation;
   const selectedTargets = new Set(targets);
-  const skillTargets = useSkillTargets(serve);
+  const skillTargets = useSkillTargets(serve, project);
   const served = serveSkillsTarget(validation.words) ?? '';
   const twice = serve ? order.filter((x) => selectedTargets.has(x) && skillTargets.synced.has(x)) : [];
   return (
@@ -142,7 +145,7 @@ function ServerForm({ draft, validation, patch, off, saving, editing, order, vis
           <Select
             label={t('mcp.serve.which')}
             value={served}
-            onChange={(v) => patch({ command: serveSkillsCommand(v, isProject) })}
+            onChange={(v) => patch({ command: serveSkillsCommand(v, isProjectMode) })}
             options={[{ value: '', label: t('mcp.serve.all') }, ...[...new Set([...skillTargets.names, ...(served ? [served] : [])])].map((x) => ({ value: x, label: t('mcp.serve.like', { name: x }) }))]}
             disabled={saving}
           />
@@ -273,7 +276,8 @@ export default function MCPServerDialog({ initial, defaultTargets, existingNames
   const isProject = Boolean(project) || isProjectMode;
   const [draft, setDraft] = useState(() => {
     const start = initialServerDraft(server, initial?.name ?? '', defaultTargets, off);
-    return serve && !server ? { ...start, name: 'skillshare', command: serveSkillsCommand('', isProject) } : start;
+    // Only a project-mode dashboard serves with -p; a root under mcp.projects is served from the global config.
+    return serve && !server ? { ...start, name: 'skillshare', command: serveSkillsCommand('', isProjectMode) } : start;
   });
   const patch: DraftPatch = (change) => setDraft((prev) => ({ ...prev, ...change }));
   const { http, url, tokenEnv, headers, env, targets } = draft;
@@ -341,7 +345,7 @@ export default function MCPServerDialog({ initial, defaultTargets, existingNames
         <button type="button" className="ss-ib" aria-label={t('common.close')} onClick={onClose} disabled={saving}><X size={16} /></button>
       </div>
       {/* The view takes the whole body, so a long file has room; the fields live in state and come back as they were. */}
-      {viewing ? <div className="db"><MCPConfigView mutation={mutation} /></div> : <ServerForm draft={draft} validation={validation} patch={patch} off={off} saving={saving} editing={Boolean(initial)} order={order} visibleTargets={visibleTargets} isProject={isProject} serve={serve} onMode={onMode} onSave={save} error={error} probe={probe} mutation={complete ? mutation : undefined} />}
+      {viewing ? <div className="db"><MCPConfigView mutation={mutation} /></div> : <ServerForm draft={draft} validation={validation} patch={patch} off={off} saving={saving} editing={Boolean(initial)} order={order} visibleTargets={visibleTargets} isProject={isProject} project={project} serve={serve} onMode={onMode} onSave={save} error={error} probe={probe} mutation={complete ? mutation : undefined} />}
       {viewing ? <div className="df"><Button variant="secondary" onClick={() => setViewing(false)}>{t('common.back')}</Button></div> : <ServerFooter targets={targets} off={off} complete={complete} canSave={canSave} saving={saving} onView={() => setViewing(true)} onClose={onClose} />}
     </DialogShell>
   );

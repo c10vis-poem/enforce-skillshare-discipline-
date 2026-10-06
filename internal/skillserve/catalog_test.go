@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -121,6 +122,35 @@ func TestBuild_SkipsParentOfExcludedNestedSkill(t *testing.T) {
 	}
 }
 
+func TestBuild_SkipsParentOfInvalidNestedSkill(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "suite/SKILL.md"), skillMD("suite"))
+	writeFile(t, filepath.Join(src, "suite/child/SKILL.md"), skillMD("other"))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 0 || !hasWarning(c, "contains suite/child") {
+		t.Errorf("skills=%v warnings=%v, want suite skipped because its child is skipped", c.Skills, c.Skipped)
+	}
+}
+
+// A non-string key decodes to a map JSON cannot encode, which would fail the whole skills/list page.
+func TestBuild_SkipsSkillWhoseFrontmatterJSONCannotCarry(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "ok/SKILL.md"), skillMD("ok"))
+	writeFile(t, filepath.Join(src, "odd/SKILL.md"), "---\nname: odd\ndescription: Use when testing odd\nmetadata:\n  1: x\n---\n")
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 1 || c.Skills[0].URI != "skill://ok/SKILL.md" || !hasWarning(c, "skipped odd") {
+		t.Errorf("skills=%v warnings=%v, want odd skipped and ok served", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsSkillOverFileLimit(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))
@@ -185,5 +215,21 @@ func TestRead_ServesOnlyManifestFilesInsideTheSkill(t *testing.T) {
 		if _, err := c.Read(uri); err == nil {
 			t.Errorf("Read(%s) succeeded, want rejection", uri)
 		}
+	}
+}
+
+func TestRead_ServesListedFileWithBackslashInName(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a backslash separates paths on Windows")
+	}
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "doc/SKILL.md"), skillMD("doc"))
+	writeFile(t, filepath.Join(src, `doc/a\b.txt`), "x")
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, err := c.Read("skill://doc/a%5Cb.txt"); err != nil || string(data) != "x" {
+		t.Errorf("Read = %q, %v; want the listed file", data, err)
 	}
 }

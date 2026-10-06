@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"slices"
@@ -105,32 +106,48 @@ func (b *Builder) Build() (*Catalog, error) {
 	}
 	slices.SortFunc(selected, func(x, y ssync.DiscoveredSkill) int { return strings.Compare(x.RelPath, y.RelPath) })
 
-	c := &Catalog{bySkill: map[string]*Skill{}, byFile: map[string]servedFile{}}
+	type loaded struct {
+		skill  *Skill
+		files  map[string]servedFile
+		reason string
+	}
+	loads := make([]loaded, len(selected))
 	next := map[string]digest{}
-	for _, s := range selected {
-		skill, reason := b.load(s, unserved, c.byFile, next)
-		if reason != "" {
-			c.Skipped = append(c.Skipped, Skip{Path: s.RelPath, Reason: reason})
+	for i, s := range selected {
+		loads[i].skill, loads[i].files, loads[i].reason = b.load(s, next)
+	}
+	// Deepest first, so a nested skill skipped for any reason also skips its parents,
+	// which would otherwise publish its files as their own.
+	for i := len(loads) - 1; i >= 0; i-- {
+		for _, o := range unserved {
+			if loads[i].reason == "" && strings.HasPrefix(o, selected[i].RelPath+"/") {
+				loads[i].reason = fmt.Sprintf("contains %s, which is not served", o)
+			}
+		}
+		if loads[i].reason != "" {
+			unserved = append(unserved, selected[i].RelPath)
+		}
+	}
+
+	c := &Catalog{bySkill: map[string]*Skill{}, byFile: map[string]servedFile{}}
+	for i, l := range loads {
+		if l.reason != "" {
+			c.Skipped = append(c.Skipped, Skip{Path: selected[i].RelPath, Reason: l.reason})
 			continue
 		}
-		c.Skills = append(c.Skills, skill)
-		c.bySkill[skill.URI] = skill
+		c.Skills = append(c.Skills, l.skill)
+		c.bySkill[l.skill.URI] = l.skill
+		maps.Copy(c.byFile, l.files)
 	}
 	b.digests = next
 	return c, nil
 }
 
-// load builds one entry and registers its files in byFile, or returns why the
-// skill is skipped.
-func (b *Builder) load(s ssync.DiscoveredSkill, unserved []string, byFile map[string]servedFile, next map[string]digest) (*Skill, string) {
-	for _, o := range unserved {
-		if strings.HasPrefix(o, s.RelPath+"/") {
-			return nil, fmt.Sprintf("contains %s, which is not served", o)
-		}
-	}
+// load builds one entry and its files, or returns why the skill is skipped.
+func (b *Builder) load(s ssync.DiscoveredSkill, next map[string]digest) (*Skill, map[string]servedFile, string) {
 	p, err := skillpkg.Load(s.SourcePath)
 	if err != nil {
-		return nil, err.Error()
+		return nil, nil, err.Error()
 	}
 	base := "skill://" + escapePath(s.RelPath)
 	skill := &Skill{URI: base + "/SKILL.md", Frontmatter: p.Frontmatter}
@@ -138,16 +155,13 @@ func (b *Builder) load(s ssync.DiscoveredSkill, unserved []string, byFile map[st
 	for _, f := range p.Files {
 		sum, err := b.digest(f, next)
 		if err != nil {
-			return nil, err.Error()
+			return nil, nil, err.Error()
 		}
 		uri := base + "/" + escapePath(f.Rel)
 		files[uri] = servedFile{dir: p.Dir, rel: f.Rel}
 		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: f.Size})
 	}
-	for uri, f := range files {
-		byFile[uri] = f
-	}
-	return skill, ""
+	return skill, files, ""
 }
 
 // ponytail: size+mtime keys the digest cache, so a same-size edit within the
@@ -211,7 +225,7 @@ func canonical(uri string) (string, bool) {
 	segs := strings.Split(rest, "/")
 	for i, s := range segs {
 		d, err := url.PathUnescape(s)
-		if err != nil || d == "" || d == "." || d == ".." || strings.ContainsAny(d, "/\\\x00") {
+		if err != nil || d == "" || d == "." || d == ".." || strings.ContainsAny(d, "/\x00") {
 			return "", false
 		}
 		segs[i] = url.PathEscape(d)

@@ -140,7 +140,8 @@ func main() {
 	// --format json/sarif/markdown) must produce only structured data on
 	// stdout and nothing on stderr.  Skip the trailing newline and update
 	// check entirely so machine consumers get a clean payload.
-	if !isStructuredOutput(args) {
+	// mcp serve speaks the protocol on stdout, so it gets neither either.
+	if !isStructuredOutput(args) && !(cmd == "mcp" && len(args) > 0 && args[0] == "serve") {
 		fmt.Println()
 
 		// Check for updates (non-blocking, silent on errors)

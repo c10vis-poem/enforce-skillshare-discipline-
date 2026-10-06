@@ -88,6 +88,26 @@ describe('MCP server dialog', () => {
     await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith({ name: 'skillshare', server: { command: 'skillshare', args: ['mcp', 'serve'] }, replace: false }));
   });
 
+  // A root under mcp.projects is served from the global config, where its targets live, so no -p.
+  it("serves a project's own target selection from the global config", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listTargets).mockResolvedValue({
+      targets: [
+        { name: 'claude', skillsEnabled: true },
+        { name: 'app@claude', project: '/work/app', skillsEnabled: true },
+        { name: 'web@claude', project: '/work/web', skillsEnabled: true },
+      ] as Target[],
+      sourceSkillCount: 1,
+    });
+    renderDialog({ serve: true, project: '/work/app' });
+    await user.click(screen.getByRole('combobox', { name: 'Skills to serve' }));
+    const own = await screen.findByRole('option', { name: 'Same as target app@claude' });
+    expect(screen.queryByRole('option', { name: 'Same as target web@claude' })).not.toBeInTheDocument();
+    await user.click(own);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith(expect.objectContaining({ server: { command: 'skillshare', args: ['mcp', 'serve', '--target', 'app@claude'] } })));
+  });
+
   it('warns that an Agent already getting skills by sync would see them twice', async () => {
     vi.mocked(api.listTargets).mockResolvedValue({ targets: [{ name: 'claude', skillsEnabled: true } as Target], sourceSkillCount: 1 });
     renderDialog({ serve: true });

@@ -103,7 +103,11 @@ func cmdMCPServe(args []string) error {
 	defer stop()
 
 	if addr == "" {
-		return srv.Run(ctx, &mcp.StdioTransport{})
+		// A client stopping the server with a signal is a normal exit, as for --http.
+		if err := srv.Run(ctx, &mcp.StdioTransport{}); !errors.Is(err, context.Canceled) {
+			return err
+		}
+		return nil
 	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
