@@ -146,9 +146,13 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	files := make(map[string]servedFile, len(p.Files))
 	left := int64(skillpkg.MaxBytes) // the walk checked sizes too, but files can grow since
 	for _, f := range p.Files {
-		sum, size, err := hashFile(f.Path, left)
-		if err != nil {
-			return nil, nil, err.Error()
+		// SKILL.md is hashed from the bytes its frontmatter came from, so the entry
+		// never pairs old frontmatter with a newer file's digest.
+		sum, size := fmt.Sprintf("sha256:%x", sha256.Sum256(p.SkillMD)), int64(len(p.SkillMD))
+		if f.Rel != "SKILL.md" {
+			if sum, size, err = hashFile(f.Path, left); err != nil {
+				return nil, nil, err.Error()
+			}
 		}
 		left -= size
 		uri := base + "/" + escapePath(f.Rel)

@@ -33,6 +33,7 @@ type File struct {
 type Package struct {
 	Dir         string // resolved
 	Frontmatter map[string]any
+	SkillMD     []byte // the bytes Frontmatter was parsed from
 	Files       []File
 }
 
@@ -82,7 +83,7 @@ func Load(dir string) (*Package, error) {
 		return nil, fmt.Errorf("compatibility has %d characters; the limit is %d", n, MaxCompatibility)
 	}
 
-	p := &Package{Dir: dir, Frontmatter: fm}
+	p := &Package{Dir: dir, Frontmatter: fm, SkillMD: content}
 	var total int64
 	err = sourcewalk.Walk(dir, sourcewalk.Options{}, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
