@@ -33,7 +33,12 @@ func TestAuditInstalled_AgentsKindScansAgentsSource(t *testing.T) {
 		}
 	})
 
-	if len(results) != 1 || results[0].Kind != "agent" || !strings.HasPrefix(results[0].ScanTarget, agents) {
+	// The runner TEMP is an 8.3 short path on Windows; the scan target is the long one.
+	real, err := filepath.EvalSymlinks(agents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Kind != "agent" || !strings.HasPrefix(results[0].ScanTarget, real) {
 		t.Fatalf("expected the one agent from the agents source, got %+v", results)
 	}
 	if results[0].SkillName != "helper.md" {

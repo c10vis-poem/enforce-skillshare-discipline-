@@ -31,8 +31,13 @@ func TestGroupFollowedLogicalPaths(t *testing.T) {
 	if len(updates) != 2 {
 		t.Fatalf("updates=%+v", updates)
 	}
+	// The runner TEMP is an 8.3 short path on Windows; target paths are the long ones.
+	real, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, target := range updates {
-		if target.path != filepath.Join(source, target.name) {
+		if target.path != filepath.Join(real, target.name) {
 			t.Errorf("nonlogical update: %+v", target)
 		}
 		if !target.isRepo && (target.meta == nil || target.name != filepath.Join("_dev-skills", "foo")) {
