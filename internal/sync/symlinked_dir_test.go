@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"skillshare/internal/config"
+	"skillshare/internal/utils"
 )
 
 // --- Discover tests: source dir is a symlink ---
@@ -165,7 +166,7 @@ func TestSyncTargetMerge_TargetIsSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected symlink at %q: %v", linkPath, err)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
+	if !utils.IsLinkMode(linkPath, info.Mode()) {
 		t.Fatal("expected a symlink")
 	}
 

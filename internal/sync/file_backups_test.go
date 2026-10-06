@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -142,7 +143,8 @@ func TestRestoreFileBackup_SavesCurrentFirst(t *testing.T) {
 	if err != nil || string(data) != "now" {
 		t.Fatalf("saved version = %q, %v", data, err)
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0600 {
+	// Windows has no permission bits to preserve.
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatalf("mode = %v, want the file's own 0600", info.Mode().Perm())
 	}
 }

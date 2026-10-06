@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"skillshare/internal/utils"
 )
 
 // setupExtrasTest creates source and target directories under a temp root.
@@ -589,7 +591,7 @@ func TestSyncExtra_SymlinkMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
+	if !utils.IsLinkMode(tgt, info.Mode()) {
 		t.Error("expected target to be a symlink")
 	}
 
