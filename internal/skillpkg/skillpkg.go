@@ -170,8 +170,9 @@ func hashAtMost(path string, limit int64) (string, int64, error) {
 // reference validator, it checks lowercase Unicode letters and digits after NFKC
 // normalization and counts the limit in characters.
 func ValidateName(name, dirName string) string {
+	// Not trimmed: surrounding whitespace is not a letter, digit or hyphen, so it fails below.
 	exact := name
-	name = norm.NFKC.String(strings.TrimSpace(name))
+	name = norm.NFKC.String(name)
 	if name == "" {
 		return "SKILL.md is missing a name"
 	}

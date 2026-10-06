@@ -145,7 +145,8 @@ function ServerForm({ draft, validation, patch, off, saving, editing, order, vis
           <Select
             label={t('mcp.serve.which')}
             value={served}
-            onChange={(v) => patch({ command: serveSkillsCommand(v, isProjectMode) })}
+            // An edited command keeps its own -p; the dashboard scope only decides for a new one.
+            onChange={(v) => patch({ command: serveSkillsCommand(v, isProjectMode || validation.words.some((w) => w === '-p' || w === '--project')) })}
             options={[{ value: '', label: t('mcp.serve.all') }, ...[...new Set([...skillTargets.names, ...(served ? [served] : [])])].map((x) => ({ value: x, label: t('mcp.serve.like', { name: x }) }))]}
             disabled={saving}
           />

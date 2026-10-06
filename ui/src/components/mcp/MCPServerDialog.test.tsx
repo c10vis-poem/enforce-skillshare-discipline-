@@ -108,6 +108,16 @@ describe('MCP server dialog', () => {
     await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith(expect.objectContaining({ server: { command: 'skillshare', args: ['mcp', 'serve', '--target', 'app@claude'] } })));
   });
 
+  it("keeps an existing command's -p when the served target changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listTargets).mockResolvedValue({ targets: [{ name: 'old', skillsEnabled: true }, { name: 'new', skillsEnabled: true }] as Target[], sourceSkillCount: 1 });
+    renderDialog({ serve: true, initial: { name: 'skillshare', server: { command: 'skillshare', args: ['mcp', 'serve', '-p', '--target', 'old'] } } });
+    await user.click(screen.getByRole('combobox', { name: 'Skills to serve' }));
+    await user.click(await screen.findByRole('option', { name: 'Same as target new' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mcpApi.save).toHaveBeenCalledWith(expect.objectContaining({ server: expect.objectContaining({ command: 'skillshare', args: ['mcp', 'serve', '--target', 'new', '-p'] }) })));
+  });
+
   it('warns that an Agent already getting skills by sync would see them twice', async () => {
     vi.mocked(api.listTargets).mockResolvedValue({ targets: [{ name: 'claude', skillsEnabled: true } as Target], sourceSkillCount: 1 });
     renderDialog({ serve: true });
