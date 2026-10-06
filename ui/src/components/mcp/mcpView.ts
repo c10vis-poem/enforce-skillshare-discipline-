@@ -170,6 +170,23 @@ export const parsePiOptions = (text: string, tools = false): { value?: Record<st
       }
       const port = options.oauth.callbackPort;
       if (port !== undefined && (!Number.isInteger(port) || Number(port) < 1 || Number(port) > 65535)) return { bad: 'oauth.callbackPort' };
+      const oauth = options.oauth;
+      if ('clientRegistration' in oauth && oauth.clientRegistration !== 'dcr' && oauth.clientRegistration !== 'cimd') return { bad: 'oauth.clientRegistration' };
+      if (oauth.clientRegistration === 'cimd') {
+        for (const key of ['clientId', 'clientName']) {
+          if (key in oauth) return { bad: `oauth.${key}` };
+        }
+        if ('callbackUrl' in oauth) {
+          try {
+            const callback = new URL(oauth.callbackUrl as string);
+            if (callback.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(callback.hostname) || callback.pathname !== '/callback'
+              || callback.username || callback.password || callback.search || callback.hash
+              || (callback.port && port !== undefined && Number(callback.port) !== port)) return { bad: 'oauth.callbackUrl' };
+          } catch {
+            return { bad: 'oauth.callbackUrl' };
+          }
+        }
+      }
       if ('authServerMetadataUrl' in options.oauth && !metadataURL(options.oauth.authServerMetadataUrl)) return { bad: 'oauth.authServerMetadataUrl' };
     }
     if ('auth' in options && (!object(options.auth) || typeof options.auth.provider !== 'string' || !options.auth.provider)) return { bad: 'auth.provider' };
