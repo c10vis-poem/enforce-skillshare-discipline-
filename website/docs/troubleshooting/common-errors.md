@@ -453,7 +453,7 @@ See [Environment Variables — Git SSL / TLS](/docs/reference/appendix/environme
 
 **Solution:** Check the source path is correct and points to a skill directory.
 
-### `'<path>' is in git submodule '<submodule>' ..., and skillshare does not fetch submodules`
+### `"<path>" is in git submodule "<submodule>" ..., and skillshare does not fetch submodules`
 
 **Cause:** The path you asked for is a git submodule in the repository, or sits inside one. skillshare does not fetch submodules, so the directory would be empty.
 

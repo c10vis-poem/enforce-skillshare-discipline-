@@ -68,7 +68,7 @@ describe('InstallDialog', () => {
       needsSelection: true,
       skills: [{ name: 'pdf', path: 'pdf' }, { name: 'docx', path: 'docx' }],
       agents: [],
-      warnings: ["skipped git submodule 'vendor/up' (pinned at abc from https://example.com/up.git): skillshare does not fetch submodules"],
+      warnings: ['skipped git submodule "vendor/up" (pinned at abc from "https://example.com/up.git"): skillshare does not fetch submodules'],
     });
     const user = userEvent.setup();
     renderDialog('url');
@@ -76,7 +76,7 @@ describe('InstallDialog', () => {
     await user.type(screen.getByLabelText(/git url/i), 'owner/hub');
     await user.click(screen.getByRole('button', { name: /find skills/i }));
 
-    expect(await screen.findByText(/skipped git submodule 'vendor\/up'/)).toBeInTheDocument();
+    expect(await screen.findByText(/skipped git submodule "vendor\/up"/)).toBeInTheDocument();
   });
 
   it('force installs only the skill the audit blocked', async () => {
@@ -160,7 +160,7 @@ describe('InstallDialog', () => {
       needsSelection: true,
       skills: [{ name: 'pdf', path: 'pdf' }, { name: 'docx', path: 'docx' }],
       agents: [],
-      warnings: ["skipped git submodule 'vendor/up'"],
+      warnings: ['skipped git submodule "vendor/up"'],
     });
     vi.mocked(api.installBatch).mockResolvedValue({ results: [{ name: 'pdf', action: 'installed' }], summary: 'Installed 1' });
     const user = userEvent.setup();
@@ -174,6 +174,6 @@ describe('InstallDialog', () => {
       expect.objectContaining({ source: 'anthropics/skills', skills: [expect.objectContaining({ name: 'pdf' })] }),
     ));
     expect(api.searchHub).toHaveBeenCalledWith('pdf', 'https://acme.dev/hub.json');
-    expect(screen.getByText(/skipped git submodule 'vendor\/up'/)).toBeInTheDocument();
+    expect(screen.getByText(/skipped git submodule "vendor\/up"/)).toBeInTheDocument();
   });
 });

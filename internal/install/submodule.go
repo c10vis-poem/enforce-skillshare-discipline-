@@ -17,10 +17,12 @@ type gitlink struct {
 	URL    string // from .gitmodules; "" when not recorded
 }
 
+// String quotes the path and URL with %q: both come from an untrusted repo
+// and may hold newlines or terminal escape sequences.
 func (l gitlink) String() string {
-	s := fmt.Sprintf("'%s' (pinned at %s", l.Path, shortHash(l.Commit))
+	s := fmt.Sprintf("%q (pinned at %s", l.Path, shortHash(l.Commit))
 	if l.URL != "" {
-		s += " from " + displayURL(l.URL)
+		s += fmt.Sprintf(" from %q", displayURL(l.URL))
 	}
 	return s + ")"
 }
@@ -95,18 +97,19 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 
 // submoduleError refuses a subdir that is a submodule or lies inside one,
 // which would otherwise install an empty directory or report a missing path.
-// A case variant ("Vendor/Up" for "vendor/up") counts only when the
-// filesystem opens the same directory for both, as Windows and macOS do.
+// Each ancestor of subdir is matched by name, or by filesystem identity so a
+// spelling the filesystem folds to the gitlink's directory (case on Windows
+// and macOS, Unicode normalization on APFS) counts too.
 func submoduleError(repoPath, subdir string, extraEnv []string) error {
 	subdir = strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(subdir)), "/")
+	parts := strings.Split(subdir, "/")
 	for _, l := range repoGitlinks(repoPath, extraEnv) {
-		n := len(l.Path)
-		if len(subdir) < n || (len(subdir) > n && subdir[n] != '/') {
-			continue
-		}
-		prefix := subdir[:n]
-		if prefix == l.Path || (strings.EqualFold(prefix, l.Path) && sameDir(filepath.Join(repoPath, prefix), filepath.Join(repoPath, l.Path))) {
-			return fmt.Errorf("'%s' is in git submodule %s, and skillshare does not fetch submodules; install from that repository instead, or copy the files into this one", subdir, l)
+		linkDir := filepath.Join(repoPath, filepath.FromSlash(l.Path))
+		for i := range parts {
+			ancestor := strings.Join(parts[:i+1], "/")
+			if ancestor == l.Path || sameDir(filepath.Join(repoPath, filepath.FromSlash(ancestor)), linkDir) {
+				return fmt.Errorf("%q is in git submodule %s, and skillshare does not fetch submodules; install from that repository instead, or copy the files into this one", subdir, l)
+			}
 		}
 	}
 	return nil

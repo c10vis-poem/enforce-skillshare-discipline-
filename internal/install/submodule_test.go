@@ -67,7 +67,7 @@ func TestDiscoverFromGitSubdir_RefusesSubmodulePaths(t *testing.T) {
 				CleanupDiscovery(result)
 				t.Fatalf("expected an error, got %d skill(s)", len(result.Skills))
 			}
-			if !strings.Contains(err.Error(), "git submodule 'vendor/up'") || !strings.Contains(err.Error(), upURL) {
+			if !strings.Contains(err.Error(), `git submodule "vendor/up"`) || !strings.Contains(err.Error(), upURL) {
 				t.Fatalf("error should name the submodule and its upstream, got: %v", err)
 			}
 		})
@@ -112,6 +112,13 @@ func TestInstallTrackedRepo_RefusesSubmoduleSubdir(t *testing.T) {
 	}
 }
 
+func TestGitlinkString_EscapesControlCharacters(t *testing.T) {
+	got := gitlink{Path: "vendor/\x1b]52;c;Zm9v\x07up\n✓ fake", Commit: "abc", URL: "https://example.com/\x1b[31mup.git"}.String()
+	if strings.ContainsAny(got, "\x1b\x07\n") {
+		t.Fatalf("String() = %q, want control characters escaped", got)
+	}
+}
+
 func TestGitlinkString_HidesURLCredentials(t *testing.T) {
 	for raw, want := range map[string]string{
 		"https://user:s3cret@example.com/org/up.git":         "https://example.com/org/up.git",
@@ -141,7 +148,7 @@ func TestDiscoverFromGit_WarnsSkippedSubmodule(t *testing.T) {
 	if len(result.Skills) != 1 || result.Skills[0].Name != "own" {
 		t.Fatalf("expected only the hub's own skill, got %+v", result.Skills)
 	}
-	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], "skipped git submodule 'vendor/up'") || !strings.Contains(result.Warnings[0], upURL) {
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], `skipped git submodule "vendor/up"`) || !strings.Contains(result.Warnings[0], upURL) {
 		t.Fatalf("expected one submodule warning, got %q", result.Warnings)
 	}
 }
