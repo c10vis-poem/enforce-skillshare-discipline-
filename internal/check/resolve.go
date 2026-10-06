@@ -124,33 +124,44 @@ func (r *Resolution) Run(ctx context.Context, opts Options) ([]SkillResult, erro
 	if remote == nil {
 		remote = GitRemote{}
 	}
-	workers := 1
-	if opts.Parallel {
-		workers = maxWorkers
-	}
 
 	resolved := make([][]SkillResult, len(r.groups))
-	sem := make(chan struct{}, workers)
-	var wg sync.WaitGroup
-	var err error
-	for i, g := range r.groups {
-		sem <- struct{}{}
-		if err = ctx.Err(); err != nil {
-			break
+	resolve := func(i int) {
+		g := r.groups[i]
+		resolved[i] = g.resolve(remote)
+		if opts.OnRemoteDone != nil {
+			opts.OnRemoteDone(len(g.skills))
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-			resolved[i] = g.resolve(remote)
-			if opts.OnRemoteDone != nil {
-				opts.OnRemoteDone(len(g.skills))
-			}
-		}()
 	}
-	wg.Wait()
-	if err != nil {
-		return nil, err
+
+	if !opts.Parallel {
+		// On the caller's goroutine, so a panic reaches the caller.
+		for i := range r.groups {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			resolve(i)
+		}
+	} else {
+		sem := make(chan struct{}, maxWorkers)
+		var wg sync.WaitGroup
+		var err error
+		for i := range r.groups {
+			sem <- struct{}{}
+			if err = ctx.Err(); err != nil {
+				break
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer func() { <-sem }()
+				resolve(i)
+			}()
+		}
+		wg.Wait()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	results := append([]SkillResult(nil), r.local...)

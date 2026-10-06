@@ -263,6 +263,19 @@ func TestResolution_StopsBeforeNextRemoteWhenCancelled(t *testing.T) {
 	}
 }
 
+// The dashboard handlers rely on net/http recovering a panic, which it only
+// does on the request's goroutine: a panic on another one ends the server.
+func TestResolution_SequentialRunStaysOnTheCallersGoroutine(t *testing.T) {
+	skills := []Skill{{Name: "a", Entry: &install.MetadataEntry{RepoURL: "a", Version: "c1"}}}
+	remote := &fakeRemote{hashes: map[string]string{"a": "c1"}}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("a panic during a sequential Run must reach the caller")
+		}
+	}()
+	Plan(skills, "").Run(context.Background(), Options{Remote: remote, OnRemoteDone: func(int) { panic("boom") }})
+}
+
 // TestGitRemoteHash_DefaultBranchUsesAuth verifies that a skill without a
 // pinned branch still probes the remote HEAD with token auth, as the
 // branch-pinned probe does. The fake git answers ls-remote only when the auth
