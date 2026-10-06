@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -281,6 +282,9 @@ func TestResolution_SequentialRunStaysOnTheCallersGoroutine(t *testing.T) {
 // branch-pinned probe does. The fake git answers ls-remote only when the auth
 // env carries the token.
 func TestGitRemoteHash_DefaultBranchUsesAuth(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a shell script named git is not found by exec on Windows")
+	}
 	const token = "ghp_check_default_branch_token"
 	fakeBin := t.TempDir()
 	script := "#!/bin/sh\n" +
