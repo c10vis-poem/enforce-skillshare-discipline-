@@ -27,6 +27,7 @@ import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { SettingsTabs } from './SettingsPage';
 import { useHooksQuery, useMcpQuery, useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const CONFLICTS_SHOWN = 6;
 const TABS = ['folders', 'files', 'mcp', 'hooks'] as const;
@@ -109,7 +110,7 @@ function useCreateBackup() {
     mutationFn: () => api.createBackup(),
     onSuccess: (res) => {
       toast(res.backedUpTargets?.length ? t('backup.toast.backedUp', { count: res.backedUpTargets.length }) : t('backup.toast.nothingToBackUp'), res.backedUpTargets?.length ? 'success' : 'info');
-      void queryClient.invalidateQueries({ queryKey: queryKeys.backups });
+      void invalidate(queryClient, 'backupsChanged');
     },
     onError: (e: Error) => toast(e.message, 'error'),
   });
@@ -133,7 +134,7 @@ function FolderBackups({ creating }: { creating: boolean }) {
   const agentOf = useContext(TargetAgents);
 
   const backups = data?.backups ?? [];
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.backups });
+  const refresh = () => invalidate(queryClient, 'backupsChanged');
   const date = (b: BackupInfo) => formatDateTime(b.date, locale, { dateStyle: 'medium', timeStyle: 'short' });
 
   const cleanup = useMutation({
@@ -148,7 +149,7 @@ function FolderBackups({ creating }: { creating: boolean }) {
   });
   const limits = useMutation({
     mutationFn: (l: { maxCount: number; maxSizeMB: number }) => api.patchConfig({ backupMaxCount: l.maxCount, backupMaxSizeMB: l.maxSizeMB }),
-    onSuccess: () => { toast(t('settings.toast.saved'), 'success'); refresh(); void queryClient.invalidateQueries({ queryKey: queryKeys.config }); },
+    onSuccess: () => { toast(t('settings.toast.saved'), 'success'); void invalidate(queryClient, 'backupLimitsSaved'); },
     onError: (e: Error) => toast(e.message, 'error'),
   });
   const remove = useMutation({
@@ -289,8 +290,7 @@ function FolderBackups({ creating }: { creating: boolean }) {
           onClose={() => setRestore(null)}
           onDone={() => {
             setRestore(null);
-            refresh();
-            queryClient.invalidateQueries({ queryKey: queryKeys.targets.all });
+            void invalidate(queryClient, 'backupRestored');
           }}
         />
       )}

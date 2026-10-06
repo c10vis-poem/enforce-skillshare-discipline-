@@ -10,6 +10,7 @@ import DialogShell from '../DialogShell';
 import { blockedEntries, downloadIndex, publishable } from './hubShared';
 import { queryKeys } from '../../lib/queryKeys';
 import { useT } from '../../i18n';
+import { invalidate } from '../../lib/queryEvents';
 
 function Step({ n, children }: { n: number; children: ReactNode }) {
   return (
@@ -45,7 +46,7 @@ export default function ShareDialog({ response, onClose }: { response: DraftResp
     try {
       const res = await hubDrafts.save({ ...draft, fields: { ...draft.fields, publishUrl: location.trim() } });
       queryClient.setQueryData(queryKeys.hub.draft(res.draft.id), res);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+      void invalidate(queryClient, 'hubDraftsChanged');
       return true;
     } catch (err) {
       fail(err);

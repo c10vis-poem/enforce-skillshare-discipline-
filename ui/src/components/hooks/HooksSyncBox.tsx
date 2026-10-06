@@ -13,6 +13,7 @@ import Spinner from '../Spinner';
 import { SyncBox } from '../StatusRail';
 import HooksPreview from './HooksPreview';
 import { actionLabel, blockedHint, fileName, hookLabel, needsTakeover, rootPlan, writes } from './hooksView';
+import { invalidate } from '../../lib/queryEvents';
 
 /**
  * Confirm, then write. The dialog previews afresh and applies exactly that plan, so a source or native
@@ -30,7 +31,7 @@ export function HooksSyncDialog({ project, takeover, canTakeOver, onTakeover, on
   const t = useT();
   const cache = useQueryClient();
   const mutation: HookMutation = takeover ? { ...(project && { project }), name: takeover.name, entry: takeover.entry, replace: true } : {};
-  const { data: plan, error: previewError, isPending } = useQuery({ queryKey: ['hooks-sync-preview', project ?? '', takeover?.name ?? ''], queryFn: () => hooksApi.preview(mutation), gcTime: 0, retry: false });
+  const { data: plan, error: previewError, isPending } = useQuery({ queryKey: queryKeys.hooksSyncPreview(project ?? '', takeover?.name ?? ''), queryFn: () => hooksApi.preview(mutation), gcTime: 0, retry: false });
   // A project sees and is blocked by only its own root, takeover included; the revision is still the whole plan's.
   const view = plan && rootPlan(plan, project);
   const [running, setRunning] = useState(false);
@@ -50,7 +51,7 @@ export function HooksSyncDialog({ project, takeover, canTakeOver, onTakeover, on
       setError((e as Error).message);
     } finally {
       setRunning(false);
-      for (const queryKey of [queryKeys.hooks, ['log']]) void cache.invalidateQueries({ queryKey });
+      void invalidate(cache, 'hooksSynced');
     }
   };
   const title = takeover ? t('hooks.takeoverTitle', { name: takeover.name }) : t('hooks.syncButton');

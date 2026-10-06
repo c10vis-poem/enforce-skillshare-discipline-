@@ -14,6 +14,7 @@ import SegmentedControl from './SegmentedControl';
 import Spinner from './Spinner';
 import SyncPreviewModal from './SyncPreviewModal';
 import { useSkillsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Kind = 'skill' | 'agent';
 type Outcome = { item: LocalSkillInfo; outcome: 'pulled' | 'skipped' | 'failed'; error?: string };
@@ -36,7 +37,7 @@ export default function CollectDialog({ target, kind, onClose }: { target?: stri
   const [syncing, setSyncing] = useState(false);
 
   const scan = useQuery({
-    queryKey: [...queryKeys.collectScan(target), scope],
+    queryKey: queryKeys.collectScanScope(target, scope),
     queryFn: () => api.collectScan(target, scope === 'both' ? undefined : scope),
     staleTime: 0,
   });
@@ -76,9 +77,7 @@ export default function CollectDialog({ target, kind, onClose }: { target?: stri
       setError((err as Error).message);
     } finally {
       setBusy(false);
-      for (const key of [queryKeys.skills.all, queryKeys.overview, queryKeys.targets.all, queryKeys.diff(), queryKeys.syncMatrix(), queryKeys.collectScan(target)]) {
-        void queryClient.invalidateQueries({ queryKey: key });
-      }
+      void invalidate(queryClient, 'collected', target);
     }
   };
 

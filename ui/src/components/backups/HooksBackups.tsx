@@ -11,8 +11,8 @@ import HooksRestoreDialog from '../hooks/HooksRestoreDialog';
 import { backupTime, hookLabel } from '../hooks/hooksView';
 import { formatDateTime, formatRelativeTime, useI18n } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
-import { queryKeys } from '../../lib/queryKeys';
 import { useHooksQuery } from '../../hooks/useSharedQueries';
+import { invalidate } from '../../lib/queryEvents';
 
 /** Hook backups, grouped by the Agent file they were taken of. */
 export default function HooksBackups() {
@@ -69,7 +69,7 @@ export default function HooksBackups() {
           onClose={() => setRestoring(null)}
           onRestored={() => {
             setRestoring(null);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.hooks });
+            void invalidate(queryClient, 'hooksRestored');
             toast(t('hooks.toast.restored'), 'success');
           }}
         />

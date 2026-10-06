@@ -11,6 +11,7 @@ import { shortenHome } from '../../lib/paths';
 import { joinList } from '../targets/targetView';
 import { describeMessage, writes } from './mcpView';
 import type { MCPChange } from './mcpView';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface Props {
   name: string;
@@ -25,7 +26,7 @@ interface Props {
 
 export default function MCPRemoveDialog({ name, project, inScope = () => true, onClose, onSaved }: Props) {
   const { t, locale } = useI18n();
-  const { data: plan, error, isPending } = useQuery({ queryKey: ['mcp-remove-preview', project, name], queryFn: () => mcpApi.preview({ project, name, remove: true }), gcTime: 0 });
+  const { data: plan, error, isPending } = useQuery({ queryKey: queryKeys.mcpRemovePreview(project, name), queryFn: () => mcpApi.preview({ project, name, remove: true }), gcTime: 0 });
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState('');
   const changes = plan?.changes.filter((c) => c.name === name && inScope(c)) ?? [];

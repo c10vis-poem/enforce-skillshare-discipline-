@@ -10,13 +10,14 @@ import Tooltip from '../Tooltip';
 import HooksPreview from './HooksPreview';
 import { joinList } from '../targets/targetView';
 import { hookLabel, rootPlan, writes } from './hooksView';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface Props { name: string; project?: string; canUnmanage?: boolean; onClose: () => void; onSaved: (unmanaged: boolean) => void }
 
 /** Removing prunes only the outputs Skillshare owns and that are still unchanged; the preview shows which. */
 export default function HooksRemoveDialog({ name, project, canUnmanage = true, onClose, onSaved }: Props) {
   const { t, locale } = useI18n();
-  const { data: plan, error, isPending } = useQuery({ queryKey: ['hooks-remove-preview', project, name], queryFn: () => hooksApi.preview({ project, name, remove: true }), gcTime: 0, retry: false });
+  const { data: plan, error, isPending } = useQuery({ queryKey: queryKeys.hooksRemovePreview(project, name), queryFn: () => hooksApi.preview({ project, name, remove: true }), gcTime: 0, retry: false });
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState('');
   const title = t('hooks.removeTitle', { name });

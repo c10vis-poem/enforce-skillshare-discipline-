@@ -24,6 +24,7 @@ import ProjectInstructions from '../components/instructions/ProjectInstructions'
 import SharedInstructions from '../components/instructions/SharedInstructions';
 import { isAgentsExtra } from '../components/instructions/instructionsView';
 import { useAvailableTargetsQuery, useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const MODES = ['merge', 'copy', 'symlink'] as const;
 // A single file can't be a directory symlink; import writes an @ line instead.
@@ -451,7 +452,7 @@ export default function ExtrasPage() {
   const [creatingNote, setCreatingNote] = useState(false);
 
   const { data, isPending, error } = useQuery({ queryKey: queryKeys.extras, queryFn: () => api.listExtras(), staleTime: staleTimes.extras });
-  const { data: extData } = useQuery({ queryKey: ['extras', 'extensions'], queryFn: () => api.listExtraExtensions(), staleTime: staleTimes.extras });
+  const { data: extData } = useQuery({ queryKey: queryKeys.extrasExtensions, queryFn: () => api.listExtraExtensions(), staleTime: staleTimes.extras });
   const { data: availData } = useAvailableTargetsQuery();
   const { data: overview } = useOverviewQuery();
   const extensions = extData?.extensions ?? [];
@@ -487,13 +488,6 @@ export default function ExtrasPage() {
   const [removeExtra, setRemoveExtra] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ name: string; path: string } | null>(null);
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.extras });
-    queryClient.invalidateQueries({ queryKey: queryKeys.extrasDiff() });
-    queryClient.invalidateQueries({ queryKey: queryKeys.config });
-    queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-  };
-
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>, items: ContextMenuItem[]) => {
     const r = e.currentTarget.getBoundingClientRect();
     setMenu({ x: r.left, y: r.bottom + 4, items });
@@ -504,7 +498,7 @@ export default function ExtrasPage() {
       const res = await api.syncExtras({ name, force });
       const totals = sumEntry(res.extras.find((e) => e.name === name));
       toast(buildSyncToast(t('extras.toast.syncOne', { name }), t('extras.toast.syncOneFailed', { name }), totals, force, t), syncToastType(totals));
-      invalidate();
+      void invalidate(queryClient, 'extrasChanged');
     } catch (err) {
       toast((err as Error).message, 'error');
     }
@@ -519,7 +513,7 @@ export default function ExtrasPage() {
     try {
       await api.setExtraMode(name, target.path, patch.mode ?? target.mode, patch.flatten, patch.extension);
       toast(message, 'success');
-      invalidate();
+      void invalidate(queryClient, 'extrasChanged');
     } catch (err) {
       if (prev) queryClient.setQueryData(queryKeys.extras, prev);
       toast((err as Error).message, 'error');
@@ -537,11 +531,11 @@ export default function ExtrasPage() {
       if (d.extension) await api.setExtraMode(name, path, 'copy', undefined, d.extension);
       toast(t('extras.toast.targetAdded', { path }), 'success');
       setAddingTo(null);
-      invalidate();
+      void invalidate(queryClient, 'extrasChanged');
       return true;
     } catch (err) {
       toast((err as Error).message, 'error');
-      invalidate();
+      void invalidate(queryClient, 'extrasChanged');
       return false;
     }
   };
@@ -631,7 +625,7 @@ export default function ExtrasPage() {
         actions={tab === 'folders' ? <span data-tour="extras-list"><Button variant="primary" onClick={() => setShowAdd(true)}><Plus size={15} />{t('extras.addExtra')}</Button></span>
           : tab === 'instructions' ? <Button variant="primary" onClick={() => setCreatingShared(true)}><Plus size={15} />{t(isProjectMode ? 'instructions.projectShared.new' : 'instructions.shared.new')}</Button>
           : <>
-            <Button variant="ghost" onClick={() => void queryClient.invalidateQueries({ queryKey: queryKeys.memory.all })}><RefreshCw size={15} />{t('memory.refresh')}</Button>
+            <Button variant="ghost" onClick={() => void invalidate(queryClient, 'memoryRefreshed')}><RefreshCw size={15} />{t('memory.refresh')}</Button>
             <Button variant="primary" onClick={() => setCreatingNote(true)}><Plus size={15} />{t('memory.new')}</Button>
           </>}
       />
@@ -725,7 +719,7 @@ export default function ExtrasPage() {
           onCreated={(agents) => {
             setShowAdd(false);
             setPrefill(null);
-            invalidate();
+            void invalidate(queryClient, 'extrasChanged');
             if (agents) setParams({ tab: 'instructions' }, { replace: true });
           }}
           extensions={extensions}
@@ -748,7 +742,7 @@ export default function ExtrasPage() {
           try {
             await api.deleteExtra(name);
             toast(t('extras.toast.removed', { name }), 'success');
-            invalidate();
+            void invalidate(queryClient, 'extrasChanged');
           } catch (err) {
             toast((err as Error).message, 'error');
           }
@@ -767,7 +761,7 @@ export default function ExtrasPage() {
           try {
             await api.removeExtraTarget(target.name, target.path);
             toast(t('extras.toast.targetRemoved', { path: target.path }), 'success');
-            invalidate();
+            void invalidate(queryClient, 'extrasChanged');
           } catch (err) {
             toast((err as Error).message, 'error');
           }

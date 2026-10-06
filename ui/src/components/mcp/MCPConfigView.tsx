@@ -35,7 +35,7 @@ export default function MCPConfigView({ mutation }: { mutation: MCPMutation }) {
   const items = [SOURCE, ...targets];
   const shown = picked !== undefined && items.includes(picked) ? picked : targets[0] ?? SOURCE;
   // Pi previews read native settings and ownership; keep the previous view while refreshing.
-  const view = useQuery({ queryKey: [...queryKeys.mcp, 'render', JSON.stringify(mutation)], queryFn: () => mcpApi.render(mutation), placeholderData: keepPreviousData });
+  const view = useQuery({ queryKey: queryKeys.mcpRender(JSON.stringify(mutation)), queryFn: () => mcpApi.render(mutation), placeholderData: keepPreviousData });
   const renderedFor = (target: string) => view.data?.rendered.find((r) => r.target === target);
   const files = view.data?.rendered.filter((r) => r.content !== undefined && !r.error).length ?? 0;
 

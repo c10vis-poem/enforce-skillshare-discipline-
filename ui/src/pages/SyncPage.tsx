@@ -18,12 +18,13 @@ import { countChanges, countEdited, extraGroups, groupByFolder, groupInSync, HOO
 import SyncResult from '../components/sync/SyncResult';
 import SyncError from '../components/sync/SyncError';
 import SkillsOffDialog from '../components/targets/SkillsOffDialog';
-import { joinList, refreshTargets } from '../components/targets/targetView';
+import { joinList } from '../components/targets/targetView';
 import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
 import { shortenHome } from '../lib/paths';
 import { formatAgentDisplayName } from '../lib/resourceNames';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { useDiffQuery, useHooksQuery, useMcpQuery, useSyncedTargetsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const ROW_ICON: Record<RowIcon, React.ReactNode> = {
   add: <Plus size={16} className="shrink-0 text-ok" />,
@@ -134,8 +135,7 @@ export default function SyncPage() {
       setRunError(message === MCP_CHANGED ? t('sync.mcpChanged') : message === HOOKS_CHANGED ? t('sync.hooksChanged') : message);
     } finally {
       setRunning(false);
-      refreshTargets(queryClient);
-      for (const queryKey of [queryKeys.extrasDiff(), queryKeys.extras, queryKeys.mcp, queryKeys.hooks, ['log']]) void queryClient.invalidateQueries({ queryKey });
+      void invalidate(queryClient, 'syncRan');
     }
   };
 
@@ -431,7 +431,7 @@ export default function SyncPage() {
           onClose={() => setStopping('')}
           onStopped={(removed) => {
             setStopping('');
-            refreshTargets(queryClient);
+            void invalidate(queryClient, 'targetsChanged');
             toast(t(removed === 1 ? 'targetDetail.skillsOff.stopped.one' : 'targetDetail.skillsOff.stopped.other', { name: stopTarget.name, count: removed }), 'success');
           }}
         />

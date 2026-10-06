@@ -22,11 +22,11 @@ import TargetOmpExtensions from '../components/targets/TargetOmpExtensions';
 import TargetPiExtensions from '../components/targets/TargetPiExtensions';
 import { projectHealth, projectRows, toolGroups, type ProjectRow } from '../components/projects/projectView';
 import FilterSection, { ModePicker } from '../components/targets/FilterSection';
-import { refreshTargets } from '../components/targets/targetView';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { shortenHome } from '../lib/paths';
 import { useT } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type MCPList = Awaited<ReturnType<typeof mcpApi.list>>;
 type Tab = 'skills' | 'agents' | 'mcp' | 'hooks' | 'extensions';
@@ -96,18 +96,14 @@ function ProjectEditor({ project, tools, mcp, hooks, hooksError }: { project: Pr
     return () => clearTimeout(id);
   }, [draft]);
   const preview = useQuery({
-    queryKey: ['sync-matrix-preview', project.name, previewTool, filters.skills, filters.agents],
+    queryKey: queryKeys.syncMatrixPreview(project.name, previewTool, filters.skills, filters.agents),
     queryFn: () => api.previewSyncMatrix(`${project.name}@${previewTool}`, filters.skills?.include ?? [], filters.skills?.exclude ?? [], filters.agents?.include ?? [], filters.agents?.exclude ?? []),
     placeholderData: keepPreviousData,
     enabled: Boolean(previewTool) && tab !== 'mcp' && tab !== 'hooks' && tab !== 'extensions',
   });
   const entries = (preview.data?.entries ?? []).filter((e) => (e.kind === 'agent') === agent && e.status !== 'na');
 
-  const refresh = () => {
-    refreshTargets(queryClient);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.mcp });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.hooks });
-  };
+  const refresh = () => void invalidate(queryClient, 'projectChanged');
   const save = async () => {
     setSaving(true);
     try {

@@ -26,11 +26,11 @@ import AddFileDialog from '../components/targetFiles/AddFileDialog';
 import FileTabMenu from '../components/targetFiles/FileTabMenu';
 import TargetFileTab from '../components/targetFiles/TargetFileTab';
 import { mcpClient, serverCount } from '../components/mcp/mcpView';
-import { refreshTargets } from '../components/targets/targetView';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { fileName, shortenHome } from '../lib/paths';
 import { useT } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Kind = 'skill' | 'agent';
 // File tabs (the instruction file first) past this many go into a menu.
@@ -116,7 +116,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
     local: readerEntries.filter((a) => !a.installed && a.detected).map((a) => a.name),
     on: readerEntries.filter((a) => a.installed && !readerOff(a.name)).map((a) => a.name),
   };
-  const { data: extData } = useQuery({ queryKey: ['extras', 'extensions'], queryFn: () => api.listExtraExtensions(), staleTime: staleTimes.extras, enabled: syncTab });
+  const { data: extData } = useQuery({ queryKey: queryKeys.extrasExtensions, queryFn: () => api.listExtraExtensions(), staleTime: staleTimes.extras, enabled: syncTab });
   const extensions = extData?.extensions ?? [];
 
   // Preview the draft filters once typing settles.
@@ -126,7 +126,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
     return () => clearTimeout(id);
   }, [draft]);
   const preview = useQuery({
-    queryKey: ['sync-matrix-preview', target.name, filters.include, filters.exclude, filters.agentInclude, filters.agentExclude],
+    queryKey: queryKeys.syncMatrixPreview(target.name, filters.include, filters.exclude, filters.agentInclude, filters.agentExclude),
     queryFn: () => api.previewSyncMatrix(target.name, filters.include, filters.exclude, filters.agentInclude, filters.agentExclude),
     placeholderData: keepPreviousData,
   });
@@ -148,7 +148,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
     setSaving(true);
     try {
       await api.updateTarget(target.name, payload);
-      refreshTargets(queryClient);
+      void invalidate(queryClient, 'targetsChanged');
       toast(t('targetDetail.saved', { name: target.name }), 'success');
     } catch (err) {
       toast((err as Error).message, 'error');
@@ -189,7 +189,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
     setResuming(true);
     try {
       await api.updateTarget(target.name, { skills_enabled: true });
-      refreshTargets(queryClient);
+      void invalidate(queryClient, 'targetsChanged');
       toast(t('targetDetail.skillsOff.resumed', { name: target.name }), 'success');
     } catch (err) {
       toast((err as Error).message, 'error');
@@ -347,7 +347,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
           target={target}
           onClose={() => setRemoving(false)}
           onRemoved={(warnings) => {
-            refreshTargets(queryClient);
+            void invalidate(queryClient, 'targetsChanged');
             toast(t('targets.targetRemoved', { name: target.name }), 'success');
             warnings.forEach((warning) => toast(warning, 'warning'));
             navigate('/targets');
@@ -363,7 +363,7 @@ function TargetEditor({ target, targets }: { target: Target; targets: Target[] }
           onClose={() => setStoppingSkills(false)}
           onStopped={(removed) => {
             setStoppingSkills(false);
-            refreshTargets(queryClient);
+            void invalidate(queryClient, 'targetsChanged');
             toast(t(removed === 1 ? 'targetDetail.skillsOff.stopped.one' : 'targetDetail.skillsOff.stopped.other', { name: target.name, count: removed }), 'success');
           }}
         />

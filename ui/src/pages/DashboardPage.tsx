@@ -37,6 +37,7 @@ import { useToast } from '../components/Toast';
 import { useAppContext } from '../context/AppContext';
 import { useRepoUpdate } from '../hooks/useRepoUpdate';
 import { useHooksQuery, useMcpQuery, useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const STAR_CTA_DISMISSED_KEY = 'skillshare.dashboard.starCta.dismissed';
 
@@ -448,9 +449,7 @@ function TrackedRepos({ repos }: { repos: Overview['trackedRepos'] }) {
 
   const refresh = async () => {
     clearAuditCache(queryClient);
-    await queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.trash });
+    await invalidate(queryClient, 'reposChanged');
   };
 
   const uninstall = async () => {

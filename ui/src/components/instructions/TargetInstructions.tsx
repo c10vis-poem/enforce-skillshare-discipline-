@@ -23,7 +23,8 @@ import InstructionFileList from './InstructionFileList';
 import { useFillHeight } from './useFillHeight';
 import { BoxHeader, InstructionsPreview } from './ViewTabs';
 import { useSaveShortcut } from './useSaveShortcut';
-import { connectedTo, instructionsErrorMessage, importDecor, refreshInstructions, setupPathOf, setupPathProblem, sharedOfImport } from './instructionsView';
+import { connectedTo, instructionsErrorMessage, importDecor, setupPathOf, setupPathProblem, sharedOfImport } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 
 // The page's bottom padding, and the least height the tab keeps on a short window.
@@ -125,7 +126,7 @@ function useSetupForm(data: Data, onDone?: () => void) {
     setFailure('');
     try {
       await api.setTargetInstructionsSetup(data.target, { path: path.trim(), import: imports });
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.setup.saved'), 'success');
       onDone?.();
     } catch (err) {
@@ -141,7 +142,7 @@ function useSetupForm(data: Data, onDone?: () => void) {
     setFailure('');
     try {
       await api.removeTargetInstructionsSetup(data.target);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.setup.removed'), 'success');
       onDone?.();
     } catch (err) {
@@ -257,7 +258,7 @@ function Editor({ data }: { data: Data }) {
     setSaving(true);
     try {
       await api.putTargetInstructions(data.target, draft);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.saved', { path: shortenHome(path) }), 'success');
     } catch (err) {
       toast(instructionsErrorMessage(err, t), 'error');
@@ -437,7 +438,7 @@ function ChangeMenu({ target, current, linked, files }: { target: string; curren
     } finally {
       setBusy(false);
       setPicked(null);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     }
   };
   const pick = (name: string) => {

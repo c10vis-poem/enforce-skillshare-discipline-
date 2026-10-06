@@ -17,6 +17,7 @@ import { BoxHeader, InstructionsPreview } from '../instructions/ViewTabs';
 import { useT } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
+import { invalidate } from '../../lib/queryEvents';
 
 // The page's bottom padding, and the least height the tab keeps on a short window (as the instructions tab).
 const PAGE_BOTTOM = 40;
@@ -69,7 +70,7 @@ function Editor({ target, data, project, expanded, setExpanded }: { target: stri
     setSaving(true);
     try {
       await api.putTargetFile(target, data.path, draft);
-      queryClient.invalidateQueries({ queryKey: queryKeys.targetFiles.list(target) });
+      void invalidate(queryClient, 'targetFilesChanged', target);
       toast(t('instructions.saved', { path: shortenHome(data.abs) }), 'success');
     } catch (err) {
       toast((err as Error).message, 'error');
@@ -90,7 +91,7 @@ function Editor({ target, data, project, expanded, setExpanded }: { target: stri
       leaving.current = true;
       navigate('?tab=instructions', { replace: true });
       // Only the list: the removed file's content query is still mounted and would fetch again.
-      await queryClient.invalidateQueries({ queryKey: queryKeys.targetFiles.list(target), exact: true });
+      await invalidate(queryClient, 'targetFileRemoved', target);
     } catch (err) {
       toast((err as Error).message, 'error');
       setBusy(false);

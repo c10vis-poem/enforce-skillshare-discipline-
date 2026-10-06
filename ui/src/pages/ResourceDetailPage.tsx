@@ -36,6 +36,7 @@ import { SkillEditor } from '../components/skill-editor';
 import { UninstallDialog } from '../components/resources/UninstallDialog';
 import { hasUpdate, updateUnits, useCheckStatuses } from './UpdatePage';
 import { useDiffQuery, useSkillsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Tab = 'doc' | 'files' | 'audit';
 
@@ -58,7 +59,7 @@ export default function ResourceDetailPage() {
       ? 'skill'
       : undefined;
   const { data, isPending, error } = useQuery({
-    queryKey: [...queryKeys.skills.detail(name!), requestedKind],
+    queryKey: queryKeys.skills.detailOfKind(name!, requestedKind),
     queryFn: () => api.getResource(name!, requestedKind),
     staleTime: staleTimes.skills,
     enabled: !!name,
@@ -66,7 +67,7 @@ export default function ResourceDetailPage() {
   const allSkills = useSkillsQuery();
   const kind = data?.resource.kind;
   const auditQuery = useQuery({
-    queryKey: [...queryKeys.audit.skill(name!), kind],
+    queryKey: queryKeys.audit.skillOfKind(name!, kind),
     // The server resolves skills by path under the source dir; nested skills have a flat name in the URL
     queryFn: () => api.auditSkill(kind === 'agent' ? name! : data!.resource.relPath, kind),
     staleTime: staleTimes.auditSkill,
@@ -125,11 +126,7 @@ export default function ResourceDetailPage() {
     return s ? `?${s}` : pathname;
   };
 
-  const refreshResource = async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.skills.detail(name!) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-  };
+  const refreshResource = () => invalidate(queryClient, 'skillsChanged');
 
   // The check result belongs to the whole update unit, so a repo marks every skill in it
   const markUpToDate = () => {
@@ -180,8 +177,7 @@ export default function ResourceDetailPage() {
       if (resource.disabled) await api.enableResource(resource.flatName, resource.kind);
       else await api.disableResource(resource.flatName, resource.kind);
       toast(t(resource.disabled ? 'resourceDetail.toast.enabled' : 'resourceDetail.toast.disabled', { name: resource.name }), 'success');
-      await refreshResource();
-      queryClient.invalidateQueries({ queryKey: ['sync-matrix'] });
+      await invalidate(queryClient, 'skillsToggled');
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
@@ -206,9 +202,9 @@ export default function ResourceDetailPage() {
         initialContent={skillMdContent}
         onBack={() => setEditing(false)}
         onSaved={async (next) => {
-          queryClient.setQueryData([...queryKeys.skills.detail(name!), requestedKind], (prev: unknown) =>
+          queryClient.setQueryData(queryKeys.skills.detailOfKind(name!, requestedKind), (prev: unknown) =>
             prev && typeof prev === 'object' ? { ...prev, skillMdContent: next } : prev);
-          await queryClient.invalidateQueries({ queryKey: queryKeys.skills.detail(name!) });
+          await invalidate(queryClient, 'skillEdited', name!);
           setEditing(false);
         }}
       />
@@ -488,11 +484,7 @@ function TargetsSection({ resource }: { resource: Skill }) {
     setPending(row.target.name);
     try {
       await api.updateTarget(row.target.name, patch);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.targets.all }),
-        queryClient.invalidateQueries({ queryKey: ['sync-matrix'] }),
-        queryClient.invalidateQueries({ queryKey: ['diff'] }),
-      ]);
+      await invalidate(queryClient, 'skillTargetFilterChanged');
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
@@ -642,7 +634,7 @@ function FilesTab({ resource, files, skillMd, tabSearch, components, raw, onRaw 
   const line = Number(searchParams.get('line')) || 0;
 
   const fileQuery = useQuery({
-    queryKey: ['skill-file', resource.flatName, selected],
+    queryKey: queryKeys.skills.file(resource.flatName, selected),
     queryFn: () => api.getSkillFile(resource.flatName, selected),
     enabled: selected !== 'SKILL.md',
   });

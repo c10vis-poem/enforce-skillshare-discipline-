@@ -12,11 +12,11 @@ import { PageSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import AddProjectDialog from '../components/projects/AddProjectDialog';
 import { projectHealth, projectRows, projectUrl, type ProjectRow } from '../components/projects/projectView';
-import { refreshTargets } from '../components/targets/targetView';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { shortenHome } from '../lib/paths';
 import { useT } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const TONE = { missing: 'bad', conflict: 'warn', pending: 'warn', synced: 'ok', idle: 'off' } as const;
 const STACK = 6;
@@ -61,7 +61,7 @@ export default function ProjectsPage() {
     setBusy(true);
     try {
       await api.convertProject(converting.root);
-      refreshTargets(queryClient);
+      void invalidate(queryClient, 'targetsChanged');
       toast(t('projects.convert.done', { name: shortenHome(converting.root) }), 'success');
       setConverting(null);
     } catch (e) {
@@ -150,8 +150,7 @@ export default function ProjectsPage() {
           onClose={() => setAdding(false)}
           onAdded={(root) => {
             setAdding(false);
-            refreshTargets(queryClient);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.mcp });
+            void invalidate(queryClient, 'projectAdded');
             toast(t('projects.added', { name: shortenHome(root) }), 'success');
             // The server answers with the key as typed; the page is addressed by the absolute folder.
             void api.listProjects().then((fresh) => {

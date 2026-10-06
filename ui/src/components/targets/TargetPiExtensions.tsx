@@ -15,6 +15,7 @@ import DialogShell from '../DialogShell';
 import EmptyState from '../EmptyState';
 import { PageSkeleton } from '../Skeleton';
 import Tooltip from '../Tooltip';
+import { invalidate } from '../../lib/queryEvents';
 
 type T = ReturnType<typeof useT>;
 type Scope = PiExtensionChange['scope'];
@@ -355,19 +356,19 @@ function ReviewDialog({ name, view, changes, onClose, onApplied, t }: {
   name: string; view: PiExtensionsView; changes: PiExtensionChange[]; onClose: () => void; onApplied: (plan: PiExtensionsPlan) => void; t: T;
 }) {
   const queryClient = useQueryClient();
-  const preview = useQuery({ queryKey: ['pi-extensions-preview', name, changes], queryFn: () => piExtensionsApi.preview(name, changes), retry: false, gcTime: 0, staleTime: Infinity });
+  const preview = useQuery({ queryKey: queryKeys.piExtensionsPreview(name, changes), queryFn: () => piExtensionsApi.preview(name, changes), retry: false, gcTime: 0, staleTime: Infinity });
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<ApiError | Error | null>(null);
   const plan = preview.data;
   const project = view.scope === 'project';
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.piExtensions(name) });
+  const refresh = () => invalidate(queryClient, 'piExtensionsStale', name);
   const apply = async () => {
     if (!plan) return;
     setApplying(true);
     setError(null);
     try {
       const done = await piExtensionsApi.apply(name, changes, plan.revision);
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: queryKeys.plugins })]);
+      await invalidate(queryClient, 'piExtensionsChanged', name);
       onApplied(done);
     } catch (err) {
       setError(err as Error);

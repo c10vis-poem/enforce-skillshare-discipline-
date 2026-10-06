@@ -12,6 +12,7 @@ import { PageSkeleton } from '../Skeleton';
 import { messagesByLocale, useT } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
+import { invalidate } from '../../lib/queryEvents';
 
 type T = ReturnType<typeof useT>;
 type Pending = Record<string, boolean>;
@@ -222,18 +223,18 @@ function Row({ row, dir, name, switchable, showLock, draft, onFlip, t }: { row: 
 /** Previews the drafts against the view's revision, then applies exactly that plan. */
 function ReviewDialog({ name, view, changes, onClose, onApplied, t }: { name: string; view: OmpExtensionsView; changes: OmpExtensionChange[]; onClose: () => void; onApplied: (plan: OmpExtensionsPlan) => void; t: T }) {
   const queryClient = useQueryClient();
-  const preview = useQuery({ queryKey: ['omp-extensions-preview', name, view.revision, changes], queryFn: () => ompExtensionsApi.preview(name, changes, view.revision), retry: false, gcTime: 0, staleTime: Infinity });
+  const preview = useQuery({ queryKey: queryKeys.ompExtensionsPreview(name, view.revision, changes), queryFn: () => ompExtensionsApi.preview(name, changes, view.revision), retry: false, gcTime: 0, staleTime: Infinity });
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const plan = preview.data;
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.ompExtensions(name) });
+  const refresh = () => invalidate(queryClient, 'ompExtensionsStale', name);
   const apply = async () => {
     if (!plan) return;
     setApplying(true);
     setError(null);
     try {
       const done = await ompExtensionsApi.apply(name, changes, plan.revision);
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: queryKeys.plugins })]);
+      await invalidate(queryClient, 'ompExtensionsChanged', name);
       onApplied(done);
     } catch (err) {
       setError(err as Error);

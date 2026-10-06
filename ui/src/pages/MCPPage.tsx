@@ -32,8 +32,8 @@ import { MCPTargetOrder } from '../components/mcp/targetOrder';
 import { useMCPToggle } from '../components/mcp/useMCPToggle';
 import { useT } from '../i18n';
 import { shortenHome } from '../lib/paths';
-import { queryKeys } from '../lib/queryKeys';
 import { useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const copy = (text: string) => void navigator.clipboard?.writeText(text);
 const inGlobalScope = (change: MCPChange) => !change.root;
@@ -316,10 +316,7 @@ export default function MCPPage() {
   const [allFiles, setAllFiles] = useState(false);
   const check = useMCPCheck();
 
-  const refresh = () => {
-    void cache.invalidateQueries({ queryKey: queryKeys.mcp });
-    void cache.invalidateQueries({ queryKey: queryKeys.config });
-  };
+  const refresh = () => void invalidate(cache, 'mcpChanged');
   const done = (message: string) => {
     setEditing(null); setAddMode('form'); setImporting(null); setRemoving(''); setBackupsOpen(false); setReplace(null);
     refresh();

@@ -47,7 +47,7 @@ export default function HooksImportDialog({ data, project, onClose, onImported }
   const targets = available.filter((a) => unmanaged.some((u) => u.target === a));
   const reads = useQueries({
     queries: targets.map((from) => ({
-      queryKey: [...queryKeys.hooks, 'import', project ?? '', from],
+      queryKey: queryKeys.hooksImport(project ?? '', from),
       queryFn: () => hooksApi.import({ from, ...(project && { root: project }) }),
       gcTime: 0,
       retry: false,

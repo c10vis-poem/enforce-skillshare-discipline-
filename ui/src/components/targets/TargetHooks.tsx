@@ -10,7 +10,7 @@ import HookDialog from '../hooks/HookDialog';
 import { HooksSyncDialog } from '../hooks/HooksSyncBox';
 import { agentOfKey, blockedHint, boundAgents, hookAccounts, keyLabel, hookMessage, hookNote, isCodeAgent, scopeEntries, scopePlan, syncState, writes } from '../hooks/hooksView';
 import { useT } from '../../i18n';
-import { queryKeys } from '../../lib/queryKeys';
+import { invalidate } from '../../lib/queryEvents';
 
 /**
  * One Agent's hooks of the current scope, laid out like the MCP tab: a row per hook bound to it.
@@ -108,7 +108,7 @@ export default function TargetHooks({ agent, data, project }: { agent: string; d
           onClose={() => setEditing('')}
           onSaved={(synced) => {
             setEditing('');
-            for (const queryKey of [queryKeys.hooks, queryKeys.config]) void cache.invalidateQueries({ queryKey });
+            void invalidate(cache, 'hooksChanged');
             toast(t(synced ? 'hooks.toast.savedSynced' : 'hooks.toast.saved'), 'success');
           }}
         />

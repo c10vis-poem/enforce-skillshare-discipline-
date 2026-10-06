@@ -41,6 +41,7 @@ import { Select } from './Select';
 import Spinner from './Spinner';
 import { useToast } from './Toast';
 import { useSkillsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Kind = 'skill' | 'agent';
 type Tab = 'search' | 'url';
@@ -192,8 +193,7 @@ export default function InstallDialog({ kind, initialTab, initialSource, onClose
 
   const refresh = () => {
     clearAuditCache(queryClient);
-    queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-    queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+    void invalidate(queryClient, 'skillsChanged');
   };
 
   const finish = (warningLines: string[]) => {

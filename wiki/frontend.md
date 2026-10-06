@@ -19,6 +19,7 @@ Use when changing React components, pages, CSS, responsive layouts, interactions
 | Theme selection | `ui/src/context/ThemeContext.tsx` |
 | Shared components | `ui/src/components/` |
 | Query keys | `ui/src/lib/queryKeys.ts` |
+| Which queries a mutation makes stale | named events in `ui/src/lib/queryEvents.ts`, called as `invalidate(queryClient, '<event>')` |
 | Queries shared across pages (overview, MCP, skills, targets, diff) | `ui/src/hooks/useSharedQueries.ts` |
 | API client | `ui/src/api/client.ts` |
 | `?kind=` query strings | `kindQuery()` in `ui/src/api/http.ts` |
@@ -37,7 +38,7 @@ The dashboard supports Clean and Playful styles plus light, dark, and system mod
 - Use `lucide-react` icons. Use `AgentIcon` for real agents/tools rather than emoji or generic icons.
 - Icon-only controls require accessible names, and interactive targets must be at least 24 px.
 - Route user-visible strings through `useT()`. Preserve existing English technical labels for status, mode, and kind values.
-- Use existing TanStack Query keys, client helpers, and stale-time patterns. Invalidate the correct queries after mutations.
+- Use existing TanStack Query keys, client helpers, and stale-time patterns. Write no key literal outside `queryKeys.ts`. After a mutation, call `invalidate` with the event that happened; do not list keys or call `invalidateQueries` in a page. A new kind of change gets a new event and a row in `queryEvents.test.ts`.
 
 Do not run an unconfigured Prettier in `ui/` because it creates broad unrelated diffs. When Tailwind utilities conflict with the `ss-*` component layer, inspect the cascade before adding more complex selectors.
 

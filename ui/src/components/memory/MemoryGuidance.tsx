@@ -15,6 +15,7 @@ import { lineDiff } from '../instructions/instructionsView';
 import type { DiffLine } from '../instructions/instructionsView';
 import { useToast } from '../Toast';
 import Tooltip from '../Tooltip';
+import { invalidate } from '../../lib/queryEvents';
 
 const MODES: MemoryUpdateMode[] = ['passive', 'active'];
 
@@ -86,7 +87,7 @@ export default function MemoryGuidance({ initialized, instructions }: { initiali
   const t = useT();
   const client = useQueryClient();
   // States follow assignments and files that other tabs and the CLI change, so never trust a cached copy.
-  const guidance = useQuery({ queryKey: [...queryKeys.memory.all, 'guidance'], queryFn: api.getMemoryGuidance, enabled: initialized, staleTime: 0 });
+  const guidance = useQuery({ queryKey: queryKeys.memory.guidance, queryFn: api.getMemoryGuidance, enabled: initialized, staleTime: 0 });
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [modes, setModes] = useState<Record<string, MemoryUpdateMode>>({});
@@ -116,9 +117,7 @@ export default function MemoryGuidance({ initialized, instructions }: { initiali
     setBusy(true); setError('');
     try {
       const result = await api.applyMemoryGuidance(requested, requestModes, plan.token);
-      void client.invalidateQueries({ queryKey: queryKeys.memory.all });
-      void client.invalidateQueries({ queryKey: queryKeys.instructions.all });
-      void client.invalidateQueries({ queryKey: queryKeys.fileBackups.all });
+      void invalidate(client, 'managedFilesChanged');
       if (result.success) close();
       else { setPlan(null); setError(result.errors.map((e) => `${e.path}: ${e.error}`).join('\n')); }
     } catch (err) { setPlan(null); setError(err instanceof ApiError && err.code === 'memory_guidance_stale' ? t('memory.guidanceStale') : (err as Error).message); }

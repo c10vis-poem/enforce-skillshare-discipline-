@@ -15,6 +15,7 @@ import { shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileBackupErrorMessage, kindTone, reasonKey } from './backupView';
 import FileRestoreDialog from './FileRestoreDialog';
+import { invalidate } from '../../lib/queryEvents';
 
 function comparablePath(path: string) {
   // Preserve literal backslashes in POSIX names while accepting Windows history links.
@@ -127,9 +128,7 @@ function Versions({ file }: { file: FileBackup }) {
           onDone={() => {
             setRestoring(null);
             toast(t('backup.files.toast.restored', { path: shortenHome(file.path) }), 'success');
-            void queryClient.invalidateQueries({ queryKey: queryKeys.fileBackups.all });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.instructions.all });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.memory.all });
+            void invalidate(queryClient, 'managedFilesChanged');
           }}
         />
       )}

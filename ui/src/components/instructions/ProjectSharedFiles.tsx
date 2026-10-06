@@ -15,8 +15,9 @@ import InstructionsEditorDialog from './InstructionsEditorDialog';
 import LocationRows from './LocationRows';
 import NewSharedDialog from './NewSharedDialog';
 import {
-  instructionsErrorMessage, instructionsWarningMessage, locationLabel, projectSourcePath, refreshInstructions, saveCopiesSummary, staleLocations,
+  instructionsErrorMessage, instructionsWarningMessage, locationLabel, projectSourcePath, saveCopiesSummary, staleLocations,
 } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 type Pending = { title: string; message: string; confirm: string; danger?: boolean; run: () => Promise<void> };
 
@@ -56,7 +57,7 @@ export default function ProjectSharedFiles({ creating, setCreating }: { creating
           targets={[]}
           onClose={() => setCreating(false)}
           onCreated={async () => {
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             await queryClient.refetchQueries({ queryKey: queryKeys.instructions.shared });
             setCreating(false);
           }}
@@ -96,7 +97,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
       toast(instructionsErrorMessage(err, t), 'error');
     } finally {
       setBusy(false);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     }
   };
   const warn = (warnings?: InstructionsWarning[]) => warnings?.forEach((w) => toast(instructionsWarningMessage(w, t), 'warning'));
@@ -165,7 +166,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
             warn(warnings);
             toast(t('instructions.locations.added', { path, name }), 'success');
             setAdding(false);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
           }} />
       )}
       {editing && content.data && (
@@ -175,7 +176,7 @@ function SharedFileCard({ file, fileLinks }: { file: SharedInstructionsFile; fil
           content={content.data.content}
           onSave={async (next) => {
             const res = await api.putSharedInstructionsContent(name, next);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             // Copies were rewritten; say which, and any problem, like the sync button.
             const copies = saveCopiesSummary(res.copies ?? []);
             copies.warnings.forEach((w) => toast(w, 'warning'));

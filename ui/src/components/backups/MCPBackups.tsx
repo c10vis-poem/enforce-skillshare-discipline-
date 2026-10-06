@@ -11,9 +11,9 @@ import MCPRestoreDialog from '../mcp/MCPRestoreDialog';
 import { backupTime, targetLabel } from '../mcp/mcpView';
 import { formatDateTime, formatRelativeTime, useI18n } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
-import { queryKeys } from '../../lib/queryKeys';
 import { mcpChanges } from './backupView';
 import { useMcpQuery } from '../../hooks/useSharedQueries';
+import { invalidate } from '../../lib/queryEvents';
 
 /** MCP config backups, grouped by the Agent file they were taken of. */
 export default function MCPBackups() {
@@ -79,7 +79,7 @@ export default function MCPBackups() {
           onClose={() => setRestoring(null)}
           onRestored={() => {
             setRestoring(null);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.mcp });
+            void invalidate(queryClient, 'mcpRestored');
             toast(t('mcp.toast.restored'), 'success');
           }}
         />

@@ -13,6 +13,7 @@ import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { SettingsTabs } from './SettingsPage';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Filter = 'all' | 'error' | 'warning' | 'pass';
 
@@ -54,7 +55,7 @@ export default function DoctorPage() {
       const result = await api.upgradeApp();
       if (result.devMode) {
         setUpgradeMessage(t('updateDialog.restartDev'));
-        await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: queryKeys.versionCheck })]);
+        await Promise.all([refetch(), invalidate(queryClient, 'appUpgraded')]);
         setUpgrading(false);
         return;
       }

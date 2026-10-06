@@ -73,6 +73,7 @@ import { useToast } from '../components/Toast';
 import TrashPage from './TrashPage';
 import UpdatePage, { countUpdates, updateUnits, useCheckStatuses } from './UpdatePage';
 import { useDiffQuery, useSkillsQuery, useSyncedTargetsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Kind = Skill['kind'];
 type StatusFilter = 'all' | 'enabled' | 'disabled';
@@ -338,10 +339,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
 
   /* -- Mutations -- */
 
-  const refreshAfterTargets = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-    queryClient.invalidateQueries({ queryKey: ['sync-matrix'] });
-  };
+  const refreshAfterTargets = () => void invalidate(queryClient, 'skillSyncChanged');
 
   /** Optimistic patch of the skills cache; returns the snapshot to roll back to. */
   const patch = (fn: (skills: Skill[]) => Skill[]) => {
@@ -385,10 +383,7 @@ export default function ResourcesPage({ kind }: { kind: Kind }) {
       setSelected(new Set());
     },
     onError: rollback,
-    onSettled: () => {
-      refreshAfterTargets();
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-    },
+    onSettled: () => void invalidate(queryClient, 'skillsToggled'),
   });
 
   const setTargets = useMutation({

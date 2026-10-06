@@ -9,6 +9,7 @@ import { Checkbox } from '../Checkbox';
 import DialogShell from '../DialogShell';
 import { Input } from '../Input';
 import { useToast } from '../Toast';
+import { invalidate } from '../../lib/queryEvents';
 
 export default function LinkFolderDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -30,13 +31,7 @@ export default function LinkFolderDialog({ onClose }: { onClose: () => void }) {
     setFailure('');
     try {
       const res = await api.createSourceLink({ path: path.trim(), ...(name.trim() ? { name: name.trim() } : {}), enable: !following && enable });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.skills.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.config }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.diff() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.syncMatrix() }),
-      ]);
+      await invalidate(queryClient, 'sourceLinked');
       toast(t('sourceLinks.created'), 'success');
       if (res.warning) toast(res.warning, 'warning');
       if (!following && !enable) toast(t('sourceLinks.notFollowing'), 'info');

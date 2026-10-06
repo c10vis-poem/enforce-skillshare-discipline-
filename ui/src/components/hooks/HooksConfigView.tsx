@@ -28,7 +28,7 @@ export function HooksConfigView({ mutation, sourcePath }: { mutation: HookMutati
   const { isProjectMode, projectRoot } = useAppContext();
   const root = mutation.project ?? (isProjectMode ? projectRoot : undefined);
   const entry = mutation.entry;
-  const view = useQuery({ queryKey: [...queryKeys.hooks, 'render', JSON.stringify(mutation)], queryFn: () => hooksApi.render(mutation) });
+  const view = useQuery({ queryKey: queryKeys.hooksRender(JSON.stringify(mutation)), queryFn: () => hooksApi.render(mutation) });
   const files = view.data?.rendered ?? [];
   // A disabled hook still renders so its definition can be checked, but sync writes none of it.
   const written = entry?.enabled === false ? 0 : files.filter((f) => f.content !== undefined && !f.error).length;

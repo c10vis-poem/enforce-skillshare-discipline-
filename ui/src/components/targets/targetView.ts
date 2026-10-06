@@ -1,6 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
 import type { SyncMatrixEntry, Target } from '../../api/client';
-import { queryKeys } from '../../lib/queryKeys';
 
 export type TargetState = 'synced' | 'pending' | 'missing' | 'migrate' | 'problem' | 'unknown';
 
@@ -66,11 +64,4 @@ export function joinList(items: string[], locale: string) {
     const after = latin.test(parts[i + 1]?.value[0] ?? '') ? ' ' : '';
     return before + (locale === 'zh-TW' ? '與' : '和') + after;
   }).join('');
-}
-
-/** Everything that shows a target's config or its effect. */
-export function refreshTargets(queryClient: QueryClient) {
-  for (const key of [queryKeys.targets.all, queryKeys.projects, queryKeys.config, queryKeys.overview, queryKeys.diff(), queryKeys.syncMatrix()]) {
-    void queryClient.invalidateQueries({ queryKey: key });
-  }
 }

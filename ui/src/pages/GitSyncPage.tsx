@@ -19,6 +19,7 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
+import { invalidate } from '../lib/queryEvents';
 
 const SCOPES = ['skills', 'agents', 'extras', 'root'];
 const TONE = { New: 'ok', Changed: 'warn', Renamed: 'warn', Deleted: 'bad' } as const;
@@ -39,7 +40,7 @@ export default function GitSyncPage() {
     queryFn: async () => {
       // An offline or unauthenticated fetch must not empty the branch list.
       const res = await api.gitBranches({ fetch: !!status?.hasRemote }).catch(() => api.gitBranches());
-      void queryClient.invalidateQueries({ queryKey: queryKeys.gitStatus });
+      void invalidate(queryClient, 'gitFetched');
       return res;
     },
     staleTime: staleTimes.gitStatus,
@@ -65,11 +66,7 @@ export default function GitSyncPage() {
   const [pulled, setPulled] = useState<PullResponse | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
 
-  const refresh = () => {
-    for (const queryKey of [queryKeys.gitStatus, queryKeys.gitBranches, queryKeys.skills.all, queryKeys.overview, queryKeys.config, queryKeys.targets.all, queryKeys.diff()]) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  };
+  const refresh = () => void invalidate(queryClient, 'gitChanged');
   const run = async (kind: NonNullable<typeof busy>, work: () => Promise<void>) => {
     setBusy(kind);
     setRunError('');
@@ -108,7 +105,7 @@ export default function GitSyncPage() {
     if (dryRun) return setNote(t('gitSync.discard.preview'));
     setPulled(null);
     // Root scope can change any of the source resources shown elsewhere.
-    void queryClient.invalidateQueries();
+    void invalidate(queryClient, 'sourceDiscarded');
     toast(t('gitSync.toast.discarded'), 'success');
   });
   // A clean tree with commits the remote lacks: push them as they are.

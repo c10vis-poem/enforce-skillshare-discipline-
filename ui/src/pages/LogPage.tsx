@@ -17,6 +17,7 @@ import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { SettingsTabs } from './SettingsPage';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type LogTab = 'all' | 'ops' | 'audit';
 
@@ -89,8 +90,7 @@ export default function LogPage() {
   const clear = useMutation({
     mutationFn: () => (tab === 'all' ? Promise.all([api.clearLog('ops'), api.clearLog('audit')]).then(() => undefined) : api.clearLog(tab).then(() => undefined)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['log'] });
-      queryClient.invalidateQueries({ queryKey: ['log-stats'] });
+      void invalidate(queryClient, 'logsCleared');
       toast(t('log.toast.cleared'), 'success');
       setConfirmOpen(false);
     },

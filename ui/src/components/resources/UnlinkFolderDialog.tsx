@@ -3,9 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { Skill, SourceLink } from '../../api/client';
 import { useT } from '../../i18n';
-import { queryKeys } from '../../lib/queryKeys';
 import ConfirmDialog from '../ConfirmDialog';
 import { useToast } from '../Toast';
+import { invalidate } from '../../lib/queryEvents';
 
 export default function UnlinkFolderDialog({ link, skills, onClose }: { link: SourceLink; skills: Skill[]; onClose: () => void }) {
   const t = useT();
@@ -20,14 +20,7 @@ export default function UnlinkFolderDialog({ link, skills, onClose }: { link: So
     setFailure('');
     try {
       await api.removeSourceLink(link.name);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.skills.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.config }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.diff() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.syncMatrix() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.trash }),
-      ]);
+      await invalidate(queryClient, 'sourceUnlinked');
       toast(t('sourceLinks.unlinked', { name: link.name }), 'success');
       onClose();
     } catch (err) {

@@ -27,8 +27,9 @@ import RestorePreviewDialog from './RestorePreviewDialog';
 import { BoxHeader, InstructionsPreview } from './ViewTabs';
 import type { ConnectStep, ModeOption, RestoreStep, RowHint } from './instructionsView';
 import {
-  instructionsErrorMessage, instructionsWarningMessage, connectExtras, connectPlan, connectedTo, modeOptions, needsSync, pickedMode, refreshInstructions, restorePlan, rowHint, saveCopiesSummary, staleLocations, statusTone, usesOf,
+  instructionsErrorMessage, instructionsWarningMessage, connectExtras, connectPlan, connectedTo, modeOptions, needsSync, pickedMode, restorePlan, rowHint, saveCopiesSummary, staleLocations, statusTone, usesOf,
 } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 const PREVIEW_LINES = 8;
 type Pending = { title: string; message: ReactNode; confirm: string; danger?: boolean; run: () => Promise<void> };
@@ -121,7 +122,7 @@ export default function SharedInstructions({ creating, setCreating }: { creating
           onClose={() => setCreating(false)}
           onCreated={async (name) => {
             // The dialog closes once the page shows the file, so it does not show another one meanwhile.
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             await queryClient.refetchQueries({ queryKey: queryKeys.instructions.shared });
             created.current = name;
             pick(name);
@@ -181,7 +182,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
       toast(instructionsErrorMessage(err, t), 'error');
     } finally {
       setBusy(false);
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
     }
   };
   const ask = (p: Pending) => setPending(p);
@@ -517,7 +518,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
             warn(warnings);
             toast(t('instructions.locations.added', { path: shortenHome(path), name }), 'success');
             setAddingLocation(false);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
           }} />
       )}
       {editing && content.data && (
@@ -530,7 +531,7 @@ function FilePanel({ file, targets, fileLinks, onDeleted }: {
             t('instructions.editor.tooLong', { target: tg.name, chars: file.chars.toLocaleString(), max: tg.max_chars!.toLocaleString() }))}
           onSave={async (next) => {
             const res = await api.putSharedInstructionsContent(name, next);
-            refreshInstructions(queryClient);
+            void invalidate(queryClient, 'instructionsChanged');
             // Copy targets were rewritten; say which, and any problem, like the sync button.
             const copies = saveCopiesSummary(res.copies ?? []);
             copies.warnings.forEach((w) => toast(w, 'warning'));

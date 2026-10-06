@@ -18,6 +18,7 @@ import { shortenHome } from '../../lib/paths';
 import { describeEndpoint, describeError, hasToolPolicy, targetLabel, parsePiOptions } from './mcpView';
 import { MCPTargetOrder } from './targetOrder';
 import type { AddMode } from './mcpServerDraft';
+import { queryKeys } from '../../lib/queryKeys';
 
 /** Where the configuration comes from. Each entry point fixes one; the dialog never switches. */
 type Source = 'target' | 'paste';
@@ -291,9 +292,9 @@ function ImportFooter({ adding, count, targets, needsTarget, incompatible, savin
 function useImportQuery(sourceID: string, selectedSource: MCPImportSource | undefined, project: string | undefined, tab: Source, pasted: string, tomlFrom: string) {
   const from = selectedSource?.target ?? '';
   const toml = TOML.test(pasted);
-  const fromTarget = useQuery({ queryKey: ['mcp-import', sourceID, project], queryFn: () => mcpApi.import({ from, ...(selectedSource?.piExtension && { piExtension: selectedSource.piExtension }), ...(project && { root: project }) }), enabled: tab === 'target' && from !== '', gcTime: 0, retry: false });
+  const fromTarget = useQuery({ queryKey: queryKeys.mcpImport(sourceID, project), queryFn: () => mcpApi.import({ from, ...(selectedSource?.piExtension && { piExtension: selectedSource.piExtension }), ...(project && { root: project }) }), enabled: tab === 'target' && from !== '', gcTime: 0, retry: false });
   const fromPaste = useQuery({
-    queryKey: ['mcp-import-paste', pasted, toml && tomlFrom],
+    queryKey: queryKeys.mcpImportPaste(pasted, toml && tomlFrom),
     queryFn: () => mcpApi.import({ content: pasted, ...(toml && { from: tomlFrom }) }),
     enabled: tab === 'paste' && pasted !== '',
     gcTime: 0,

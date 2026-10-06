@@ -4,7 +4,6 @@ import { AlertCircle, Archive, Copy, Download, Eye, Info, Pencil, Plus, Trash2, 
 import { hooksApi, type HookChange, type HookEntry, type HookInventory } from '../../api/hooks';
 import { useT } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
-import { queryKeys } from '../../lib/queryKeys';
 import Button from '../Button';
 import EmptyState from '../EmptyState';
 import { RailLayout, RailRow, RailSection } from '../StatusRail';
@@ -21,6 +20,7 @@ import HooksRestoreDialog from './HooksRestoreDialog';
 import HooksSyncBox, { HooksSyncDialog } from './HooksSyncBox';
 import HooksUnmanagedNote from './HooksUnmanagedNote';
 import { blockedHint, hookAccounts, keyLabel, hookNote, scopeBackups, scopeChanges, scopeEntries, scopePaths, scopePlan, scopeUnmanaged, writes } from './hooksView';
+import { invalidate } from '../../lib/queryEvents';
 
 const copy = (text: string) => void navigator.clipboard?.writeText(text);
 
@@ -46,10 +46,7 @@ export default function HooksScope({ data, project, header }: Props) {
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
 
-  const refresh = () => {
-    void cache.invalidateQueries({ queryKey: queryKeys.hooks });
-    void cache.invalidateQueries({ queryKey: queryKeys.config });
-  };
+  const refresh = () => void invalidate(cache, 'hooksChanged');
   const done = (message: string) => {
     setEditing(null); setImporting(false); setRemoving(''); setBackupsOpen(false);
     refresh();

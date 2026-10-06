@@ -31,5 +31,5 @@ export function getCachedAuditResult(
 export function clearAuditCache(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: queryKeys.audit.all('skills'), exact: true });
   queryClient.removeQueries({ queryKey: queryKeys.audit.all('agents'), exact: true });
-  queryClient.removeQueries({ queryKey: ['audit', 'skill'] });
+  queryClient.removeQueries({ queryKey: queryKeys.audit.skills });
 }

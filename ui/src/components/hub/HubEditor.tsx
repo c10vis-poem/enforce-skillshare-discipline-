@@ -12,6 +12,7 @@ import HubEntryEditor from './HubEntryEditor';
 import { newEntryId } from './hubShared';
 import { queryKeys } from '../../lib/queryKeys';
 import { useT } from '../../i18n';
+import { invalidate } from '../../lib/queryEvents';
 
 interface Props {
   response: DraftResponse;
@@ -80,7 +81,7 @@ export default function HubEditor({ response, onDone }: Props) {
     try {
       const res = await hubDrafts.save(draft);
       queryClient.setQueryData(queryKeys.hub.draft(res.draft.id), res);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+      void invalidate(queryClient, 'hubDraftsChanged');
       setBase(res);
       setDraft(res.draft);
       setVersions(res.refs ?? {});
@@ -95,7 +96,7 @@ export default function HubEditor({ response, onDone }: Props) {
 
   function cancel() {
     // Reload what is saved, which also recovers from an edit made in another window.
-    void queryClient.invalidateQueries({ queryKey: queryKeys.hub.draft(draft.id) });
+    void invalidate(queryClient, 'hubDraftReverted', draft.id);
     onDone();
   }
 

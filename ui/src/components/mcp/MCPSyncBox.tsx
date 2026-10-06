@@ -10,9 +10,9 @@ import { RailLine, SyncBox } from '../StatusRail';
 import SyncResultList from '../SyncResultList';
 import { MCP_CHANGED, mcpGroups, runSync } from '../sync/syncView';
 import { useT } from '../../i18n';
-import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
 import { offListFor, projectOf, targetLabel, writes, type MCPChange } from './mcpView';
+import { invalidate } from '../../lib/queryEvents';
 
 function ChangeLines({ changes, roots }: { changes: MCPChange[]; roots: string[] }) {
   const t = useT();
@@ -57,7 +57,7 @@ export function MCPSyncDialog({ plan, shown, onClose }: { plan: MCPPlan; shown: 
       setError(message === MCP_CHANGED ? t('sync.mcpChanged') : message);
     } finally {
       setRunning(false);
-      for (const queryKey of [queryKeys.mcp, ['log']]) void queryClient.invalidateQueries({ queryKey });
+      void invalidate(queryClient, 'mcpSynced');
     }
   };
 

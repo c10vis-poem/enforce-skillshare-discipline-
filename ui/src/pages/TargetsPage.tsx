@@ -14,12 +14,13 @@ import { useToast } from '../components/Toast';
 import AddTargetDialog from '../components/targets/AddTargetDialog';
 import { mcpClient, serverCount } from '../components/mcp/mcpView';
 import { hookAgentOf, hookCount } from '../components/hooks/hooksView';
-import { refreshTargets, targetHealth, type TargetState } from '../components/targets/targetView';
+import { targetHealth, type TargetState } from '../components/targets/targetView';
 import { useAppContext } from '../context/AppContext';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { fileName, shortenHome } from '../lib/paths';
 import { useT } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const TONE = { synced: 'ok', pending: 'warn', missing: 'warn', migrate: 'warn', problem: 'bad', unknown: 'off' } as const;
 const PROBLEM_TEXT: Record<string, string> = { 'not exist': 'targets.syncing.missing', conflict: 'targets.syncing.conflict', broken: 'targets.syncing.broken' };
@@ -172,7 +173,7 @@ export default function TargetsPage() {
           onClose={() => setAdding(null)}
           onAdded={(name) => {
             setAdding(null);
-            refreshTargets(queryClient);
+            void invalidate(queryClient, 'targetsChanged');
             toast(t('targets.targetAdded', { name }), 'success');
           }}
         />

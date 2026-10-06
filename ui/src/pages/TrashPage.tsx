@@ -9,6 +9,7 @@ import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/Toast';
+import { invalidate } from '../lib/queryEvents';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -39,11 +40,7 @@ export default function TrashPage({ kind }: { kind: Skill['kind'] }) {
   const [emptyOpen, setEmptyOpen] = useState(false);
   const [emptying, setEmptying] = useState(false);
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.trash });
-    queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-    queryClient.invalidateQueries({ queryKey: ['sync-matrix'] });
-  };
+  const refresh = () => void invalidate(queryClient, 'trashChanged');
 
   const restore = async (item: TrashedSkill) => {
     setRestoring(itemKey(item));

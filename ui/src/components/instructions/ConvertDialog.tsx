@@ -11,7 +11,8 @@ import { useToast } from '../Toast';
 import { useT } from '../../i18n';
 import { fileName, shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
-import { instructionsErrorMessage, defaultShareName, importLines, isOtherExtra, lineDiff, refreshInstructions, sharedNameProblem, takenName } from './instructionsView';
+import { instructionsErrorMessage, defaultShareName, importLines, isOtherExtra, lineDiff, sharedNameProblem, takenName } from './instructionsView';
+import { invalidate } from '../../lib/queryEvents';
 
 const METHODS: ConvertMethod[] = ['import', 'rename', 'copy'];
 // The share picker's choice for a new shared file; real names are extras names.
@@ -56,7 +57,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
   const sharedDest = shareAs ?? shareInto;
 
   const preview = useQuery({
-    queryKey: ['instructions', 'convert', data.target, body],
+    queryKey: queryKeys.instructions.convert(data.target, body),
     queryFn: () => api.convertTargetInstructions(data.target, { ...body, apply: false }),
     // Off while applying: the refresh after success would re-plan against the
     // shared file that now exists.
@@ -69,7 +70,7 @@ export default function ConvertDialog({ data, onClose }: { data: TargetInstructi
     setBusy(true);
     try {
       await api.convertTargetInstructions(data.target, { ...body, apply: true });
-      refreshInstructions(queryClient);
+      void invalidate(queryClient, 'instructionsChanged');
       toast(t('instructions.convert.done', { file }), 'success');
       onClose();
     } catch (err) {

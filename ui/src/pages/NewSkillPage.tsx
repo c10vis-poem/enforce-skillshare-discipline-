@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import { api } from '../api/client';
 import { useT } from '../i18n';
 import { useOverviewQuery, useSkillsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const NAME_REGEX = /^[a-z_][a-z0-9_-]*$/;
 const MAX_DESCRIPTION = 1024;
@@ -101,8 +102,7 @@ export default function NewSkillPage() {
     setCreating(true);
     try {
       const res = await api.createSkill({ ...request, name, scaffoldDirs: dirOptions.filter((d) => dirs.has(d)) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+      void invalidate(queryClient, 'skillsChanged');
       toast(t('newSkill.toast.created', { name: res.skill.name }), 'success');
       navigate(`/skills/${encodeURIComponent(res.skill.flatName)}`);
     } catch (e) {
