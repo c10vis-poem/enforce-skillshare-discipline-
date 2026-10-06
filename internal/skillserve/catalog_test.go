@@ -165,6 +165,22 @@ func TestBuild_SkipsSkillWhoseFrontmatterIsNotAtTheStart(t *testing.T) {
 	}
 }
 
+// The Agent Skills format caps a description at 1,024 characters, not bytes.
+func TestBuild_SkipsSkillWhoseDescriptionIsTooLong(t *testing.T) {
+	src := t.TempDir()
+	skill := func(name, desc string) string { return "---\nname: " + name + "\ndescription: " + desc + "\n---\n" }
+	writeFile(t, filepath.Join(src, "long/SKILL.md"), skill("long", strings.Repeat("a", 1025)))
+	writeFile(t, filepath.Join(src, "wide/SKILL.md"), skill("wide", strings.Repeat("技", 1024)))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 1 || c.Skills[0].URI != "skill://wide/SKILL.md" || !hasWarning(c, "skipped long") {
+		t.Errorf("skills=%v warnings=%v, want long skipped and wide served", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsSkillOverFileLimit(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))

@@ -8,15 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
 )
 
-// Per-skill limits from SEP-2640.
+// Per-skill limits from SEP-2640, and the Agent Skills description limit.
 const (
-	MaxFiles = 512
-	MaxBytes = 16 << 20
+	MaxFiles       = 512
+	MaxBytes       = 16 << 20
+	MaxDescription = 1024
 )
 
 // File is one regular file of a package.
@@ -50,8 +52,12 @@ func Load(dir string) (*Package, error) {
 	if reason := ValidateName(name, dirName); reason != "" {
 		return nil, fmt.Errorf("%s", reason)
 	}
-	if desc, _ := fm["description"].(string); strings.TrimSpace(desc) == "" {
+	desc, _ := fm["description"].(string)
+	if strings.TrimSpace(desc) == "" {
 		return nil, fmt.Errorf("SKILL.md is missing a description")
+	}
+	if n := utf8.RuneCountInString(desc); n > MaxDescription {
+		return nil, fmt.Errorf("description has %d characters; the limit is %d", n, MaxDescription)
 	}
 
 	p := &Package{Dir: dir, Frontmatter: fm}

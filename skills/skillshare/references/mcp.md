@@ -54,7 +54,8 @@ skillshare mcp serve --check [--target NAME]         # List skills serve would s
   servers. `--json` adds `live: {protocolVersion, serverInfo, tools, toolNames}`.
 - `mcp serve` serves skills to Agents that cannot reach the synced folders (VMs, MCP
   gateways): stdio by default, global unless `-p`. `--target NAME` applies that target's
-  filters. Skipped skills (name not matching its directory, over 512 files/16 MiB) are
+  filters. Skipped skills (name not matching its directory, description missing or over 1,024
+  characters, over 512 files/16 MiB) are
   listed on stderr; `--check` lists them without serving. `--http` on a non-loopback address requires `SKILLSHARE_MCP_TOKEN`.
   Do not connect local Agents that already sync skills; they would see each skill twice.
   Connect one with `mcp add skillshare --target CLIENT --sync -- skillshare mcp serve`, or a

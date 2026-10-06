@@ -801,9 +801,10 @@ skill approval does not apply.
   its sync mode; skills always come from the source. A target with skills turned off is
   an error.
 - **Skipped skills.** A skill is skipped, with a warning on stderr, when its `SKILL.md`
-  `name` breaks the Agent Skills naming rules or differs from its directory name (for
-  example after `install --name`), when it has no description, when it has more than 512
-  files or 16 MiB, or when it contains a nested skill that is not served.
+  does not begin with its frontmatter, when its `name` breaks the Agent Skills naming
+  rules or differs from its directory name (for example after `install --name`), when
+  its description is missing or over 1,024 characters, when it has more than 512 files
+  or 16 MiB, or when it contains a nested skill that is not served.
   `skillshare mcp serve --check` lists those skills and their reasons, with the same
   selection flags, and exits without serving.
 - **Changes.** The source is read again at most every 5 seconds, so `install`,

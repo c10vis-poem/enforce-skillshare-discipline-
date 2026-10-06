@@ -43,7 +43,7 @@ export type AddMode = 'form' | 'paste' | 'serve';
 
 /** The command that serves skills over MCP: every enabled skill, or those of one skills target. */
 export const serveSkillsCommand = (target: string, project: boolean) =>
-  ['skillshare mcp serve', target && `--target ${target}`, project && '-p'].filter(Boolean).join(' ');
+  joinCommand(['skillshare', 'mcp', 'serve', ...(target ? ['--target', target] : []), ...(project ? ['-p'] : [])]);
 
 /** The skills target a `skillshare mcp serve` command serves ('' for every skill), or undefined for any other command. */
 export function serveSkillsTarget(words: string[]): string | undefined {
