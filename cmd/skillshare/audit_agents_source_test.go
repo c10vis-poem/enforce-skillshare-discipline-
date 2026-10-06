@@ -13,7 +13,11 @@ import (
 // the skills source untouched so the TUI's Skills tab scans skills, not agents.
 func TestAuditInstalled_AgentsKindScansAgentsSource(t *testing.T) {
 	skills := t.TempDir()
-	agents := t.TempDir()
+	// The runner TEMP is an 8.3 short path on Windows; the scan reports the long one.
+	agents, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Join(skills, "demo"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -33,12 +37,7 @@ func TestAuditInstalled_AgentsKindScansAgentsSource(t *testing.T) {
 		}
 	})
 
-	// The runner TEMP is an 8.3 short path on Windows; the scan target is the long one.
-	real, err := filepath.EvalSymlinks(agents)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(results) != 1 || results[0].Kind != "agent" || !strings.HasPrefix(results[0].ScanTarget, real) {
+	if len(results) != 1 || results[0].Kind != "agent" || !strings.HasPrefix(results[0].ScanTarget, agents) {
 		t.Fatalf("expected the one agent from the agents source, got %+v", results)
 	}
 	if results[0].SkillName != "helper.md" {
