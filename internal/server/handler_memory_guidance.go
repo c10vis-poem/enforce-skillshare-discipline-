@@ -15,15 +15,10 @@ import (
 // server knows (targets, instruction assignments, shared extras, project
 // reach) into memory.GuidanceInput and converts the results to JSON.
 
-// memoryInstructions returns the guidance block of the current scope in the
-// given update mode. Callers hold s.mu.
-func (s *Server) memoryInstructions(root, mode string) string {
-	return memory.Instructions(root, s.projectRoot, mode)
-}
-
-// memoryInstructionsByMode returns the block of every update mode, for copying.
+// memoryInstructionsByMode returns the guidance block of the current scope in
+// every update mode, for copying. Callers hold s.mu.
 func (s *Server) memoryInstructionsByMode(root string) map[string]string {
-	return map[string]string{memory.ModePassive: s.memoryInstructions(root, memory.ModePassive), memory.ModeActive: s.memoryInstructions(root, memory.ModeActive)}
+	return map[string]string{memory.ModePassive: memory.Instructions(root, s.projectRoot, memory.ModePassive), memory.ModeActive: memory.Instructions(root, s.projectRoot, memory.ModeActive)}
 }
 
 // guidanceInput resolves every target's read chain. Callers hold s.mu.
@@ -90,11 +85,7 @@ func (s *Server) handleMemoryGuidance(w http.ResponseWriter, r *http.Request) {
 		writeMemoryError(w, err)
 		return
 	}
-	scope := memory.ScopeGlobal
-	if s.IsProjectMode() {
-		scope = memory.ScopeProject
-	}
-	writeJSON(w, map[string]any{"scope": scope, "instructions": s.memoryInstructionsByMode(in.Root), "targets": memory.GuidanceStatus(in)})
+	writeJSON(w, map[string]any{"scope": in.Scope(), "instructions": s.memoryInstructionsByMode(in.Root), "targets": memory.GuidanceStatus(in)})
 }
 
 type guidanceRequest struct {
@@ -123,14 +114,16 @@ func (s *Server) handleMemoryGuidancePlan(w http.ResponseWriter, r *http.Request
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	in, err := s.guidanceInput()
-	if err == nil {
-		var plan memory.GuidancePlan
-		if plan, err = memory.PlanGuidance(in, body.Targets, body.Modes); err == nil {
-			writeJSON(w, plan)
-			return
-		}
+	if err != nil {
+		writeCodedError(w, http.StatusBadRequest, "memory_guidance_invalid", err.Error(), map[string]string{})
+		return
 	}
-	writeCodedError(w, http.StatusBadRequest, "memory_guidance_invalid", err.Error(), map[string]string{})
+	plan, err := memory.PlanGuidance(in, body.Targets, body.Modes)
+	if err != nil {
+		writeCodedError(w, http.StatusBadRequest, "memory_guidance_invalid", err.Error(), map[string]string{})
+		return
+	}
+	writeJSON(w, plan)
 }
 
 // handleMemoryGuidanceApply — POST /api/extras/memory/guidance/apply
@@ -146,20 +139,21 @@ func (s *Server) handleMemoryGuidanceApply(w http.ResponseWriter, r *http.Reques
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	in, err := s.guidanceInput()
-	var res memory.GuidanceResult
-	if err == nil {
-		res, err = memory.ApplyGuidance(in, body.Targets, body.Modes, body.Token, func(c memory.GuidanceChange) []memory.GuidanceFailure {
-			var out []memory.GuidanceFailure
-			if extra, ok := s.sharedExtra(c.Shared); ok && c.Shared != "" {
-				for _, result := range s.syncSharedCopies(extra) {
-					if result.Error != "" {
-						out = append(out, memory.GuidanceFailure{Path: result.Target, Err: errors.New(result.Error)})
-					}
+	if err != nil {
+		writeCodedError(w, http.StatusBadRequest, "memory_guidance_invalid", err.Error(), map[string]string{})
+		return
+	}
+	res, err := memory.ApplyGuidance(in, body.Targets, body.Modes, body.Token, func(c memory.GuidanceChange) []memory.GuidanceFailure {
+		var out []memory.GuidanceFailure
+		if extra, ok := s.sharedExtra(c.Shared); ok && c.Shared != "" {
+			for _, result := range s.syncSharedCopies(extra) {
+				if result.Error != "" {
+					out = append(out, memory.GuidanceFailure{Path: result.Target, Err: errors.New(result.Error)})
 				}
 			}
-			return out
-		})
-	}
+		}
+		return out
+	})
 	if errors.Is(err, memory.ErrGuidanceStale) {
 		writeCodedError(w, http.StatusConflict, "memory_guidance_stale", err.Error(), map[string]string{})
 		return

@@ -34,7 +34,8 @@ type GuidanceSource struct {
 	Live   bool   // false when the shared file is attached but not synced
 }
 
-// GuidanceReader is one target and the chain of files it reads.
+// GuidanceReader is one target and the chain of files it reads. Sources holds
+// at least one file, and Dest indexes one of them.
 type GuidanceReader struct {
 	Name     string
 	Sources  []GuidanceSource
@@ -48,7 +49,7 @@ type GuidanceInput struct {
 	Root        string // the memory folder
 	ProjectRoot string // empty in global scope
 	Readers     []GuidanceReader
-	Config      any // hashed into the plan token, so a config change makes a plan stale
+	Config      any // hashed as JSON into the plan token, so a config change makes a plan stale
 }
 
 type GuidanceTarget struct {
@@ -112,7 +113,8 @@ type guidanceSite struct {
 	maxChars int
 }
 
-func (in GuidanceInput) scope() string {
+// Scope is ScopeProject when the input has a project root.
+func (in GuidanceInput) Scope() string {
 	if in.ProjectRoot != "" {
 		return ScopeProject
 	}
@@ -186,7 +188,7 @@ func resolveSite(site guidanceSite, in GuidanceInput) guidanceSite {
 			site.State, site.Detail, site.File = "broken", "unsupported", src.Write
 			return site
 		}
-		mode := Mode(string(data), in.scope())
+		mode := Mode(string(data), in.Scope())
 		state := Inspect(string(data), in.instructions(mode))
 		if !src.Live {
 			if state != StateUnconfigured {
@@ -353,10 +355,11 @@ func PlanGuidance(in GuidanceInput, names []string, modes map[string]string) (Gu
 }
 
 // ApplyGuidance applies a reviewed plan only if recomputing it gives the same
-// token; otherwise it returns ErrGuidanceStale and writes nothing. Each
-// existing file is backed up before it is changed. written, when set, runs
-// after each file is written, so the caller can sync its copies before the
-// next file is checked; the failures it returns join the result.
+// token; otherwise it returns ErrGuidanceStale and writes nothing. Invalid
+// input returns PlanGuidance's error. Each existing file is backed up before
+// it is changed. written, when set, runs after each file is written, shared or
+// not, so the caller can sync its copies before the next file is checked; the
+// failures it returns join the result.
 func ApplyGuidance(in GuidanceInput, names []string, modes map[string]string, token string, written func(GuidanceChange) []GuidanceFailure) (GuidanceResult, error) {
 	plan, err := PlanGuidance(in, names, modes)
 	if err != nil {

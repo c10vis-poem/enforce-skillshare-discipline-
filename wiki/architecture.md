@@ -56,14 +56,16 @@ Prepared writes and deletions recheck the version after backup immediately befor
 replacement/removal; new notes use exclusive creation to reject concurrent creates.
 
 `handler_memory_guidance.go` only resolves existing target read chains and
-instruction assignments into `memory.GuidanceInput` and converts results to JSON;
+instruction assignments into `memory.GuidanceInput` (including which file
+receives a new block) and converts results to JSON;
 `internal/memory/guidance_plan.go` owns status, plan, and apply
 (`GuidanceStatus`, `PlanGuidance`, `ApplyGuidance`), tested against a temp
 directory. Plan returns per-file before/after content, skips, reader/size
 warnings, and a token; apply recomputes it before backed-up writes, and a
-callback lets the server sync shared copies after each written file. Each file is checked against its reviewed content and existence
-before writing, including after backup. A later conflict preserves that file and
-reports `memory_guidance_stale` in the partial result alongside applied paths.
+callback lets the server sync shared copies after each written file. Each file
+is checked against its reviewed content and existence before writing, including
+after backup. A later conflict preserves that file and reports
+`memory_guidance_stale` in the partial result alongside applied paths.
 New guidance files use exclusive creation; a competing creator also produces
 `memory_guidance_stale` without overwriting its file.
 It preserves other content, assignments, and connection modes.
