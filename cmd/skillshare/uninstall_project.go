@@ -67,12 +67,9 @@ func cmdUninstallProject(args []string, root string) error {
 		dryRunGitignore: func(*uninstallTarget) string {
 			return "would update .skillshare/.gitignore"
 		},
-		gitignoreEntries: func(succeeded []*uninstallTarget) (string, []string) {
-			entries := make([]string, len(succeeded))
-			for i, t := range succeeded {
-				entries[i] = gitignorePrefix + "/" + t.name
-			}
-			return gitignoreDir, entries
+		gitignoreDir: gitignoreDir,
+		gitignoreEntry: func(t *uninstallTarget) string {
+			return gitignorePrefix + "/" + t.name
 		},
 		afterRemove: func(removed map[string]bool) { pruneProjectLock(root, removed) },
 		preflight:   projectUninstallPreflight,

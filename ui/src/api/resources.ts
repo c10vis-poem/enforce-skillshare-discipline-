@@ -66,8 +66,8 @@ export const resourcesApi = {
       body: JSON.stringify({ target: target ?? '' }),
     }),
   // Repo uninstall
-  deleteRepo: (name: string) =>
-    apiFetch<{ success: boolean; name: string }>(`/repos/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  deleteRepo: (name: string, force = false) =>
+    apiFetch<{ success: boolean; name: string }>(`/repos/${encodeURIComponent(name)}${force ? '?force=true' : ''}`, { method: 'DELETE' }),
   // Skill file content
   getSkillFile: (skillName: string, filepath: string) =>
     apiFetch<SkillFileContent>(`/resources/${encodeURIComponent(skillName)}/files/${filepath}`),

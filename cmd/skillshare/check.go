@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,21 +50,11 @@ type checkOptions struct {
 	json   bool
 }
 
-// skillWithMeta holds a regular skill plus its parsed metadata for grouping.
-type skillWithMeta struct {
-	name string
-	path string
-	meta *install.MetadataEntry
-}
-
 // collectCheckItems reads metadata and partitions items for parallel checking.
-// Returns: tracked repo inputs, URL-grouped skills, local skill results (no network needed).
+// Returns: tracked repo inputs and the planned skill check, in which skills
+// without a remote are already resolved (no network needed).
 // projectRoot is the base of relative local sources; "" in global mode.
-func collectCheckItems(sourceDir, projectRoot string, repos []string, skills []string) (
-	[]check.RepoCheckInput,
-	map[string][]skillWithMeta,
-	[]checkSkillResult,
-) {
+func collectCheckItems(sourceDir, projectRoot string, repos []string, skills []string) ([]check.RepoCheckInput, *check.Resolution) {
 	var repoInputs []check.RepoCheckInput
 	for _, repo := range repos {
 		repoInputs = append(repoInputs, check.RepoCheckInput{
@@ -75,36 +66,38 @@ func collectCheckItems(sourceDir, projectRoot string, repos []string, skills []s
 	// Load centralized metadata store once for all skills.
 	store := install.LoadMetadataOrNew(sourceDir)
 
-	urlGroups := make(map[string][]skillWithMeta)
-	var localResults []checkSkillResult
-
-	for _, skill := range skills {
-		skillPath := filepath.Join(sourceDir, skill)
-		entry := store.GetByPath(skill)
-
-		if entry == nil || entry.RepoURL == "" {
-			result := checkSkillResult{Name: skill}
-			result.Status, result.Message = check.LocalSourceStatus(entry, projectRoot)
-			if entry != nil {
-				result.Source = entry.Source
-				result.Version = entry.Version
-				if !entry.InstalledAt.IsZero() {
-					result.InstalledAt = entry.InstalledAt.Format("2006-01-02")
-				}
-			}
-			localResults = append(localResults, result)
-			continue
-		}
-
-		groupKey := urlBranchKey(entry.RepoURL, entry.Branch)
-		urlGroups[groupKey] = append(urlGroups[groupKey], skillWithMeta{
-			name: skill,
-			path: skillPath,
-			meta: entry,
-		})
+	checkSkills := make([]check.Skill, len(skills))
+	for i, skill := range skills {
+		checkSkills[i] = check.Skill{Name: skill, Entry: store.GetByPath(skill)}
 	}
 
-	return repoInputs, urlGroups, localResults
+	return repoInputs, check.Plan(checkSkills, projectRoot)
+}
+
+// resolveCheckSkills asks the remotes of a planned skill check in parallel,
+// reporting the skill count of each finished remote to progressBar (may be nil).
+func resolveCheckSkills(plan *check.Resolution, progressBar *ui.ProgressBar) []checkSkillResult {
+	// Without a context the check runs to completion, so the error is always nil.
+	resolved, _ := plan.Run(context.Background(), check.Options{
+		Parallel: true,
+		OnRemoteDone: func(skills int) {
+			if progressBar != nil {
+				progressBar.Add(skills)
+			}
+		},
+	})
+	var results []checkSkillResult
+	for _, r := range resolved {
+		results = append(results, checkSkillResult{
+			Name:        r.Name,
+			Source:      r.Source,
+			Version:     r.Version,
+			Status:      r.Status,
+			InstalledAt: r.InstalledAt,
+			Message:     r.Message,
+		})
+	}
+	return results
 }
 
 // parseCheckArgs parses command line arguments for the check command.
@@ -289,27 +282,14 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 	}
 
 	// Collect & group
-	repoInputs, urlGroups, localResults := collectCheckItems(sourceDir, projectRoot, repos, skills)
+	repoInputs, plan := collectCheckItems(sourceDir, projectRoot, repos, skills)
 
 	if scanSpinner != nil {
 		scanSpinner.Stop()
 	}
 
-	// Build unique URL list
-	var urlInputs []check.URLCheckInput
-	var urlOrder []string
-	for key := range urlGroups {
-		url, branch := splitURLBranch(key)
-		urlInputs = append(urlInputs, check.URLCheckInput{RepoURL: url, Branch: branch})
-		urlOrder = append(urlOrder, key)
-	}
-
 	// Count total items for meaningful progress (skill count, not URL count)
-	totalSkills := 0
-	for _, group := range urlGroups {
-		totalSkills += len(group)
-	}
-	total := len(repoInputs) + totalSkills
+	total := len(repoInputs) + plan.RemoteSkills()
 
 	// Parallel check with progress bar
 	var progressBar *ui.ProgressBar
@@ -324,12 +304,7 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 	}
 
 	repoOutputs := check.ParallelCheckRepos(repoInputs, repoOnDone)
-	urlOutputs := check.ParallelCheckURLs(urlInputs, nil)
-
-	// Increment by skill count per completed URL group
-	if progressBar != nil {
-		progressBar.Add(totalSkills)
-	}
+	skillResults := resolveCheckSkills(plan, progressBar)
 
 	if progressBar != nil {
 		progressBar.Stop()
@@ -344,15 +319,6 @@ func runCheck(sourceDir, projectRoot string, jsonOutput bool, extraTargetNames [
 			Message: missingTrackedRepoMessage(repo.Name),
 		})
 	}
-
-	// Broadcast URL results to grouped skills (with per-skill tree hash comparison)
-	urlHashMap := make(map[string]check.URLCheckOutput)
-	for _, out := range urlOutputs {
-		urlHashMap[urlBranchKey(out.RepoURL, out.Branch)] = out
-	}
-
-	skillResults := resolveSkillStatuses(urlGroups, urlHashMap, urlOrder)
-	skillResults = append(localResults, skillResults...)
 
 	// JSON output
 	if jsonOutput {
@@ -513,124 +479,6 @@ func toRepoResults(outputs []check.RepoCheckOutput) []checkRepoResult {
 	return results
 }
 
-// resolveSkillStatuses determines the status of each skill using tree hash
-// comparison when available, falling back to commit hash comparison.
-//
-// Fast path: if all skills in a URL group have Version == RemoteHash,
-// they are all up_to_date without any additional network call.
-//
-// Slow path: when HEAD moved, skills with TreeHash are compared via
-// blobless fetch + ls-tree. Skills without TreeHash fall back to
-// commit-level comparison (existing behavior).
-func resolveSkillStatuses(
-	urlGroups map[string][]skillWithMeta,
-	urlHashMap map[string]check.URLCheckOutput,
-	urlOrder []string,
-) []checkSkillResult {
-	var results []checkSkillResult
-
-	for _, url := range urlOrder {
-		out := urlHashMap[url]
-		group := urlGroups[url]
-
-		// Pre-fill base result fields for each skill
-		type pending struct {
-			result checkSkillResult
-			meta   *install.MetadataEntry
-		}
-		items := make([]pending, len(group))
-		for i, sw := range group {
-			r := checkSkillResult{
-				Name:    sw.name,
-				Source:  sw.meta.Source,
-				Version: sw.meta.Version,
-			}
-			if !sw.meta.InstalledAt.IsZero() {
-				r.InstalledAt = sw.meta.InstalledAt.Format("2006-01-02")
-			}
-			items[i] = pending{result: r, meta: sw.meta}
-		}
-
-		// Error from ls-remote → all error
-		if out.Err != nil {
-			for i := range items {
-				items[i].result.Status = "error"
-			}
-			for _, it := range items {
-				results = append(results, it.result)
-			}
-			continue
-		}
-
-		// Fast path: commit hash matches → all up_to_date
-		allMatch := true
-		for _, it := range items {
-			if it.meta.Version != out.RemoteHash {
-				allMatch = false
-				break
-			}
-		}
-		if allMatch {
-			for i := range items {
-				items[i].result.Status = "up_to_date"
-			}
-			for _, it := range items {
-				results = append(results, it.result)
-			}
-			continue
-		}
-
-		// Slow path: HEAD moved — collect subdirs that have TreeHash
-		var subdirs []string
-		for _, it := range items {
-			if it.meta.TreeHash != "" && it.meta.Subdir != "" {
-				subdirs = append(subdirs, it.meta.Subdir)
-			}
-		}
-
-		// Fetch remote tree hashes once per URL+branch (nil on error → fallback)
-		var remoteTreeHashes map[string]string
-		if len(subdirs) > 0 {
-			repoURL, branch := splitURLBranch(url)
-			remoteTreeHashes = check.FetchRemoteTreeHashesForRef(repoURL, branch)
-		}
-
-		for i, it := range items {
-			// Already matched by commit hash → up_to_date
-			if it.meta.Version == out.RemoteHash {
-				items[i].result.Status = "up_to_date"
-				continue
-			}
-
-			// Try tree hash comparison
-			if it.meta.TreeHash != "" && it.meta.Subdir != "" && remoteTreeHashes != nil {
-				// ls-tree paths never have leading "/", but meta.Subdir may
-				normalizedSubdir := strings.TrimPrefix(it.meta.Subdir, "/")
-				if remoteHash, ok := remoteTreeHashes[normalizedSubdir]; ok {
-					if it.meta.TreeHash == remoteHash {
-						items[i].result.Status = "up_to_date"
-					} else {
-						items[i].result.Status = "update_available"
-					}
-				} else {
-					// Subdir not found remotely — skill deleted upstream
-					items[i].result.Status = "stale"
-				}
-				continue
-			}
-
-			// Fallback: commit hash differs, no tree hash → update_available
-			items[i].result.Status = "update_available"
-		}
-
-		for _, it := range items {
-			results = append(results, it.result)
-		}
-	}
-
-	return results
-}
-
 // runCheckFiltered checks only the specified targets (resolved from names/groups).
 // Note: unlike runCheck, this intentionally skips warnUnknownSkillTargets because
 // filtered checks only verify update status for explicitly named skills/groups.
@@ -733,21 +581,9 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks .
 		}
 	}
 
-	repoInputs, urlGroups, localResults := collectCheckItems(sourceDir, projectRoot, repoNames, skillNames)
+	repoInputs, plan := collectCheckItems(sourceDir, projectRoot, repoNames, skillNames)
 
-	var urlInputs []check.URLCheckInput
-	var urlOrder []string
-	for key := range urlGroups {
-		url, branch := splitURLBranch(key)
-		urlInputs = append(urlInputs, check.URLCheckInput{RepoURL: url, Branch: branch})
-		urlOrder = append(urlOrder, key)
-	}
-
-	totalSkills := 0
-	for _, group := range urlGroups {
-		totalSkills += len(group)
-	}
-	total := len(repoInputs) + totalSkills
+	total := len(repoInputs) + plan.RemoteSkills()
 	isSingle := len(targets) == 1
 
 	// Single target: spinner; multiple targets: progress bar
@@ -768,10 +604,9 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks .
 	}
 
 	repoOutputs := check.ParallelCheckRepos(repoInputs, repoOnDone)
-	urlOutputs := check.ParallelCheckURLs(urlInputs, nil)
+	skillResults := resolveCheckSkills(plan, progressBar)
 
 	if progressBar != nil {
-		progressBar.Add(totalSkills)
 		progressBar.Stop()
 	}
 	if spinner != nil {
@@ -779,14 +614,6 @@ func runCheckFiltered(sourceDir, projectRoot string, opts *checkOptions, walks .
 	}
 
 	repoResults := toRepoResults(repoOutputs)
-
-	urlHashMap := make(map[string]check.URLCheckOutput)
-	for _, out := range urlOutputs {
-		urlHashMap[urlBranchKey(out.RepoURL, out.Branch)] = out
-	}
-
-	skillResults := resolveSkillStatuses(urlGroups, urlHashMap, urlOrder)
-	skillResults = append(localResults, skillResults...)
 
 	if opts.json {
 		output := checkOutput{

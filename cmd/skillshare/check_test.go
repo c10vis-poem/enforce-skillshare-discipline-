@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
+	"skillshare/internal/check/checktest"
 	"skillshare/internal/config"
 	"skillshare/internal/testutil"
 )
@@ -96,4 +100,92 @@ func TestCheckFollowedCheckoutResolution(t *testing.T) {
 			}
 		})
 	}
+}
+
+// wantCLISkills is what the CLI reports for checktest.Seed.
+func wantCLISkills(versions map[string]string, names ...string) []checkSkillResult {
+	statuses := map[string]string{
+		"broken":  "error",
+		"changed": "update_available",
+		"current": "up_to_date",
+		"doomed":  "stale",
+		"notree":  "update_available",
+		"plain":   "local",
+		"same":    "up_to_date",
+		"slash":   "up_to_date",
+	}
+	if len(names) == 0 {
+		for name := range statuses {
+			names = append(names, name)
+		}
+	}
+	var want []checkSkillResult
+	for _, name := range names {
+		r := checkSkillResult{Name: name, Source: "src/" + name, Version: versions[name], Status: statuses[name]}
+		if name == "current" || name == "plain" {
+			r.InstalledAt = "2024-05-06"
+		}
+		want = append(want, r)
+	}
+	sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
+	return want
+}
+
+func TestCheck_ResolvesEveryStatus(t *testing.T) {
+	root := t.TempDir()
+	testutil.SetIsolatedXDG(t, root)
+	t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+	source := filepath.Join(root, "skills")
+	if err := (&config.Config{Source: source}).Save(); err != nil {
+		t.Fatal(err)
+	}
+	versions := checktest.Seed(t, root, source)
+
+	runJSON := func(t *testing.T, args ...string) checkOutput {
+		t.Helper()
+		output := captureStdoutStderr(t, func() {
+			if err := cmdCheck(append([]string{"-g", "--json"}, args...)); err != nil {
+				t.Errorf("check: %v", err)
+			}
+		})
+		var result checkOutput
+		if err := json.Unmarshal([]byte(output), &result); err != nil {
+			t.Fatalf("invalid check output: %v: %s", err, output)
+		}
+		return result
+	}
+
+	t.Run("all", func(t *testing.T) {
+		result := runJSON(t)
+		if result.Skills[0].Name != "plain" {
+			t.Errorf("skills without a remote must come first, got %+v", result.Skills[0])
+		}
+		sort.Slice(result.Skills, func(i, j int) bool { return result.Skills[i].Name < result.Skills[j].Name })
+		if want := wantCLISkills(versions); !reflect.DeepEqual(result.Skills, want) {
+			t.Errorf("skills:\n got %+v\nwant %+v", result.Skills, want)
+		}
+	})
+
+	t.Run("filtered", func(t *testing.T) {
+		result := runJSON(t, "doomed", "plain", "same", "current")
+		if result.Skills[0].Name != "plain" {
+			t.Errorf("skills without a remote must come first, got %+v", result.Skills[0])
+		}
+		sort.Slice(result.Skills, func(i, j int) bool { return result.Skills[i].Name < result.Skills[j].Name })
+		if want := wantCLISkills(versions, "doomed", "plain", "same", "current"); !reflect.DeepEqual(result.Skills, want) {
+			t.Errorf("skills:\n got %+v\nwant %+v", result.Skills, want)
+		}
+	})
+
+	t.Run("text", func(t *testing.T) {
+		output := captureStdoutStderr(t, func() {
+			if err := cmdCheck([]string{"-g"}); err != nil {
+				t.Errorf("check: %v", err)
+			}
+		})
+		const summary = "Updates available for 2 skills, 3 up to date, 1 local skipped, 1 stale, 1 failed to check"
+		if !strings.Contains(output, summary) {
+			t.Errorf("summary %q missing from:\n%s", summary, output)
+		}
+	})
 }

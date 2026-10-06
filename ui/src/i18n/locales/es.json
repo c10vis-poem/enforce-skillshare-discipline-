@@ -312,6 +312,8 @@
   "dashboard.trackedRepos.skillCount.other": "{count} skills",
   "dashboard.trackedRepos.title": "Repositorios rastreados",
   "dashboard.trackedRepos.uninstall": "Desinstalar",
+  "dashboard.trackedRepos.uninstallConfirm.dirty": "\"{name}\" tiene cambios sin confirmar. Al desinstalar, se moverán a la papelera junto con el repo.",
+  "dashboard.trackedRepos.uninstallConfirm.statusFailed": "No se pudo leer el estado de git de \"{name}\", así que puede tener cambios sin confirmar. Al desinstalar, el repo se moverá a la papelera tal como está.",
   "dashboard.trackedRepos.uninstallConfirm.message": "¿Eliminar el repositorio \"{name}\"? Todas las skills del repo se moverán a la papelera.",
   "dashboard.trackedRepos.uninstallConfirm.title": "Desinstalar repositorio",
   "dashboard.trackedRepos.update": "Actualizar",
