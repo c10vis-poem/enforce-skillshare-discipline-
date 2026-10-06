@@ -141,6 +141,22 @@ func TestHTTPHandler_RequiresBearerToken(t *testing.T) {
 	}
 }
 
+// A web page in the browser must not reach a loopback server that has no token.
+func TestHTTPHandler_RejectsCrossOriginBrowserRequests(t *testing.T) {
+	srv, err := NewServer(&Builder{Source: t.TempDir()}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8765/", strings.NewReader(`{}`))
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	rec := httptest.NewRecorder()
+	HTTPHandler(srv, "").ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("cross-origin request: status %d, want 403", rec.Code)
+	}
+}
+
 func TestServer_SeesNewSkillWithoutRestart(t *testing.T) {
 	src := t.TempDir()
 	cs := connect(t, src)

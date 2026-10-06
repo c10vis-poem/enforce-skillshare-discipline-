@@ -100,9 +100,13 @@ func NewServer(b *Builder, opts Options) (*mcp.Server, error) {
 }
 
 // HTTPHandler serves srv over Streamable HTTP. A non-empty token must be sent
-// as a bearer token on every request.
+// as a bearer token on every request. Cross-origin browser requests are
+// refused, so a web page cannot reach a loopback server that has no token.
 func HTTPHandler(srv *mcp.Server, token string) http.Handler {
-	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, &mcp.StreamableHTTPOptions{Stateless: true})
+	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, &mcp.StreamableHTTPOptions{
+		Stateless:             true,
+		CrossOriginProtection: http.NewCrossOriginProtection(),
+	})
 	if token == "" {
 		return h
 	}
