@@ -35,7 +35,7 @@ func newHubWithSubmodule(t *testing.T) (hubURL, upURL string) {
 
 	up := filepath.Join(tmp, "up")
 	commit(up, map[string]string{"skills/a/SKILL.md": "# a"})
-	upURL = "file://" + up
+	upURL = "file://" + filepath.ToSlash(up) // git records forward slashes on Windows too
 
 	work := filepath.Join(tmp, "work")
 	commit(work, map[string]string{"own/SKILL.md": "# own"})
