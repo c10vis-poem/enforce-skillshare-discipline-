@@ -16,6 +16,7 @@ import MCPNotices from '../components/mcp/MCPNotices';
 import { describeMessage, mcpClient, targetLabel } from '../components/mcp/mcpView';
 import { countChanges, countEdited, extraGroups, groupByFolder, groupInSync, HOOKS_CHANGED, hooksGroups, MCP_CHANGED, mcpGroups, otherWarnings, resourceGroups, runSync, type ChangeGroup, type Part, type RowIcon, type SyncFailure } from '../components/sync/syncView';
 import SyncResult from '../components/sync/SyncResult';
+import SyncError from '../components/sync/SyncError';
 import SkillsOffDialog from '../components/targets/SkillsOffDialog';
 import { joinList, refreshTargets } from '../components/targets/targetView';
 import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
@@ -194,7 +195,7 @@ export default function SyncPage() {
             </div>
           )}
 
-          {runError && <div className="ss-note bad"><AlertCircle size={16} /><span className="flex-1">{runError}</span></div>}
+          {runError && <div className="ss-note bad"><AlertCircle size={16} /><SyncError key={runError} error={runError} /></div>}
           {parts.has('mcp') && plan?.blocked && (
             <div className="ss-note warn !items-center">
               <TriangleAlert size={16} />
@@ -210,8 +211,8 @@ export default function SyncPage() {
             </div>
           )}
           {parts.has('mcp') && <MCPNotices notices={plan?.notices} />}
-          {parts.has('hooks') && hooks.data?.previewError && <div className="ss-note bad"><AlertCircle size={16} /><span className="flex-1">{hooks.data.previewError}</span></div>}
-          {parts.has('mcp') && mcp.data?.previewError && <div className="ss-note bad"><AlertCircle size={16} /><span className="flex-1">{mcp.data.previewError}</span></div>}
+          {parts.has('hooks') && hooks.data?.previewError && <div className="ss-note bad"><AlertCircle size={16} /><SyncError error={hooks.data.previewError} /></div>}
+          {parts.has('mcp') && mcp.data?.previewError && <div className="ss-note bad"><AlertCircle size={16} /><SyncError error={mcp.data.previewError} /></div>}
           <SyncResult failures={failures} warnings={otherWarnings(outcome)} synced={syncedTargets} force={force} onForce={() => setForce(true)} />
           {!!outcome?.path_overlap && (
             <div className="ss-note warn !items-center">
@@ -236,7 +237,7 @@ export default function SyncPage() {
             {loading ? (
               <div className="ss-r gap-2 text-[13px] text-ink-2"><Spinner size="sm" />{t('sync.checking')}</div>
             ) : diff.error ? (
-              <div className="ss-r text-[13px] text-bad"><AlertCircle size={16} />{diff.error.message}</div>
+              <div className="ss-r text-[13px] text-bad"><AlertCircle size={16} /><SyncError error={diff.error.message} /></div>
             ) : diffs.length === 0 && groups.length === 0 ? (
               <div className="ss-r text-[13px] text-ink-2">
                 <span className="flex-1">{t('sync.noTargets')}</span>
@@ -396,6 +397,7 @@ export default function SyncPage() {
               <h3 className="text-[15px] font-semibold">{t('sync.last.title')}</h3>
               {last && <span className={`ss-st ${last.status === 'ok' ? 'ok' : last.status === 'partial' ? 'warn' : 'bad'}`}>{last.status === 'ok' ? 'OK' : last.status}</span>}
             </div>
+            <p className="text-[12px] text-ink-3">{t('sync.last.scope')}</p>
             {last ? (
               <dl className="ss-kv !grid-cols-[80px_minmax(0,1fr)]">
                 <dt>{t('sync.last.when')}</dt>
@@ -409,7 +411,7 @@ export default function SyncPage() {
                   </>
                 )}
                 {typeof last.ms === 'number' && <><dt>{t('sync.last.took')}</dt><dd className="font-mono">{(last.ms / 1000).toFixed(1)} s</dd></>}
-                {last.msg && <><dt>{t('sync.last.error')}</dt><dd className="break-words text-bad">{last.msg}</dd></>}
+                {last.msg && <><dt>{t('sync.last.error')}</dt><dd className="min-w-0 text-bad"><SyncError error={last.msg} /></dd></>}
               </dl>
             ) : (
               <p className="text-[13px] text-ink-2">{t('sync.last.never')}</p>

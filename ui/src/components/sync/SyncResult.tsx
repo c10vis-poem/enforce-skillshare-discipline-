@@ -4,6 +4,7 @@ import AgentIcon from '../AgentIcon';
 import Button from '../Button';
 import { useT } from '../../i18n';
 import { failureExplanation, type SyncFailure } from './syncView';
+import SyncError from './SyncError';
 
 const PART_TAG: Record<SyncFailure['part'], string> = { skill: 'Skills', agent: 'Agents', extra: 'Extras', config: 'Config' };
 
@@ -40,7 +41,7 @@ export default function SyncResult({ failures, warnings, synced, force, onForce 
                   <span className="ss-tag">{f.extra ? `${PART_TAG[f.part]} · ${f.extra}` : PART_TAG[f.part]}</span>
                 </div>
                 <Explanation failure={f} />
-                <span className="break-words font-mono text-[12px] text-ink-2">{f.error}</span>
+                <SyncError error={f.error} />
               </div>
               {f.conflict && !force && onForce ? (
                 <Button size="sm" variant="secondary" onClick={onForce} title={t('sync.forceHint')}>{t('sync.result.useForce')}</Button>
