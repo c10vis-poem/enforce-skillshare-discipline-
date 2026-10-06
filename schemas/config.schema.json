@@ -21,6 +21,25 @@
       "default": "~/.config/skillshare/agents",
       "examples": ["~/.config/skillshare/agents", "/home/user/my-agents"]
     },
+    "extras_source": {
+      "type": "string",
+      "description": "Legacy top-level extras source path. Prefer sources.extras. When both are set, sources.extras wins. Supports ~ for home directory.",
+      "default": "~/.config/skillshare/extras",
+      "examples": ["~/.config/skillshare/extras"]
+    },
+    "log": {
+      "type": "object",
+      "description": "Operation log retention.",
+      "additionalProperties": false,
+      "properties": {
+        "max_entries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of operation log entries to keep. 0 keeps every entry.",
+          "default": 1000
+        }
+      }
+    },
     "sources": {
       "type": "object",
       "description": "Custom source directories for global resources (added in v0.19.16). Mirrors project-mode sources. When set, each key overrides the corresponding legacy top-level field (source / agents_source / extras_source). Supports ~ for home directory.",
@@ -141,6 +160,32 @@
       "items": { "type": "string" },
       "uniqueItems": true,
       "examples": [["azuredevops.mycompany.com"]]
+    },
+    "cnb_hosts": {
+      "type": "array",
+      "description": "Hostnames of CNB instances. cnb.cool is detected automatically.",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "examples": [["cnb.company.com"]]
+    },
+    "gitea_hosts": {
+      "type": "array",
+      "description": "Hostnames of self-hosted Gitea instances. Hosts containing 'gitea' are detected automatically.",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "examples": [["git.company.com"]]
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Plugins managed by `skillshare plugin` commands. Written by the CLI and dashboard; edit with those rather than by hand.",
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "type": "object",
+          "description": "Managed plugin packages keyed by plugin name.",
+          "additionalProperties": { "type": "object" }
+        }
+      }
     },
     "preserve_tilde_on_save": {
       "type": "boolean",

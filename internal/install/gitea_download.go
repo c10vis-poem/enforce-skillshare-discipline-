@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -199,18 +198,7 @@ func giteaDownloadFile(client *http.Client, apiBase, fileURL, destPath string) e
 		return fmt.Errorf("download returned %d", resp.StatusCode)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return err
-	}
-
-	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, resp.Body)
-	return err
+	return writeDownloadedFile(destPath, resp.Body)
 }
 
 // giteaNewRequest creates a GET request with Gitea API headers and optional
@@ -450,10 +438,7 @@ func cnbWriteBlob(item cnbContentItem, destPath string) error {
 		}
 		data = decoded
 	}
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(destPath, data, 0644)
+	return writeDownloadedFile(destPath, bytes.NewReader(data))
 }
 
 func cnbNewRequest(reqURL string) (*http.Request, error) {

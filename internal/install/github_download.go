@@ -168,6 +168,13 @@ func downloadFile(client *http.Client, fileURL, destPath string) error {
 		return fmt.Errorf("download returned %d", resp.StatusCode)
 	}
 
+	return writeDownloadedFile(destPath, resp.Body)
+}
+
+// writeDownloadedFile stores a file fetched through a forge content API. Those
+// APIs do not report the git file mode, so a script that starts with "#!" is
+// made executable; a file the kernel could run directly always carries one.
+func writeDownloadedFile(destPath string, r io.Reader) error {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return err
 	}
@@ -178,8 +185,25 @@ func downloadFile(client *http.Client, fileURL, destPath string) error {
 	}
 	defer f.Close()
 
-	_, err = io.Copy(f, resp.Body)
-	return err
+	var head [2]byte
+	n, err := io.ReadFull(r, head[:])
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return err
+	}
+	if _, err := f.Write(head[:n]); err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, r); err != nil {
+		return err
+	}
+	// Set the mode explicitly either way: O_TRUNC keeps the mode of a file
+	// that already existed, so a script re-downloaded as plain content must
+	// lose its bit.
+	mode := os.FileMode(0644)
+	if n == 2 && head[0] == '#' && head[1] == '!' {
+		mode = 0755
+	}
+	return f.Chmod(mode)
 }
 
 func fetchLatestCommitHash(owner, repo, apiBase string, source *Source) (string, error) {

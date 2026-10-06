@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -15,6 +13,7 @@ import (
 
 	"skillshare/internal/config"
 	"skillshare/internal/mcp"
+	"skillshare/internal/projectdir"
 	syncpkg "skillshare/internal/sync"
 )
 
@@ -82,7 +81,7 @@ func (s *Server) handleMCPList(w http.ResponseWriter, r *http.Request) {
 	// conflict when both hold one entry, so the dashboard says so up front.
 	ownConfig := []string{}
 	for root := range source.Projects {
-		if _, err := os.Stat(filepath.Join(root, ".skillshare", "config.yaml")); err == nil {
+		if _, ok := projectdir.Find(root); ok {
 			ownConfig = append(ownConfig, root)
 		}
 	}
