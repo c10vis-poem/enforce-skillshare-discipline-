@@ -181,6 +181,31 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 	}
 	exists := ourLink || err == nil
 	content := string(data)
+
+	// A whole-file copy is left over from copy mode: unedited when it is what
+	// skillshare wrote or the source itself; edited when a written record remains.
+	// Either way the file is rebuilt from the attach-time base, as import does.
+	var leftoverCopy, editedCopy bool
+	if !ourLink && exists && attached {
+		src, _ := os.ReadFile(f.Source)
+		rest, _ := splitImportBlock(content)
+		leftoverCopy = isOurExtraCopy(f.Target) || rest == string(src)
+		editedCopy = !leftoverCopy && hasExtraWritten(f.Target)
+	}
+	if leftoverCopy || editedCopy {
+		_, others := splitImportBlock(content)
+		content = extraRestoreBase(f.Target)
+		for _, line := range others {
+			content, _ = addImportLine(content, line)
+		}
+	}
+	if editedCopy {
+		warning := replacementWarning(f.Target, dryRun)
+		result.addFileWarning(warning.Code, warning.Message, warning.Params)
+	}
+	// This extra's own @ line is left over from import mode; the block takes its place.
+	content, _ = f.removeImport(content)
+
 	eol := "\n"
 	if strings.Contains(content, "\r\n") {
 		eol = "\r\n"
@@ -226,6 +251,11 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 		return result, nil
 	}
 
+	if editedCopy {
+		if err := backupExtraDrift(f.Target, DriftReasonMode); err != nil {
+			return nil, err
+		}
+	}
 	if ourLink {
 		if err := os.Remove(f.Target); err != nil {
 			return nil, fmt.Errorf("failed to remove leftover symlink: %w", err)

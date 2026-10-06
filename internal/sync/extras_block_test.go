@@ -215,6 +215,67 @@ func TestSyncExtraFile_BlockWithFencedMarkerExampleStaysSynced(t *testing.T) {
 	}
 }
 
+// Switching copy → prepend: the copy skillshare wrote is not the user's
+// content, so the file is rebuilt from the attach-time base plus the block.
+func TestSyncExtraFile_SwitchingCopyToPrependRebuildsFromBase(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "copy"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	want := contentBlockBegin(filepath.Join(src, "AGENTS.md"), "rule") + "\nrule\n" + contentBlockEnd + "\n\n# Mine\n"
+	if got := readFile(t, target); got != want {
+		t.Fatalf("content =\n%s\nwant the base with one block, not the copy as well\n%s", got, want)
+	}
+}
+
+func TestSyncExtraFile_SwitchingImportToAppendDropsTheImportLine(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	imported := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "import")
+	if _, err := SyncExtraFile(imported, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "append"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	got := readFile(t, target)
+	if imported.hasImport(got) {
+		t.Fatalf("the @ line must go when the block takes its place:\n%s", got)
+	}
+	if !strings.HasPrefix(got, "# Mine\n") || strings.Count(got, contentBlockEnd) != 1 {
+		t.Fatalf("content =\n%s\nwant the user's lines then one block", got)
+	}
+}
+
+func TestSyncExtraFile_SwitchingPrependToImportDropsTheBlockAndKeepsAnEdit(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(readFile(t, target), "\nrule\n", "\nrule, edited\n", 1)
+	os.WriteFile(target, []byte(edited), 0644)
+
+	imported := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "import")
+	if _, err := SyncExtraFile(imported, false, ""); err != nil {
+		t.Fatal(err)
+	}
+	got := readFile(t, target)
+	if strings.Contains(got, contentBlockEnd) || !imported.hasImport(got) || !strings.Contains(got, "# Mine\n") {
+		t.Fatalf("content =\n%s\nwant the @ line and the user's lines, no block", got)
+	}
+	if backups := driftBackups(t, target); len(backups) != 1 || backups[0] != edited {
+		t.Fatalf("drift backups = %q, want the edited file", backups)
+	}
+}
+
 func TestSyncExtraFile_ChangingPrependToAppendMovesTheBlock(t *testing.T) {
 	src, tgt := setupExtraFileTest(t, "rule")
 	target := filepath.Join(tgt, "CLAUDE.md")

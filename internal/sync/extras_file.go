@@ -366,6 +366,17 @@ func syncExtraImport(f ExtraFile, dryRun bool) (*ExtraResult, error) {
 		return nil, fmt.Errorf("%s has a damaged managed import block; restore or repair it before syncing", f.Target)
 	}
 	exists := ourLink || err == nil
+	// This extra's content block is left over from prepend or append mode; the
+	// import line takes its place. A hand-edited block is kept as a drift backup.
+	if block, findErr := f.findContentBlock(strings.Split(string(data), "\n")); findErr == nil && block != nil {
+		if contentBlockHash(block.body) != block.hash && !dryRun {
+			if err := backupExtraDrift(f.Target, DriftReasonMode); err != nil {
+				return nil, err
+			}
+		}
+		stripped, _ := f.removeContentBlock(string(data))
+		data = []byte(stripped)
+	}
 	rest, others := splitImportBlock(string(data))
 
 	// A whole-file copy is left over from copy mode: unedited when it is what
