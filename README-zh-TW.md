@@ -46,7 +46,7 @@
 </p>
 
 > [!NOTE]
-> **最新版本**：v0.25.0 — `skillshare mcp serve` 透過 MCP（SEP-2640 Skills extension）把你的 skills 提供給只能連 MCP endpoint 的 agent，不支援這個 extension 的 client 可以改用 `list_skills` 和 `read_skill` 兩個 tool，Dashboard 的 **Add server** 也新增 **Skillshare** 分頁；`skillshare link` 與 `unlink` 可以把放在別處的資料夾（例如自己的 checkout 或外接硬碟）加入或移除為 followed source link，Skills 頁面也能操作；Oh My Pi（`omp`）成為原生支援的 target。完整的新功能與修正見 [Releases](https://github.com/runkids/skillshare/releases) 和[更新紀錄](https://skillshare.runkids.cc/changelog)。
+> **最新版本**：v0.25.0 — `skillshare mcp serve` 透過 MCP（SEP-2640 Skills extension）把你的 skills 提供給只能連 MCP endpoint 的 agent，不支援這個 extension 的 client 可以改用 `list_skills` 和 `read_skill` 兩個 tool，Dashboard 的 **Add server** 也新增 **Skillshare** 分頁；`skillshare link` 與 `unlink` 可以把放在別處的資料夾（例如自己的 checkout 或外接硬碟）加入或移除為 followed source link，Skills 頁面也能操作；Oh My Pi（`omp`）target 新增 MCP、程式碼 hooks、plugins 與 extension 選擇。完整的新功能與修正見 [Releases](https://github.com/runkids/skillshare/releases) 和[更新紀錄](https://skillshare.runkids.cc/changelog)。
 
 ## 為什麼用 skillshare
 
