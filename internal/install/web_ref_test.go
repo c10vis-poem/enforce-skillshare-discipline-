@@ -30,7 +30,7 @@ func parseWithRemote(t *testing.T, raw, remote string) *Source {
 	if err != nil {
 		t.Fatalf("ParseSource(%q): %v", raw, err)
 	}
-	source.CloneURL = "file://" + remote
+	source.CloneURL = fileURL(remote)
 	return source
 }
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -106,5 +107,5 @@ func TestSkillsFolderConflicts_IgnoresSkillsOff(t *testing.T) {
 }
 
 func conflictEqual(a, b SkillsFolderConflict) bool {
-	return a.Path == b.Path && a.Keep == b.Keep && slices.Equal(a.Targets, b.Targets) && slices.Equal(a.Stop, b.Stop)
+	return filepath.ToSlash(a.Path) == filepath.ToSlash(b.Path) && a.Keep == b.Keep && slices.Equal(a.Targets, b.Targets) && slices.Equal(a.Stop, b.Stop)
 }

@@ -49,7 +49,7 @@ func TestAgentConfigDir_AnExplicitPathWins(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := cfg.Targets["claude-work"]
-	if got := target.SkillsConfig().Path; got != filepath.Join(root, "elsewhere") {
+	if got := filepath.Clean(target.SkillsConfig().Path); got != filepath.Join(root, "elsewhere") {
 		t.Errorf("skills path %q", got)
 	}
 }
@@ -95,9 +95,9 @@ func TestAgentConfigDir_Rejected(t *testing.T) {
 func TestAgentConfigDir_CLI(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	for cli, want := range map[string]string{
-		"omo":              "omo",
-		"/opt/omo/bin/omo": "/opt/omo/bin/omo",
-		"~/bin/omo":        filepath.Join(home, "bin", "omo"),
+		"omo":                       "omo",
+		absPath("/opt/omo/bin/omo"): absPath("/opt/omo/bin/omo"),
+		"~/bin/omo":                 filepath.Join(home, "bin", "omo"),
 	} {
 		cfg, _, err := loadWithTargets(t, "  omo:\n    agent: pi\n    config_dir: $ROOT/.omo/agent\n    cli: "+cli+"\n")
 		if err != nil {
@@ -130,7 +130,8 @@ func TestAgentConfigDir_SaveKeepsCLIUnderHome(t *testing.T) {
 	if err := cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(ConfigPath()); !strings.Contains(string(data), "cli: ~/bin/omo") {
+	// Folding keeps the OS separator, so Windows saves ~\bin\omo.
+	if data, _ := os.ReadFile(ConfigPath()); !strings.Contains(string(data), "cli: ~"+filepath.FromSlash("/bin/omo")) {
 		t.Fatalf("saved config:\n%s", data)
 	}
 }

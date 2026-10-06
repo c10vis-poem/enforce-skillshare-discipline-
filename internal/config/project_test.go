@@ -249,9 +249,10 @@ func TestProjectEffectiveExtrasSource_Custom(t *testing.T) {
 }
 
 func TestProjectEffectiveSkillsSource_Absolute(t *testing.T) {
-	cfg := &ProjectConfig{Sources: ProjectSources{Skills: "/opt/shared/skills"}}
+	abs := absPath("/opt/shared/skills")
+	cfg := &ProjectConfig{Sources: ProjectSources{Skills: abs}}
 	got := cfg.EffectiveSkillsSource("/project")
-	if got != "/opt/shared/skills" {
+	if got != abs {
 		t.Errorf("absolute path should pass through, got %q", got)
 	}
 }

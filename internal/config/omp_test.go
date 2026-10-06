@@ -19,7 +19,7 @@ func TestOMPAccountPaths(t *testing.T) {
 		t.Fatalf("account instructions: %+v %t", instructions, ok)
 	}
 	fileRoot, ok := TargetFileRoot("omp-work", target, false, "")
-	if !ok || fileRoot != target.ConfigDir {
+	if !ok || filepath.Clean(fileRoot) != filepath.Clean(target.ConfigDir) {
 		t.Fatalf("account file root: %q %t", fileRoot, ok)
 	}
 	project, ok := LookupProjectTarget("oh-my-pi")

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -57,6 +58,9 @@ func TestCloneFallbackSourcesForNestedGitLabURL_SkipsExplicitGitLabHosts(t *test
 }
 
 func TestCloneRepoForSource_RetriesNestedGitLabURL(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a bash script named git is not found by exec on Windows")
+	}
 	binDir := t.TempDir()
 	logPath := filepath.Join(t.TempDir(), "git.log")
 	gitPath := filepath.Join(binDir, "git")
@@ -169,6 +173,9 @@ func TestShouldRetryNestedGitLabURL(t *testing.T) {
 }
 
 func TestCloneRepoForSource_DoesNotRetryAuthFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a bash script named git is not found by exec on Windows")
+	}
 	binDir := t.TempDir()
 	logPath := filepath.Join(t.TempDir(), "git.log")
 	gitPath := filepath.Join(binDir, "git")
@@ -212,6 +219,9 @@ exit 128
 }
 
 func TestCloneRepoForSource_ReportsLastNestedFallbackError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a bash script named git is not found by exec on Windows")
+	}
 	binDir := t.TempDir()
 	gitPath := filepath.Join(binDir, "git")
 	script := `#!/bin/bash

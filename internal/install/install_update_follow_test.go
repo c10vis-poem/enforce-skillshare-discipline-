@@ -59,7 +59,7 @@ func TestInstallUpdateFollowedCheckoutCleanAuditRollback(t *testing.T) {
 			if got := testutil.RunGit(t, checkout, "rev-parse", "origin/main"); got == before {
 				t.Error("pull did not fetch the blocking commit")
 			}
-			if got, err := os.ReadFile(filepath.Join(checkout, "SKILL.md")); err != nil || string(got) != "# Safe skill\n" {
+			if got, err := os.ReadFile(filepath.Join(checkout, "SKILL.md")); err != nil || strings.ReplaceAll(string(got), "\r\n", "\n") != "# Safe skill\n" { // git may check out CRLF on Windows
 				t.Errorf("SKILL.md was not restored: %q, %v", got, err)
 			}
 			if got := testutil.RunGit(t, checkout, "status", "--porcelain"); got != "" {

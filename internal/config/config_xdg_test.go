@@ -3,10 +3,14 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestDataDir_DefaultFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows defaults to %AppData%, not ~/.local")
+	}
 	t.Setenv("XDG_DATA_HOME", "")
 	home, _ := os.UserHomeDir()
 
@@ -28,6 +32,9 @@ func TestDataDir_RespectsXDGDataHome(t *testing.T) {
 }
 
 func TestStateDir_DefaultFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows defaults to %AppData%, not ~/.local")
+	}
 	t.Setenv("XDG_STATE_HOME", "")
 	home, _ := os.UserHomeDir()
 

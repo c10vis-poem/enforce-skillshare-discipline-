@@ -53,7 +53,7 @@ func TestProjects_ExpandIntoOneTargetPerSkillsFolder(t *testing.T) {
 	if got := shared.SkillsConfig().Path; got != filepath.Join(root, "app", ".agents", "skills") {
 		t.Errorf("app@cursor skills path %q", got)
 	}
-	if shared.ProjectRoot() != filepath.Join(root, "app") {
+	if filepath.Clean(shared.ProjectRoot()) != filepath.Join(root, "app") {
 		t.Errorf("project root %q", shared.ProjectRoot())
 	}
 }

@@ -44,7 +44,17 @@ func makeRemote(t *testing.T, extraBranch string) (remoteURL string) {
 	}
 
 	mustRunGit(t, "", "clone", "--bare", work, remote)
-	return "file://" + remote
+	return fileURL(remote)
+}
+
+// fileURL turns a local path into a file URL git accepts; Windows paths need
+// a leading slash and forward slashes (file:///C:/dir).
+func fileURL(p string) string {
+	p = filepath.ToSlash(p)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return "file://" + p
 }
 
 // TestRehydrateMissingTrackedRepos_ReclonesAbsent verifies that a tracked repo

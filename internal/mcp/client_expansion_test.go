@@ -256,13 +256,18 @@ func TestClinePath(t *testing.T) {
 	if got, err := s.nativePath("cline"); err != nil || got != shared {
 		t.Fatalf("migrated %q: %v", got, err)
 	}
+	// A slash-form path has no volume, so it is not absolute on Windows.
+	abs := func(p string) string { return filepath.VolumeName(os.TempDir()) + filepath.FromSlash(p) }
 	for dirs, want := range map[*map[string]string]string{
 		{"cline": "/c"}:                                      "/c/data/settings/cline_mcp_settings.json",
 		{"cline": "/c", "cline-data": "/d"}:                  "/d/settings/cline_mcp_settings.json",
 		{"cline-data": "/d", "cline-mcp": "/x/servers.json"}: "/x/servers.json",
 	} {
-		s.ConfigDirs = *dirs
-		if got, err := s.nativePath("cline"); err != nil || got != filepath.FromSlash(want) {
+		s.ConfigDirs = map[string]string{}
+		for k, v := range *dirs {
+			s.ConfigDirs[k] = abs(v)
+		}
+		if got, err := s.nativePath("cline"); err != nil || got != abs(want) {
 			t.Fatalf("override %v: %q %v", *dirs, got, err)
 		}
 	}

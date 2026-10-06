@@ -49,7 +49,10 @@ func swapStagedIntoSource(sourceDir, staged, destPath string, follow *sourcewalk
 	}
 	backup := ""
 	if _, err := src.Lstat(rel); err == nil {
-		backup = filepath.Join(filepath.Dir(rel), ".skillshare-"+filepath.Base(rel)+"."+strconv.FormatInt(time.Now().UnixNano(), 36))
+		// ".old." keeps the backup apart from the ".skillshare-<name>.<time>" temp that
+		// sourcefs.MoveIn creates beside it; a coarse clock (Windows) made both names equal,
+		// and the failed move then deleted the backup.
+		backup = filepath.Join(filepath.Dir(rel), ".skillshare-"+filepath.Base(rel)+".old."+strconv.FormatInt(time.Now().UnixNano(), 36))
 		if err := src.Rename(rel, backup); err != nil {
 			return fmt.Errorf("failed to preserve existing skill: %w", err)
 		}

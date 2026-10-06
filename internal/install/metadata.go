@@ -97,6 +97,8 @@ func (s *MetadataStore) GetByPath(relPath string) *MetadataEntry {
 	if s == nil {
 		return nil
 	}
+	// Keys are slash-form; a path from the filesystem is OS-native.
+	relPath = filepath.ToSlash(relPath)
 	// Direct lookup (works for top-level skills where key == relPath)
 	if e := s.Entries[relPath]; e != nil {
 		return e
