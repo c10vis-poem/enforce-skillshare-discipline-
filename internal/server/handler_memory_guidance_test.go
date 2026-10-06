@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,30 +12,30 @@ import (
 )
 
 type guidanceStatus struct {
-	Instructions map[string]string `json:"instructions"`
-	Targets      []guidanceTarget  `json:"targets"`
+	Instructions map[string]string       `json:"instructions"`
+	Targets      []memory.GuidanceTarget `json:"targets"`
 }
 
-func guidanceState(t *testing.T, s *Server) map[string]guidanceTarget {
+func guidanceState(t *testing.T, s *Server) map[string]memory.GuidanceTarget {
 	t.Helper()
 	rr := instructionsRequest(t, s, http.MethodGet, "/api/extras/memory/guidance", "")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("guidance: %d %s", rr.Code, rr.Body)
 	}
-	out := map[string]guidanceTarget{}
+	out := map[string]memory.GuidanceTarget{}
 	for _, target := range decodeBody[guidanceStatus](t, rr).Targets {
 		out[target.Name] = target
 	}
 	return out
 }
 
-func planGuidanceFor(t *testing.T, s *Server, targets string) guidancePlan {
+func planGuidanceFor(t *testing.T, s *Server, targets string) memory.GuidancePlan {
 	t.Helper()
 	rr := instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/plan", `{"targets":`+targets+`}`)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("plan: %d %s", rr.Code, rr.Body)
 	}
-	return decodeBody[guidancePlan](t, rr)
+	return decodeBody[memory.GuidancePlan](t, rr)
 }
 
 func applyGuidance(t *testing.T, s *Server, targets, token string) map[string]any {
@@ -398,72 +397,6 @@ func TestMemoryGuidance_SkipsNonUTF8Files(t *testing.T) {
 	}
 }
 
-func TestMemoryGuidance_RechecksEachReviewedFile(t *testing.T) {
-	for _, change := range []string{"edited", "deleted", "created"} {
-		t.Run(change, func(t *testing.T) {
-			s, home := newInstructionsServer(t, "claude", "codex")
-			writeHome(t, home, ".claude/CLAUDE.md", "claude own\n")
-			codex := filepath.Join(home, ".codex/AGENTS.md")
-			if change != "created" {
-				writeHome(t, home, ".codex/AGENTS.md", "codex own\n")
-			}
-			plan := planGuidanceFor(t, s, `["claude","codex"]`)
-			if len(plan.Changes) != 2 {
-				t.Fatalf("plan = %+v", plan)
-			}
-			if err := writeGuidanceChange(plan.Changes[0]); err != nil {
-				t.Fatal(err)
-			}
-			// An external editor changes the later file while the earlier file is applied.
-			if change == "deleted" {
-				if err := os.Remove(codex); err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				content := "external edit\n"
-				if change == "created" {
-					content = ""
-				}
-				writeHome(t, home, ".codex/AGENTS.md", content)
-			}
-			if err := writeGuidanceChange(plan.Changes[1]); !errors.Is(err, errGuidanceStale) {
-				t.Fatalf("expected stale conflict, got %v", err)
-			}
-			if change == "deleted" {
-				if _, err := os.Stat(codex); !os.IsNotExist(err) {
-					t.Fatal("deleted instructions recreated")
-				}
-			} else {
-				want := "external edit\n"
-				if change == "created" {
-					want = ""
-				}
-				if got := readFile(t, codex); got != want {
-					t.Fatalf("external edit lost: %q", got)
-				}
-			}
-		})
-	}
-}
-
-func TestMemoryGuidance_CreateIsExclusive(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "AGENTS.md")
-	change := guidanceChange{Path: path, Created: true, After: "reviewed guidance"}
-	if err := checkGuidanceChange(change); err != nil {
-		t.Fatal(err)
-	}
-	// A different process creates the file after the final review check.
-	if err := os.WriteFile(path, []byte("external instructions"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := commitGuidanceChange(change); !errors.Is(err, errGuidanceStale) {
-		t.Fatalf("expected stale plan, got %v", err)
-	}
-	if got := readFile(t, path); got != "external instructions" {
-		t.Fatalf("external instructions lost: %q", got)
-	}
-}
-
 func TestMemoryGuidance_SwitchesModeForEveryReaderOfTheFile(t *testing.T) {
 	s, home := newInstructionsServer(t, "claude", "codex")
 	writeHome(t, home, ".claude/CLAUDE.md", "# Me\n")
@@ -477,7 +410,7 @@ func TestMemoryGuidance_SwitchesModeForEveryReaderOfTheFile(t *testing.T) {
 
 	body := `{"targets":["codex"],"modes":{"codex":"active"}`
 	rr := instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/plan", body+`}`)
-	plan = decodeBody[guidancePlan](t, rr)
+	plan = decodeBody[memory.GuidancePlan](t, rr)
 	if rr.Code != http.StatusOK || len(plan.Changes) != 1 || !strings.Contains(plan.Changes[0].After, "mode=active") {
 		t.Fatalf("plan: %d %+v", rr.Code, plan)
 	}
@@ -511,7 +444,7 @@ func TestMemoryGuidance_FlagsTargetReadingBlocksOfDifferentModes(t *testing.T) {
 	plan := planGuidanceFor(t, s, `["claude"]`)
 	applyGuidance(t, s, `["claude"]`, plan.Token)
 	body := `{"targets":["codex"],"modes":{"codex":"active"}`
-	plan = decodeBody[guidancePlan](t, instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/plan", body+`}`))
+	plan = decodeBody[memory.GuidancePlan](t, instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/plan", body+`}`))
 	if rr := instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/apply", body+`,"token":"`+plan.Token+`"}`); rr.Code != http.StatusOK {
 		t.Fatalf("apply: %d %s", rr.Code, rr.Body)
 	}
@@ -532,7 +465,7 @@ func TestMemoryGuidance_RefusesModeSwitchForTargetReadingSeveralBlocks(t *testin
 	applyGuidance(t, s, `["codex"]`, plan.Token)
 
 	rr := instructionsRequest(t, s, http.MethodPost, "/api/extras/memory/guidance/plan", `{"targets":["claude"],"modes":{"claude":"active"}}`)
-	plan = decodeBody[guidancePlan](t, rr)
+	plan = decodeBody[memory.GuidancePlan](t, rr)
 	if rr.Code != http.StatusOK || len(plan.Changes) != 0 || len(plan.Skipped) != 1 || plan.Skipped[0].Reason != "multiple_blocks" {
 		t.Errorf("plan: %d %+v", rr.Code, plan)
 	}
