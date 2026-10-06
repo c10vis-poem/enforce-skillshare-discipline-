@@ -198,6 +198,10 @@ A local path is copied into the source directory. In global mode, a relative pat
 When specifying a subdirectory path like `owner/repo/skill-name`, if the exact path doesn't exist in the repo, skillshare scans all `SKILL.md` files and matches by directory basename. If multiple skills share the same name, an ambiguity error is shown with full paths so you can specify the exact one.
 :::
 
+:::note Git submodules are not fetched
+skillshare does not fetch git submodules. Installing a path that is a submodule, or lies inside one, fails with an error that names the submodule, its pinned commit, and its upstream URL; install from that upstream repository instead, or copy the files into the hub. When you browse a whole repository, `install` and `--track` warn about each submodule they skip.
+:::
+
 ## Install from Config (No Arguments) {#install-from-config-no-arguments}
 
 When run without a source argument, `skillshare install` reads the recorded remote skill metadata (global mode) or the project `skills:` manifest (project mode) and installs all remote skills that don't already exist locally:
