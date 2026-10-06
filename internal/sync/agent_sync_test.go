@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"skillshare/internal/resource"
+	"skillshare/internal/utils"
 )
 
 func TestCheckAgentCollisions_NoCollision(t *testing.T) {
@@ -465,7 +466,7 @@ func TestSyncAgents_SymlinkMode_NewDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lstat: %v", err)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
+	if !utils.IsLinkMode(targetDir, info.Mode()) {
 		t.Error("expected targetDir to be a symlink")
 	}
 }

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -80,14 +81,15 @@ func TestInvalidMCPSectionStillLoadsAndSaves(t *testing.T) {
 
 func TestMCPProjectsSurviveSaveAndAreValidated(t *testing.T) {
 	var cfg Config
-	if err := yaml.Unmarshal([]byte("mcp:\n  projects:\n    /work/p1:\n      servers:\n        docs:\n          command: docs\n          targets: [cursor]\n"), &cfg); err != nil {
+	p1 := absPath("/work/p1")
+	if err := yaml.Unmarshal([]byte("mcp:\n  projects:\n    "+strconv.Quote(p1)+":\n      servers:\n        docs:\n          command: docs\n          targets: [cursor]\n"), &cfg); err != nil {
 		t.Fatal(err)
 	}
 	if err := ValidateMCP(cfg.MCP, ""); err != nil {
 		t.Fatalf("valid projects rejected: %v", err)
 	}
 	data, err := yaml.Marshal(cfg)
-	if err != nil || !strings.Contains(string(data), "/work/p1:") {
+	if err != nil || !strings.Contains(string(data), "p1") {
 		t.Fatalf("projects lost on save: %v\n%s", err, data)
 	}
 	if err := yaml.Unmarshal([]byte("mcp:\n  projects:\n    work/p1:\n      servers: {}\n"), &cfg); err != nil {

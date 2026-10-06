@@ -97,7 +97,7 @@ func TestTargets_ConfigHomeOverrides(t *testing.T) {
 				t.Fatal(err)
 			}
 			target := cfg.Targets[tt.name]
-			if got := target.SkillsConfig().Path; got != filepath.Join(root, "pinned", "skills") {
+			if got := filepath.Clean(target.SkillsConfig().Path); got != filepath.Join(root, "pinned", "skills") {
 				t.Errorf("explicit path = %q, want pinned path", got)
 			}
 		})

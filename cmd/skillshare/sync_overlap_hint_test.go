@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestPrintSyncOverlapHint_NamesConflictAndFix(t *testing.T) {
 	out := captureStdout(t, func() { printSyncOverlapHint(targets, true, false) })
 
 	for _, want := range []string{
-		"codex and universal sync skills to /tmp/agents/skills with different filters, so each sync undoes the other",
+		"codex and universal sync skills to " + filepath.FromSlash("/tmp/agents/skills") + " with different filters, so each sync undoes the other",
 		"keep one: skillshare target codex --skills=false -p",
 	} {
 		if !strings.Contains(out, want) {

@@ -111,16 +111,23 @@ jobs:
         shell: bash
         run: |
           go test -v -count=1 \
+            ./cmd/skillshare \
+            ./internal/audit \
             ./internal/backup \
             ./internal/check \
             ./internal/childproc \
+            ./internal/config \
             ./internal/hub \
+            ./internal/install \
             ./internal/instructions \
+            ./internal/mcp \
             ./internal/projectdir \
             ./internal/resource \
             ./internal/search \
             ./internal/skill \
             ./internal/skillignore \
+            ./internal/sync \
+            ./internal/trash \
             ./internal/ui \
             ./internal/uidist \
             ./internal/utils \

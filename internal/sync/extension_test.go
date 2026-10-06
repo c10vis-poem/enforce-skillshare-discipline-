@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -93,9 +94,12 @@ func TestListExtensions(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(geminiDir, "extension.yaml"), []byte("run: [\"cat\"]\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// (b) single-file executable extension
-	if err := os.WriteFile(filepath.Join(dir, "conv.sh"), []byte("#!/bin/sh\ncat\n"), 0755); err != nil {
-		t.Fatal(err)
+	// (b) single-file executable extension; it relies on the shebang and the
+	// executable bit, so it exists only on Unix
+	if runtime.GOOS != "windows" {
+		if err := os.WriteFile(filepath.Join(dir, "conv.sh"), []byte("#!/bin/sh\ncat\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// (c) directory without manifest — excluded
 	if err := os.MkdirAll(filepath.Join(dir, "notanext"), 0755); err != nil {
@@ -111,6 +115,9 @@ func TestListExtensions(t *testing.T) {
 		t.Fatalf("ListExtensions: %v", err)
 	}
 	want := []string{"conv.sh", "gemini-commands"} // sorted
+	if runtime.GOOS == "windows" {
+		want = []string{"gemini-commands"}
+	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}

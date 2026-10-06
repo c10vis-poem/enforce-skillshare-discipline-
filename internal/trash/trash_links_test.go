@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"skillshare/internal/sourcefs"
@@ -12,6 +13,9 @@ import (
 )
 
 func TestTrashLinkPreservesTraversalThroughIntermediateLink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows resolves .. lexically before following symlinks, so alias/../checkout never reaches the alias target")
+	}
 	base := t.TempDir()
 	source := filepath.Join(base, "source")
 	external := filepath.Join(base, "external")
@@ -124,6 +128,9 @@ func TestTrashLink(t *testing.T) {
 				if relative {
 					text = "../checkout"
 					wantText = source + string(filepath.Separator) + text
+					if runtime.GOOS == "windows" {
+						wantText = filepath.Clean(wantText) // Windows drops .. when it creates the link
+					}
 				}
 				if err := os.Symlink(text, link); err != nil {
 					t.Skip(err)
@@ -224,7 +231,7 @@ func TestTrashCrossDevicePreservesNestedLinks(t *testing.T) {
 	assertLinks := func(dir string) {
 		t.Helper()
 		for name, target := range links {
-			if got, err := os.Readlink(filepath.Join(dir, name)); err != nil || got != target {
+			if got, err := os.Readlink(filepath.Join(dir, name)); err != nil || filepath.ToSlash(got) != target {
 				t.Errorf("%s: target = %q, %v; want %q", name, got, err, target)
 			}
 		}

@@ -133,6 +133,11 @@ func TestShouldUseRelative_DivergentSymlink(t *testing.T) {
 	}
 }
 
+// posixAbs gives a slash-form path the volume it needs to be absolute on Windows.
+func posixAbs(p string) string {
+	return filepath.VolumeName(os.TempDir()) + filepath.FromSlash(p)
+}
+
 func TestResolveReadlink(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -142,15 +147,15 @@ func TestResolveReadlink(t *testing.T) {
 	}{
 		{
 			"absolute dest unchanged",
-			"/abs/source/skill",
-			"/project/.claude/skills/skill",
-			"/abs/source/skill",
+			posixAbs("/abs/source/skill"),
+			posixAbs("/project/.claude/skills/skill"),
+			posixAbs("/abs/source/skill"),
 		},
 		{
 			"relative dest resolved from link parent",
 			"../../.skillshare/skills/skill",
-			"/project/.claude/skills/skill",
-			"/project/.skillshare/skills/skill",
+			posixAbs("/project/.claude/skills/skill"),
+			posixAbs("/project/.skillshare/skills/skill"),
 		},
 	}
 	for _, tt := range tests {
@@ -170,8 +175,8 @@ func TestLinkNeedsReformat(t *testing.T) {
 		wantRelative bool
 		expected     bool
 	}{
-		{"absolute dest wants relative", "/abs/path/to/skill", true, true},
-		{"absolute dest wants absolute", "/abs/path/to/skill", false, false},
+		{"absolute dest wants relative", posixAbs("/abs/path/to/skill"), true, true},
+		{"absolute dest wants absolute", posixAbs("/abs/path/to/skill"), false, false},
 		{"relative dest wants relative", "../../.skillshare/skills/foo", true, false},
 		{"relative dest wants absolute", "../../.skillshare/skills/foo", false, true},
 		{"empty dest", "", true, false},

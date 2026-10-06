@@ -3,6 +3,7 @@ package sync
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -60,6 +61,9 @@ func TestRunAgentSync_InvalidFilterFailsOnlyThatTarget(t *testing.T) {
 }
 
 func TestRunAgentSync_PruneErrorBecomesWarning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows reports reading a file as a directory as not-exist, which prune ignores")
+	}
 	// A dry run skips creating the target, so prune reads a path that is a file.
 	targetPath := filepath.Join(t.TempDir(), "agents")
 	os.WriteFile(targetPath, []byte("not a directory"), 0644)

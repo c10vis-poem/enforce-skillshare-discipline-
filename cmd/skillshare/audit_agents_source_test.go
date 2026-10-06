@@ -13,7 +13,11 @@ import (
 // the skills source untouched so the TUI's Skills tab scans skills, not agents.
 func TestAuditInstalled_AgentsKindScansAgentsSource(t *testing.T) {
 	skills := t.TempDir()
-	agents := t.TempDir()
+	// The runner TEMP is an 8.3 short path on Windows; the scan reports the long one.
+	agents, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Join(skills, "demo"), 0755); err != nil {
 		t.Fatal(err)
 	}

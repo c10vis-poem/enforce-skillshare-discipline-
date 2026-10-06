@@ -20,13 +20,14 @@ func TestInstallUpdateFollowedCheckoutDirty(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			source, link, checkout, remote, before := setupInstallUpdateFollowedCheckout(t)
+			checkoutPath := realPath(t, checkout)
 			notes := filepath.Join(checkout, "notes.txt")
 			if err := os.WriteFile(notes, []byte("local edit\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			err := runInstallUpdateFollowedCheckout(source, link, remote, tracked)
-			if err == nil || !strings.Contains(err.Error(), "commit or stash") || !strings.Contains(err.Error(), checkout) {
-				t.Errorf("expected dirty checkout error naming %s, got %v", checkout, err)
+			if err == nil || !strings.Contains(err.Error(), "commit or stash") || !strings.Contains(err.Error(), checkoutPath) {
+				t.Errorf("expected dirty checkout error naming %s, got %v", checkoutPath, err)
 			}
 			if got, err := os.ReadFile(notes); err != nil || string(got) != "local edit\n" {
 				t.Errorf("local edit lost: %q, %v", got, err)
@@ -59,7 +60,7 @@ func TestInstallUpdateFollowedCheckoutCleanAuditRollback(t *testing.T) {
 			if got := testutil.RunGit(t, checkout, "rev-parse", "origin/main"); got == before {
 				t.Error("pull did not fetch the blocking commit")
 			}
-			if got, err := os.ReadFile(filepath.Join(checkout, "SKILL.md")); err != nil || string(got) != "# Safe skill\n" {
+			if got, err := os.ReadFile(filepath.Join(checkout, "SKILL.md")); err != nil || strings.ReplaceAll(string(got), "\r\n", "\n") != "# Safe skill\n" { // git may check out CRLF on Windows
 				t.Errorf("SKILL.md was not restored: %q, %v", got, err)
 			}
 			if got := testutil.RunGit(t, checkout, "status", "--porcelain"); got != "" {
@@ -77,12 +78,13 @@ func TestInstallUpdateFollowedCheckoutUnreadableStatus(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			source, link, checkout, remote, before := setupInstallUpdateFollowedCheckout(t)
+			checkoutPath := realPath(t, checkout)
 			if err := os.WriteFile(filepath.Join(checkout, ".git", "index"), []byte("invalid index"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			err := runInstallUpdateFollowedCheckout(source, link, remote, tracked)
-			if err == nil || !strings.Contains(err.Error(), "cannot check Git status") || !strings.Contains(err.Error(), checkout) {
-				t.Fatalf("expected unreadable status error naming %s, got %v", checkout, err)
+			if err == nil || !strings.Contains(err.Error(), "cannot check Git status") || !strings.Contains(err.Error(), checkoutPath) {
+				t.Fatalf("expected unreadable status error naming %s, got %v", checkoutPath, err)
 			}
 			if got := testutil.RunGit(t, checkout, "rev-parse", "HEAD"); got != before {
 				t.Errorf("HEAD changed: %s", got)
@@ -150,4 +152,15 @@ func runInstallUpdateFollowedCheckout(source, link, remote string, tracked bool)
 	}
 	_, err := Install(parsed, link, opts)
 	return err
+}
+
+// realPath resolves p the way the product names it in errors. The runner TEMP
+// is an 8.3 short path on Windows (C:\Users\RUNNER~1).
+func realPath(t *testing.T, p string) string {
+	t.Helper()
+	real, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return real
 }

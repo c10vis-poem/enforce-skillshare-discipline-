@@ -73,6 +73,7 @@ func TestSave_PreserveTildeOnSave_FoldsHomePaths(t *testing.T) {
 	got := string(data)
 
 	// Home-rooted paths must be folded
+	// Folding keeps the OS separator after the ~.
 	for _, want := range []string{
 		"~/dotfiles/skills",
 		"~/my-extras",
@@ -81,6 +82,7 @@ func TestSave_PreserveTildeOnSave_FoldsHomePaths(t *testing.T) {
 		"~/dotfiles/rules",
 		"~/.claude/rules",
 	} {
+		want = "~" + filepath.FromSlash(want[1:])
 		if !strings.Contains(got, want) {
 			t.Errorf("expected %q in saved yaml; got:\n%s", want, got)
 		}

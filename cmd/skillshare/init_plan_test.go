@@ -12,6 +12,7 @@ import (
 func TestDetectCLIDirectories_SkillsFirstThenByName(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	for _, dir := range []string{".cursor", ".claude/skills/a", ".claude/skills/b", ".gemini/skills/c"} {
 		os.MkdirAll(filepath.Join(home, dir), 0o755)
 	}

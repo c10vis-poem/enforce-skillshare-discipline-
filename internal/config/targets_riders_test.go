@@ -17,7 +17,7 @@ func riderNames(riders []InstructionsRider) string {
 
 func TestInstructionRiders_CodexDetected(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".codex"), 0755)
 
 	riders := InstructionRiders("universal", map[string]TargetConfig{"universal": {Path: "~/.agents/skills"}})
@@ -27,7 +27,7 @@ func TestInstructionRiders_CodexDetected(t *testing.T) {
 }
 
 func TestInstructionRiders_CodexNotInstalled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setHome(t, t.TempDir())
 	if riders := InstructionRiders("universal", map[string]TargetConfig{"universal": {Path: "~/.agents/skills"}}); len(riders) != 0 {
 		t.Errorf("riders = %+v, want none", riders)
 	}
@@ -35,7 +35,7 @@ func TestInstructionRiders_CodexNotInstalled(t *testing.T) {
 
 func TestInstructionRiders_CodexConfigured(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".codex"), 0755)
 
 	targets := map[string]TargetConfig{"universal": {Path: "~/.agents/skills"}, "codex": {Path: "~/.agents/skills"}}
@@ -46,7 +46,7 @@ func TestInstructionRiders_CodexConfigured(t *testing.T) {
 
 func TestInstructionRiders_SortedByName(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".codex"), 0755)
 	os.MkdirAll(filepath.Join(home, ".config", "goose"), 0755)
 
@@ -59,7 +59,7 @@ func TestInstructionRiders_SortedByName(t *testing.T) {
 // and counts as installed when its own folder exists.
 func TestInstructionRiders_AlsoScansTools(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".gemini"), 0755)
 	os.MkdirAll(filepath.Join(home, ".pi", "agent"), 0755)
 
@@ -73,7 +73,7 @@ func TestInstructionRiders_AlsoScansTools(t *testing.T) {
 // folder of its instruction file tells whether it is installed.
 func TestInstructionRiders_DetectedByInstructionFolder(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".agents", "skills"), 0755)
 	os.MkdirAll(filepath.Join(home, ".config", "zed"), 0755)
 
@@ -86,7 +86,7 @@ func TestInstructionRiders_DetectedByInstructionFolder(t *testing.T) {
 // once, under the tool that owns it.
 func TestInstructionRiders_OneEntryPerFile(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".gemini", "config"), 0755)
 
 	if got := riderNames(InstructionRiders("universal", map[string]TargetConfig{"universal": {Path: "~/.agents/skills"}})); got != "gemini" {
@@ -98,7 +98,7 @@ func TestInstructionRiders_OneEntryPerFile(t *testing.T) {
 // Antigravity, which reads that same file, is not listed under universal.
 func TestInstructionRiders_FileOfConfiguredTarget(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".gemini", "config"), 0755)
 
 	targets := map[string]TargetConfig{"universal": {Path: "~/.agents/skills"}, "gemini": {Path: "~/.gemini/skills"}}
@@ -111,7 +111,7 @@ func TestInstructionRiders_FileOfConfiguredTarget(t *testing.T) {
 // with universal not configured, codex's page lists none.
 func TestInstructionRiders_OnlyUniversal(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setHome(t, home)
 	os.MkdirAll(filepath.Join(home, ".agents", "skills"), 0755)
 	os.MkdirAll(filepath.Join(home, ".config", "zed"), 0755)
 	targets := map[string]TargetConfig{"codex": {Path: "~/.agents/skills"}}

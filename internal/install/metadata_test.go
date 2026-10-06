@@ -3,6 +3,7 @@ package install
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -210,7 +211,7 @@ func TestMetadataStore_SaveAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("metadata file not created: %v", err)
 	}
-	if got, want := info.Mode().Perm(), os.FileMode(0644); got != want {
+	if got, want := info.Mode().Perm(), os.FileMode(0644); runtime.GOOS != "windows" && got != want { // no permission bits on Windows
 		t.Fatalf("metadata file mode = %v, want %v", got, want)
 	}
 

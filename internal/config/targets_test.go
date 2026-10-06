@@ -25,7 +25,7 @@ func TestGroupedProjectTargets_UniversalGrouped(t *testing.T) {
 		t.Fatal("expected 'universal' group in GroupedProjectTargets result")
 	}
 
-	if universalGroup.Path != ".agents/skills" {
+	if filepath.ToSlash(universalGroup.Path) != ".agents/skills" {
 		t.Errorf("universal group path = %q, want %q", universalGroup.Path, ".agents/skills")
 	}
 
@@ -193,7 +193,7 @@ func TestLookupAgentTarget_Alias(t *testing.T) {
 	if !ok {
 		t.Fatal("LookupProjectAgentTarget should find alias 'factory'")
 	}
-	if project.Path != ".factory/droids" {
+	if filepath.ToSlash(project.Path) != ".factory/droids" {
 		t.Fatalf("factory project agent path = %q, want %q", project.Path, ".factory/droids")
 	}
 }
@@ -226,6 +226,9 @@ func TestRuntimeScanPaths_UnionOfAlsoScansAndPrimary(t *testing.T) {
 	}
 
 	project := RuntimeScanPaths("codex", true)
+	for i := range project {
+		project[i] = filepath.ToSlash(project[i])
+	}
 	for _, want := range []string{".codex/skills", ".agents/skills"} {
 		if !slices.Contains(project, want) {
 			t.Errorf("RuntimeScanPaths(codex, project) = %v, missing %s", project, want)
@@ -285,7 +288,7 @@ func TestDefaultTargets_GooseAndOpenHandsShareUniversalPath(t *testing.T) {
 		if got, want := targets[name].Path, targets["universal"].Path; got != want {
 			t.Errorf("%s default global path = %q, want universal's %q", name, got, want)
 		}
-		if got, want := projects[name].Path, ".agents/skills"; got != want {
+		if got, want := filepath.ToSlash(projects[name].Path), ".agents/skills"; got != want {
 			t.Errorf("%s default project path = %q, want %q", name, got, want)
 		}
 	}
@@ -337,7 +340,7 @@ func TestReplitIsProjectOnly(t *testing.T) {
 	if _, ok := DefaultTargets()["replit"]; ok {
 		t.Error("replit has no documented global skills path, want no default")
 	}
-	if got := ProjectTargets()["replit"].Path; got != ".agents/skills" {
+	if got := filepath.ToSlash(ProjectTargets()["replit"].Path); got != ".agents/skills" {
 		t.Errorf("replit project path = %q, want .agents/skills", got)
 	}
 }
@@ -394,7 +397,7 @@ func TestProjectTargets_ClaudePath(t *testing.T) {
 	if !ok {
 		t.Fatal("expected claude in ProjectTargets")
 	}
-	if tc.Path != ".claude/skills" {
+	if filepath.ToSlash(tc.Path) != ".claude/skills" {
 		t.Errorf("claude project path = %q, want %q", tc.Path, ".claude/skills")
 	}
 }
@@ -471,7 +474,7 @@ func TestLookupProjectTarget_AntigravityCLIIsNotAntigravityAlias(t *testing.T) {
 	if !ok {
 		t.Fatal("LookupProjectTarget should find antigravity-cli")
 	}
-	if tc.Path != ".agents/skills" {
+	if filepath.ToSlash(tc.Path) != ".agents/skills" {
 		t.Errorf("antigravity-cli project path = %q, want %q", tc.Path, ".agents/skills")
 	}
 	if _, ok := ProjectTargets()["antigravity-cli"]; !ok {

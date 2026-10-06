@@ -439,12 +439,12 @@ func TestValidateTargetInstructions(t *testing.T) {
 		wantErr string
 	}{
 		{"global tilde", "~/.myagent/AGENTS.md", false, ""},
-		{"global absolute", "/opt/agent/AGENTS.md", false, ""},
+		{"global absolute", absPath("/opt/agent/AGENTS.md"), false, ""},
 		{"global relative", ".myagent/AGENTS.md", false, "absolute or start with ~/"},
 		{"empty", "  ", false, "is empty"},
 		{"directory", "~/.myagent/", false, "not a directory"},
 		{"project relative", ".myagent/AGENTS.md", true, ""},
-		{"project absolute", "/opt/agent/AGENTS.md", true, "relative to the project root"},
+		{"project absolute", absPath("/opt/agent/AGENTS.md"), true, "relative to the project root"},
 		{"project tilde", "~/AGENTS.md", true, "relative to the project root"},
 	}
 	for _, tc := range cases {

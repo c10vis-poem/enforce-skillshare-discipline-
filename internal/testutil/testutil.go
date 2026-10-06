@@ -74,6 +74,7 @@ func NewSandbox(t *testing.T) *Sandbox {
 
 	// Override environment
 	sb.SetEnv("HOME", home)
+	sb.SetEnv("USERPROFILE", home) // os.UserHomeDir on Windows
 	sb.SetEnv("SKILLSHARE_CONFIG", sb.ConfigPath)
 
 	// Point XDG variables into the sandbox so config.BaseDir()/DataDir()/

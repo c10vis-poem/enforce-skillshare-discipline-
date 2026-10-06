@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"skillshare/internal/config"
+	"skillshare/internal/utils"
 )
 
 // setupMergeTest creates isolated source and target directories with skills.
@@ -42,7 +43,7 @@ func TestSyncTargetMerge_CreatesLinks(t *testing.T) {
 			t.Errorf("expected symlink for %s: %v", name, err)
 			continue
 		}
-		if info.Mode()&os.ModeSymlink == 0 {
+		if !utils.IsLinkMode(linkPath, info.Mode()) {
 			t.Errorf("expected %s to be a symlink", name)
 		}
 	}
@@ -134,7 +135,7 @@ func TestSyncTargetMerge_ForceReplacesLocal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
+	if !utils.IsLinkMode(filepath.Join(tgt, "alpha"), info.Mode()) {
 		t.Error("expected symlink after force replace")
 	}
 }

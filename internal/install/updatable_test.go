@@ -124,8 +124,8 @@ func TestGetUpdatableSkills_Nested(t *testing.T) {
 	if len(skills) != 1 {
 		t.Fatalf("expected 1 nested updatable skill, got %d", len(skills))
 	}
-	// relPath should be "group/my-skill"
-	if skills[0] != filepath.Join("group", "my-skill") {
+	// Metadata keys are slash-form on every OS.
+	if skills[0] != "group/my-skill" {
 		t.Errorf("expected 'group/my-skill', got %q", skills[0])
 	}
 }

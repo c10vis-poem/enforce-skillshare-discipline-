@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -37,7 +38,11 @@ func TestConfirmTargetLabel_SingleFileShowsFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		m := extrasListTUIModel{confirmTarget: tt.target}
-		if got := m.confirmTargetLabel(entry); got != tt.want {
+		want := tt.want
+		if tt.target != "" {
+			want = filepath.FromSlash(want)
+		}
+		if got := m.confirmTargetLabel(entry); got != want {
 			t.Errorf("confirmTarget %q: got %q, want %q", tt.target, got, tt.want)
 		}
 	}

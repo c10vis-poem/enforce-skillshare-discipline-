@@ -3,6 +3,7 @@ package install
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -176,7 +177,7 @@ func TestCopyDir_PreservesPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Check that executable bit is preserved (at least user execute)
-	if info.Mode()&0100 == 0 {
+	if runtime.GOOS != "windows" && info.Mode()&0100 == 0 { // no permission bits on Windows
 		t.Errorf("expected executable permission to be preserved, got %o", info.Mode())
 	}
 }
