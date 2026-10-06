@@ -13,7 +13,7 @@ import SyncPage from './SyncPage';
 
 vi.mock('../api/client', async (load) => ({
   ...await load<typeof import('../api/client')>(),
-  api: { listTargets: vi.fn(), diff: vi.fn(), diffExtras: vi.fn(), listLog: vi.fn(), skillsOffPreview: vi.fn(), updateTarget: vi.fn() },
+  api: { listTargets: vi.fn(), diff: vi.fn(), diffExtras: vi.fn(), listLog: vi.fn(), skillsOffPreview: vi.fn(), updateTarget: vi.fn(), sync: vi.fn(), syncExtras: vi.fn() },
 }));
 vi.mock('../api/mcp', async (load) => ({ ...await load<typeof import('../api/mcp')>(), mcpApi: { list: vi.fn() } }));
 vi.mock('../api/hooks', async (load) => ({ ...await load<typeof import('../api/hooks')>(), hooksApi: { list: vi.fn(() => Promise.reject(new Error('offline'))) } }));
@@ -77,6 +77,60 @@ describe('Sync page last sync', () => {
     vi.mocked(api.listLog).mockResolvedValue({ entries: [{ ts: '2026-09-30T00:00:00Z', cmd: 'sync', status: 'partial', args: { targets_total: 3, targets_failed: 1 } }] } as never);
     renderPage();
     expect((await screen.findByText('Failed')).nextElementSibling).toHaveTextContent('1');
+  });
+});
+
+describe('Sync page failure diagnostics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.listTargets).mockResolvedValue({ targets: [target('codex')], sourceSkillCount: 3 });
+    vi.mocked(api.diff).mockResolvedValue({ diffs: [], ignored_count: 0, ignored_skills: [], ignore_root: '', ignore_repos: [] });
+    vi.mocked(api.diffExtras).mockResolvedValue({ extras: [{ name: 'agents', target: '/home/me/.codex/agents', mode: 'copy', synced: false, items: [{ action: 'create', file: 'one.md', reason: 'missing' }] }] });
+    vi.mocked(api.listLog).mockResolvedValue({ entries: [{ ts: '2026-09-30T00:00:00Z', cmd: 'sync', status: 'ok', args: { targets_total: 1 } }] } as never);
+    vi.mocked(api.sync).mockResolvedValue({ results: [], ignored_count: 0, ignored_skills: [], ignore_root: '', ignore_repos: [] });
+    vi.mocked(mcpApi.list).mockResolvedValue({ paths: {}, source: { targets: [], servers: {} } } as never);
+    vi.mocked(hooksApi.list).mockRejectedValue(new Error('offline'));
+  });
+
+  const renderPage = () => render(
+    <MemoryRouter>
+      <QueryClientProvider client={new QueryClient()}><I18nProvider><ToastProvider><SyncPage /></ToastProvider></I18nProvider></QueryClientProvider>
+    </MemoryRouter>,
+  );
+
+  it('summarizes repeated stacks, expands and copies every diagnostic, and scopes the resource OK', async () => {
+    const reason = 'ReferenceError: require is not defined in ES module scope';
+    const errors = Array.from({ length: 5 }, (_, i) => `${i}.md: extension codex-agents failed: exit status 1\nfile:///extensions/codex-agents:4\nconst fs = require("fs");\n${reason}\n    at file:///extensions/codex-agents:4:12\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)`);
+    vi.mocked(api.syncExtras).mockResolvedValue({ extras: [{ name: 'agents', targets: [{ target: '/home/me/.codex/agents', mode: 'copy', synced: 0, skipped: 0, pruned: 0, errors }] }] });
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Sync 1 change' }));
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1 target failed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Last skills and agents sync' }).parentElement).toHaveTextContent('OK');
+    expect(screen.getByText(/Skills and agents only/)).toBeInTheDocument();
+    const show = screen.getByRole('button', { name: 'Show diagnostics' });
+    expect(show).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('pre')).toBeNull();
+    await user.click(show);
+    const detail = screen.getByLabelText('Show diagnostics');
+    expect(detail.textContent).toBe(errors.join('; '));
+    expect(detail).toHaveClass('max-h-64', 'overflow-auto');
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(await navigator.clipboard.readText()).toBe(errors.join('; '));
+    await user.click(screen.getByRole('button', { name: 'Hide diagnostics' }));
+    expect(document.querySelector('pre')).toBeNull();
+    expect(screen.getByText(reason)).toBeInTheDocument();
+  });
+
+  it('shows a normal short error without an unnecessary disclosure', async () => {
+    vi.mocked(api.syncExtras).mockResolvedValue({ extras: [{ name: 'agents', targets: [{ target: '/home/me/.codex/agents', mode: 'copy', synced: 0, skipped: 0, pruned: 0, error: 'permission denied' }] }] });
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Sync 1 change' }));
+    expect(await screen.findByText('permission denied')).toBeInTheDocument();
+    expect(screen.getByText(/Check the folder's permissions/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show diagnostics' })).not.toBeInTheDocument();
   });
 });
 

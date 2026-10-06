@@ -36,8 +36,22 @@ Each reference extension is self-contained. Copy the whole directory when you wa
 extensions/gemini-commands/
 ├── extension.yaml
 ├── convert.js
-└── md-toml.js
+├── md-toml.js
+└── package.json
 ```
+
+The Codex and Gemini converters use CommonJS. Each includes a `package.json`
+with `"type": "commonjs"` so both `convert.js` and `md-toml.js` work when installed
+inside a project whose own `package.json` declares `"type": "module"`. Keep this
+file when copying an extension. OpenCode's converter uses no CommonJS APIs and
+works in either module scope.
+
+Dashboard installation downloads the complete `extensions/<name>/` directory
+from the `runkids/skillshare` repository via the GitHub contents API. Updating
+the Skillshare binary does not update already installed extension files. To
+repair an older Codex or Gemini installation, add `package.json` containing
+`{"type":"commonjs"}` inside that extension's own directory, preserving any
+existing package fields. The project's root `package.json` does not need to change.
 
 `extension.yaml` tells Skillshare how to run the extension:
 
