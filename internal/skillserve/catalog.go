@@ -18,7 +18,6 @@ import (
 	"skillshare/internal/skillpkg"
 	"skillshare/internal/sourcewalk"
 	ssync "skillshare/internal/sync"
-	"skillshare/internal/utils"
 )
 
 // extensionID is the SEP-2640 capability key.
@@ -144,15 +143,31 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	skill := &Skill{URI: base + "/SKILL.md", Frontmatter: p.Frontmatter}
 	files := make(map[string]servedFile, len(p.Files))
 	for _, f := range p.Files {
-		sum, err := utils.FileHashFormatted(f.Path)
+		sum, size, err := hashFile(f.Path)
 		if err != nil {
 			return nil, nil, err.Error()
 		}
 		uri := base + "/" + escapePath(f.Rel)
 		files[uri] = servedFile{dir: p.Dir, rel: f.Rel, digest: sum}
-		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: f.Size})
+		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: size})
 	}
 	return skill, files, ""
+}
+
+// hashFile returns the digest and size of one read of the file, so both describe
+// the same bytes even when the file is replaced while the catalog is built.
+func hashFile(path string) (string, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return "", 0, err
+	}
+	return fmt.Sprintf("sha256:%x", h.Sum(nil)), n, nil
 }
 
 // Skill returns the served skill whose SKILL.md URI is uri.
