@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { AlertCircle, ArrowRight, ChevronDown, CircleCheck, FileDiff, Folder, Info, Lock, Package, Puzzle, X } from 'lucide-react';
-import { ApiError } from '../../api/client';
 import { ompExtensionsApi, type OmpExtensionChange, type OmpExtensionRow, type OmpExtensionsPlan, type OmpExtensionsView } from '../../api/ompExtensions';
 import Button from '../Button';
-import DialogShell from '../DialogShell';
 import EmptyState from '../EmptyState';
+import ExtensionsReviewDialog from './ExtensionsReviewDialog';
 import Tooltip from '../Tooltip';
 import { PageSkeleton } from '../Skeleton';
-import { messagesByLocale, useT } from '../../i18n';
+import { messagesByLocale, useT, plural } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import { fileName, shortenHome } from '../../lib/paths';
 
@@ -63,7 +62,7 @@ function ExtensionsView({ name, view, pending, setPending, applied, setApplied, 
   // Only a draft that still differs from a switchable row is a change.
   const drafts = view.rows.filter((r) => switchable(r) && r.key in pending && pending[r.key] !== r.enabled);
   const changes: OmpExtensionChange[] = drafts.map((r) => ({ key: r.key, enabled: pending[r.key] }));
-  const pendingLabel = t(changes.length === 1 ? 'targetDetail.ompExtensions.pending.one' : 'targetDetail.ompExtensions.pending.other', { count: changes.length });
+  const pendingLabel = t(plural('targetDetail.ompExtensions.pending', changes.length), { count: changes.length });
   const flip = (row: OmpExtensionRow) => {
     setApplied('');
     const next = { ...pending };
@@ -221,73 +220,45 @@ function Row({ row, dir, name, switchable, showLock, draft, onFlip, t }: { row: 
 
 /** Previews the drafts against the view's revision, then applies exactly that plan. */
 function ReviewDialog({ name, view, changes, onClose, onApplied, t }: { name: string; view: OmpExtensionsView; changes: OmpExtensionChange[]; onClose: () => void; onApplied: (plan: OmpExtensionsPlan) => void; t: T }) {
-  const queryClient = useQueryClient();
-  const preview = useQuery({ queryKey: ['omp-extensions-preview', name, view.revision, changes], queryFn: () => ompExtensionsApi.preview(name, changes, view.revision), retry: false, gcTime: 0, staleTime: Infinity });
-  const [applying, setApplying] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const plan = preview.data;
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.ompExtensions(name) });
-  const apply = async () => {
-    if (!plan) return;
-    setApplying(true);
-    setError(null);
-    try {
-      const done = await ompExtensionsApi.apply(name, changes, plan.revision);
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: queryKeys.plugins })]);
-      onApplied(done);
-    } catch (err) {
-      setError(err as Error);
-      setApplying(false);
-    }
-  };
-  const failure = error ?? preview.error;
-  const code = failure instanceof ApiError ? failure.code : undefined;
-  const stale = code === 'omp_extensions_stale';
-  const title = t('targetDetail.ompExtensions.dialog.title', { name });
   const rowOf = (key: string) => view.rows.find((r) => r.key === key);
   return (
-    <DialogShell open onClose={onClose} padding="none" preventClose={applying} ariaLabel={title} className="!max-w-[680px]">
-      <div className="dh">
-        <div className="flex flex-col gap-1">
-          <h2 className="ss-h2">{title}</h2>
-          <p className="text-[13px] text-ink-2">{t('targetDetail.ompExtensions.dialog.subtitle', { path: shortenHome(view.settingsPath) })}</p>
-        </div>
-        <button type="button" className="ss-ib" aria-label={t('common.close')} onClick={onClose} disabled={applying}><X size={16} /></button>
-      </div>
-      <div className="db !gap-3 text-[13.5px]">
-        {!plan && !failure && <p className="text-ink-3">{t('targetDetail.ompExtensions.dialog.loading')}</p>}
-        {plan && (
-          <>
-            <ul className="flex flex-col gap-1.5">
-              {plan.rows.map((r) => (
-                <li key={r.key} className="flex flex-wrap items-center gap-x-2">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="font-mono text-[13px] font-semibold">{rowOf(r.key)?.name ?? r.derivedId}</span>
-                    <span className="truncate font-mono text-[12px] text-ink-3">{rowOf(r.key)?.path ?? r.key}</span>
-                  </span>
-                  <span className="flex-1" />
-                  <span>{t(`targetDetail.ompExtensions.sel.${selOf(r.before)}`)} → <span className="font-semibold">{t(`targetDetail.ompExtensions.sel.${selOf(r.after)}`)}</span></span>
-                </li>
-              ))}
-            </ul>
-            {plan.warnings.map((w) => <div key={w} className="ss-note warn" role="alert"><AlertCircle size={16} /><span className="flex-1">{guidance(w, t)}</span></div>)}
-            <p className="text-[12.5px] text-ink-2">{t('targetDetail.ompExtensions.dialog.kept')}</p>
-            <p className="text-[12.5px] text-ink-3">{t('targetDetail.ompExtensions.dialog.revision', { revision: plan.revision.slice(0, 7) })}</p>
-          </>
-        )}
-        {failure && (
-          <div className={`ss-note ${stale || code === 'omp_extensions_busy' ? 'warn' : 'bad'}`} role="alert">
-            <AlertCircle size={16} />
-            <span className="flex-1">{stale ? t('targetDetail.ompExtensions.stale') : code === 'omp_extensions_busy' ? t('targetDetail.ompExtensions.busy') : failure.message}</span>
-          </div>
-        )}
-      </div>
-      <div className="df">
-        <Button variant="ghost" onClick={onClose} disabled={applying}>{t('common.cancel')}</Button>
-        {stale
-          ? <Button variant="secondary" onClick={() => { void refresh(); onClose(); }}>{t('targetDetail.ompExtensions.reviewAgain')}</Button>
-          : <Button variant="primary" onClick={apply} loading={applying} disabled={!plan || Boolean(preview.error)}>{t('targetDetail.ompExtensions.dialog.apply')}</Button>}
-      </div>
-    </DialogShell>
+    <ExtensionsReviewDialog
+      kind="omp"
+      name={name}
+      text={{
+        title: t('targetDetail.ompExtensions.dialog.title', { name }),
+        subtitle: t('targetDetail.ompExtensions.dialog.subtitle', { path: shortenHome(view.settingsPath) }),
+        loading: t('targetDetail.ompExtensions.dialog.loading'),
+        apply: t('targetDetail.ompExtensions.dialog.apply'),
+        reviewAgain: t('targetDetail.ompExtensions.reviewAgain'),
+        stale: t('targetDetail.ompExtensions.stale'),
+        busy: t('targetDetail.ompExtensions.busy'),
+      }}
+      previewKey={queryKeys.ompExtensionsPreview(name, view.revision, changes)}
+      preview={() => ompExtensionsApi.preview(name, changes, view.revision)}
+      apply={(revision) => ompExtensionsApi.apply(name, changes, revision)}
+      onClose={onClose}
+      onApplied={onApplied}
+    >
+      {(plan) => (
+        <>
+          <ul className="flex flex-col gap-1.5">
+            {plan.rows.map((r) => (
+              <li key={r.key} className="flex flex-wrap items-center gap-x-2">
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-mono text-[13px] font-semibold">{rowOf(r.key)?.name ?? r.derivedId}</span>
+                  <span className="truncate font-mono text-[12px] text-ink-3">{rowOf(r.key)?.path ?? r.key}</span>
+                </span>
+                <span className="flex-1" />
+                <span>{t(`targetDetail.ompExtensions.sel.${selOf(r.before)}`)} → <span className="font-semibold">{t(`targetDetail.ompExtensions.sel.${selOf(r.after)}`)}</span></span>
+              </li>
+            ))}
+          </ul>
+          {plan.warnings.map((w) => <div key={w} className="ss-note warn" role="alert"><AlertCircle size={16} /><span className="flex-1">{guidance(w, t)}</span></div>)}
+          <p className="text-[12.5px] text-ink-2">{t('targetDetail.ompExtensions.dialog.kept')}</p>
+          <p className="text-[12.5px] text-ink-3">{t('targetDetail.ompExtensions.dialog.revision', { revision: plan.revision.slice(0, 7) })}</p>
+        </>
+      )}
+    </ExtensionsReviewDialog>
   );
 }

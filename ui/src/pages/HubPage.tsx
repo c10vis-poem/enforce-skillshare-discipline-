@@ -17,7 +17,8 @@ import MoreMenu from '../components/hub/MoreMenu';
 import ShareDialog from '../components/hub/ShareDialog';
 import { COMMUNITY, DRAFT, sameURL } from '../components/hub/hubShared';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
+import { invalidate } from '../lib/queryEvents';
 
 /**
  * Every hub in one list. The user's own hubs show exactly what a recipient sees,
@@ -55,7 +56,7 @@ export default function HubPage() {
     ...drafts.map((d) => ({
       key: DRAFT + d.id,
       label: d.name || t('hubBuilder.untitled'),
-      sub: t(d.entries.length === 1 ? 'hubBuilder.count.one' : 'hubBuilder.count.other', { count: d.entries.length })
+      sub: t(plural('hubBuilder.count', d.entries.length), { count: d.entries.length })
         + (String(d.fields?.publishUrl ?? '').trim() ? ` · ${t('hubs.shared')}` : ''),
       mine: true,
       isDefault: false,
@@ -100,7 +101,7 @@ export default function HubPage() {
     queryClient.setQueryData(queryKeys.hub.draft(res.draft.id), res);
     // In the list before it is picked, or the page falls back to another draft until the refetch.
     queryClient.setQueryData<HubDraft[]>(queryKeys.hub.drafts, (list = []) => [res.draft, ...list.filter((d) => d.id !== res.draft.id)]);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+    void invalidate(queryClient, 'hubDraftsChanged');
     pick(DRAFT + res.draft.id);
     setEditing(edit);
   };
@@ -124,7 +125,7 @@ export default function HubPage() {
     if (!draft.data) return;
     await hubDrafts.remove(draft.data.draft);
     queryClient.removeQueries({ queryKey: queryKeys.hub.draft(draft.data.draft.id) });
-    await queryClient.invalidateQueries({ queryKey: queryKeys.hub.drafts, exact: true });
+    await invalidate(queryClient, 'hubDraftsChanged');
     setPicked(null);
   });
 

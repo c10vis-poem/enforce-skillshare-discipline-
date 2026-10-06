@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Bot, CircleCheck, CircleX, GitBranch, Puzzle, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
 import { api } from '../../api/client';
 import type { BatchUninstallItemResult, Skill } from '../../api/client';
-import { queryKeys } from '../../lib/queryKeys';
 import { clearAuditCache } from '../../lib/auditCache';
 import { formatTrackedRepoName } from '../../lib/resourceNames';
 import { countLabel, parentPath, repoOf, sourceLinkOf } from '../../lib/resourceGrouping';
@@ -13,6 +12,7 @@ import { Checkbox } from '../Checkbox';
 import DialogShell from '../DialogShell';
 import SyncPreviewModal from '../SyncPreviewModal';
 import { useToast } from '../Toast';
+import { invalidate } from '../../lib/queryEvents';
 
 export function UninstallDialog({ kind, selection, all, onClose }: {
   kind: Skill['kind'];
@@ -44,10 +44,7 @@ export function UninstallDialog({ kind, selection, all, onClose }: {
     try {
       const res = await api.batchUninstall({ names: targets, kind, force: withForce });
       clearAuditCache(queryClient);
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.trash });
-      queryClient.invalidateQueries({ queryKey: ['sync-matrix'] });
+      void invalidate(queryClient, 'skillsUninstalled');
       if (res.summary.failed === 0) {
         toast(t('batchUninstall.toast.success', { count: res.summary.succeeded }), 'success');
         onClose(true);

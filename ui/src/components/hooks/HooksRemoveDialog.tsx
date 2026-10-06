@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Info, X } from 'lucide-react';
 import { hooksApi } from '../../api/hooks';
-import { useI18n } from '../../i18n';
+import { useI18n, plural } from '../../i18n';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
 import Spinner from '../Spinner';
@@ -10,13 +10,14 @@ import Tooltip from '../Tooltip';
 import HooksPreview from './HooksPreview';
 import { joinList } from '../targets/targetView';
 import { hookLabel, rootPlan, writes } from './hooksView';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface Props { name: string; project?: string; canUnmanage?: boolean; onClose: () => void; onSaved: (unmanaged: boolean) => void }
 
 /** Removing prunes only the outputs Skillshare owns and that are still unchanged; the preview shows which. */
 export default function HooksRemoveDialog({ name, project, canUnmanage = true, onClose, onSaved }: Props) {
   const { t, locale } = useI18n();
-  const { data: plan, error, isPending } = useQuery({ queryKey: ['hooks-remove-preview', project, name], queryFn: () => hooksApi.preview({ project, name, remove: true }), gcTime: 0, retry: false });
+  const { data: plan, error, isPending } = useQuery({ queryKey: queryKeys.hooksRemovePreview(project, name), queryFn: () => hooksApi.preview({ project, name, remove: true }), gcTime: 0, retry: false });
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState('');
   const title = t('hooks.removeTitle', { name });
@@ -57,7 +58,7 @@ export default function HooksRemoveDialog({ name, project, canUnmanage = true, o
       </div>
       <div className="db">
         <p className="text-[13px]">{t('hooks.removeDesc', { name })}</p>
-        {others.length > 0 && <p className="text-[13px] text-ink-2">{t(others.length === 1 ? 'hooks.removeOthers.one' : 'hooks.removeOthers.other', { count: others.length, names: joinList(others, locale) })}</p>}
+        {others.length > 0 && <p className="text-[13px] text-ink-2">{t(plural('hooks.removeOthers', others.length), { count: others.length, names: joinList(others, locale) })}</p>}
         {isPending ? <Spinner size="sm" /> : shown && <HooksPreview plan={shown} />}
         {(error || saveError) && <div className="ss-note bad" role="alert"><span className="flex-1">{error?.message ?? saveError}</span></div>}
         <div className={`ss-note ${blocked ? 'warn' : ''}`}><Info size={16} /><span className="flex-1">{blocked ? t('hooks.removeBlocked') : t('mcp.backupNote')}</span></div>

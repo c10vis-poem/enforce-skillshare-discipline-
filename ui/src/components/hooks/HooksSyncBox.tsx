@@ -4,7 +4,7 @@ import { AlertCircle, CircleCheck, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hooksApi, type HookChange, type HookEntry, type HookMutation, type HookPlan } from '../../api/hooks';
 import { useTheme } from '../../context/ThemeContext';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { queryKeys } from '../../lib/queryKeys';
 import Button from '../Button';
@@ -13,6 +13,7 @@ import Spinner from '../Spinner';
 import { SyncBox } from '../StatusRail';
 import HooksPreview from './HooksPreview';
 import { actionLabel, blockedHint, fileName, hookLabel, needsTakeover, rootPlan, writes } from './hooksView';
+import { invalidate } from '../../lib/queryEvents';
 
 /**
  * Confirm, then write. The dialog previews afresh and applies exactly that plan, so a source or native
@@ -30,7 +31,7 @@ export function HooksSyncDialog({ project, takeover, canTakeOver, onTakeover, on
   const t = useT();
   const cache = useQueryClient();
   const mutation: HookMutation = takeover ? { ...(project && { project }), name: takeover.name, entry: takeover.entry, replace: true } : {};
-  const { data: plan, error: previewError, isPending } = useQuery({ queryKey: ['hooks-sync-preview', project ?? '', takeover?.name ?? ''], queryFn: () => hooksApi.preview(mutation), gcTime: 0, retry: false });
+  const { data: plan, error: previewError, isPending } = useQuery({ queryKey: queryKeys.hooksSyncPreview(project ?? '', takeover?.name ?? ''), queryFn: () => hooksApi.preview(mutation), gcTime: 0, retry: false });
   // A project sees and is blocked by only its own root, takeover included; the revision is still the whole plan's.
   const view = plan && rootPlan(plan, project);
   const [running, setRunning] = useState(false);
@@ -50,7 +51,7 @@ export function HooksSyncDialog({ project, takeover, canTakeOver, onTakeover, on
       setError((e as Error).message);
     } finally {
       setRunning(false);
-      for (const queryKey of [queryKeys.hooks, ['log']]) void cache.invalidateQueries({ queryKey });
+      void invalidate(cache, 'hooksSynced');
     }
   };
   const title = takeover ? t('hooks.takeoverTitle', { name: takeover.name }) : t('hooks.syncButton');
@@ -90,7 +91,7 @@ export default function HooksSyncBox({ plan, project, canTakeOver, onTakeover }:
   const conflicts = plan.changes.filter((c) => c.action === 'conflict');
   const inactive = plan.changes.filter((c) => c.action === 'inactive' || c.inactiveReason);
   const inactiveReasons = [...new Set(inactive.map((c) => c.inactiveReason || c.message).filter(Boolean))];
-  const state = pending.length > 0 ? t(pending.length === 1 ? 'mcp.pending.one' : 'mcp.pending.other', { count: pending.length }) : conflicts.length > 0 ? t(conflicts.every(needsTakeover) ? 'hooks.status.unmanaged' : 'mcp.status.conflict') : inactive.length > 0 ? t('hooks.status.inactive') : t('targets.state.synced');
+  const state = pending.length > 0 ? t(plural('mcp.pending', pending.length), { count: pending.length }) : conflicts.length > 0 ? t(conflicts.every(needsTakeover) ? 'hooks.status.unmanaged' : 'mcp.status.conflict') : inactive.length > 0 ? t('hooks.status.inactive') : t('targets.state.synced');
   return (
     // The clean theme is black and white only; playful keeps its tint.
     <SyncBox tone={pending.length > 0 || conflicts.length > 0 || inactive.length > 0 ? (style === 'clean' ? 'plain' : 'warn') : style === 'clean' ? 'plain' : 'ok'} state={state}>

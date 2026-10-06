@@ -1,11 +1,9 @@
 import { ApiError } from '../../api/client';
 import type { InstructionsWarning } from '../../api/client';
 import type { useT } from '../../i18n';
-import type { QueryClient } from '@tanstack/react-query';
 import type { InstructionLocation, InstructionsAssignment, InstructionsEntry, SharedCopyResult, SharedInstructionsFile, SharedInstructionsTarget } from '../../api/client';
 import { fileName, shortenHome } from '../../lib/paths';
 import type { LineDecor } from '../CodeEditor';
-import { queryKeys } from '../../lib/queryKeys';
 
 /** Why a new shared file name would be refused, checked as the user types. Same rule as the server. */
 export function sharedNameProblem(name: string, taken: string[]): 'invalid' | 'taken' | null {
@@ -70,14 +68,6 @@ export function saveCopiesSummary(copies: SharedCopyResult[]): { updated: string
 /** The read-order entries shown as a chain: files the target reads in turn, without a rules folder that holds no files. */
 export const readChain = (entries: InstructionsEntry[]) =>
   entries.filter((e) => e.kind !== 'unread' && !(e.kind === 'rules' && !e.count));
-
-/** Refetch everything a change to instruction files can touch. */
-export function refreshInstructions(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.instructions.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.extras });
-  queryClient.invalidateQueries({ queryKey: queryKeys.extrasDiff() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.config });
-}
 
 /** An @path line: tool-specific import syntax, as the server's ImportLines sees it. */
 export const isImportLine = (text: string) => /^\s*@\S+\s*$/.test(text);

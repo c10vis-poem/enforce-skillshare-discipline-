@@ -18,6 +18,7 @@ import { instructionsErrorMessage } from '../instructions/instructionsView';
 import MemoryBrowser from './MemoryBrowser';
 import MemoryGuidance from './MemoryGuidance';
 import { Checkbox } from '../Checkbox';
+import { invalidate } from '../../lib/queryEvents';
 
 /** creating: the New note dialog, opened from the page header. */
 export default function MemoryNotes({ creating, setCreating }: { creating: boolean; setCreating: (open: boolean) => void }) {
@@ -41,11 +42,7 @@ export default function MemoryNotes({ creating, setCreating }: { creating: boole
   const errorMessage = (error: unknown) => error instanceof ApiError && error.code === 'memory_conflict' ? t('memory.conflict')
     : error instanceof ApiError && error.code === 'memory_destination_exists' ? t('memory.destinationExists')
     : instructionsErrorMessage(error, t);
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.memory.all });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.extras });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.fileBackups.all });
-  };
+  const refresh = () => void invalidate(queryClient, 'memoryNotesChanged');
   const initialize = async () => {
     setBusy(true);
     try { await api.initMemory(); refresh(); } catch (err) { toast(errorMessage(err), 'error'); } finally { setBusy(false); }

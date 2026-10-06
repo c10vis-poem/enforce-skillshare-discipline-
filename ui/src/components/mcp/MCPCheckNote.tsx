@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Info, RefreshCw, TriangleAlert } from 'lucide-react';
 import type { MCPCheckReport } from '../../api/mcpCheck';
 import Button from '../Button';
-import { formatRelativeTime, useI18n } from '../../i18n';
+import { formatRelativeTime, useI18n, plural } from '../../i18n';
 import { describeError } from './mcpView';
 import { problemsByServer, serversFor } from './useMCPCheck';
 
@@ -42,7 +42,7 @@ export default function MCPCheckNote({ report, checkedAt, error, running, onRun,
       {count > 0 ? <TriangleAlert size={16} className="!mt-0" /> : <Check size={16} className="!mt-0" />}
       <div className="min-w-0 flex-1">
         <div>
-          <b>{count > 0 ? t(count === 1 ? 'mcp.check.problems.one' : 'mcp.check.problems.other', { count }) : t(total === 1 ? 'mcp.check.allGood.one' : 'mcp.check.allGood.other', { count: total })}</b>
+          <b>{count > 0 ? t(plural('mcp.check.problems', count), { count }) : t(plural('mcp.check.allGood', total), { count: total })}</b>
           <span className="opacity-70"> · {count > 0 && <>{t('mcp.check.counts', { errors, warnings })} · </>}{checked}</span>
         </div>
         <div className="mt-[3px] flex items-center gap-1.5 text-xs opacity-70"><Info size={13} className="shrink-0" />{t('mcp.check.envNote')}</div>

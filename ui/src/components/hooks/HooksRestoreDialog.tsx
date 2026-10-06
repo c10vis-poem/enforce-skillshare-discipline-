@@ -10,6 +10,7 @@ import DialogShell from '../DialogShell';
 import Spinner from '../Spinner';
 import HooksPreview from './HooksPreview';
 import { backupTime } from './hooksView';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface Props { backups: HookBackup[]; initialId?: string; onClose: () => void; onRestored: () => void }
 
@@ -19,7 +20,7 @@ export default function HooksRestoreDialog({ backups, initialId, onClose, onRest
   const [selected, setSelected] = useState(initialId ?? backups[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const preview = useQuery({ queryKey: ['hooks-restore-preview', selected], queryFn: () => hooksApi.previewRestore(selected), enabled: Boolean(selected), gcTime: 0, retry: false });
+  const preview = useQuery({ queryKey: queryKeys.hooksRestorePreview(selected), queryFn: () => hooksApi.previewRestore(selected), enabled: Boolean(selected), gcTime: 0, retry: false });
   const title = t('hooks.backups');
 
   const restore = async () => {

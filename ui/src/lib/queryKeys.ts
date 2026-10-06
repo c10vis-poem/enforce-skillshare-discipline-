@@ -5,6 +5,8 @@ export const queryKeys = {
   skills: {
     all: ['skills'] as const,
     detail: (name: string) => ['skills', name] as const,
+    detailOfKind: (name: string, kind?: string) => ['skills', name, kind] as const,
+    file: (name: string, path: string) => ['skill-file', name, path] as const,
   },
 
   targets: {
@@ -18,7 +20,10 @@ export const queryKeys = {
   projects: ['projects'] as const,
 
   diff: (target?: string) => ['diff', target ?? '__all'] as const,
+  // Prefix: every target's diff, where `diff()` is only the all-targets one.
+  diffAll: ['diff'] as const,
   collectScan: (target?: string) => ['collect-scan', target ?? '__all'] as const,
+  collectScanScope: (target: string | undefined, scope: string) => ['collect-scan', target ?? '__all', scope] as const,
 
   backups: ['backups'] as const,
   restoreValidate: (timestamp: string, target: string) => ['restore-validate', timestamp, target] as const,
@@ -33,7 +38,8 @@ export const queryKeys = {
 
   audit: {
     all: (kind?: string) => ['audit', kind ?? 'skills'] as const,
-    skill: (name: string) => ['audit', 'skill', name] as const,
+    skillOfKind: (name: string, kind?: string) => ['audit', 'skill', name, kind] as const,
+    skills: ['audit', 'skill'] as const,
     rules: ['audit', 'rules'] as const,
     compiled: ['audit', 'rules', 'compiled'] as const,
   },
@@ -42,6 +48,9 @@ export const queryKeys = {
     ['log', type, limit, filters ?? {}] as const,
   logStats: (type: string, filters?: Record<string, string>) =>
     ['log-stats', type, filters ?? {}] as const,
+  // Prefixes: every log and log-stats query, whatever its type and filters.
+  logAll: ['log'] as const,
+  logStatsAll: ['log-stats'] as const,
 
   config: ['config'] as const,
   check: ['check'] as const,
@@ -49,14 +58,21 @@ export const queryKeys = {
   // Last update check, kept client-side (see UpdatePage) and shared by the Updates tab and its count.
   updateCheck: ['update-check'] as const,
   syncMatrix: (target?: string) => ['sync-matrix', target ?? '__all'] as const,
+  // Prefix: every target's matrix, where `syncMatrix()` is only the all-targets one.
+  syncMatrixAll: ['sync-matrix'] as const,
+  syncMatrixPreview: (...parts: unknown[]) => ['sync-matrix-preview', ...parts] as const,
 
   templates: ['templates'] as const,
   skillPreview: (req: object) => ['skill-preview', req] as const,
   extras: ['extras'] as const,
+  // Under `extras`, so invalidating that key refreshes both.
+  extrasExtensions: ['extras', 'extensions'] as const,
+  extensions: ['extensions'] as const,
   memory: {
     all: ['memory'] as const,
     list: (search: string) => ['memory', 'notes', search] as const,
     content: (path: string) => ['memory', 'content', path] as const,
+    guidance: ['memory', 'guidance'] as const,
   },
   instructions: {
     all: ['instructions'] as const,
@@ -66,6 +82,7 @@ export const queryKeys = {
     restorePreview: (name: string, target: string) => ['instructions', 'restore-preview', name, target] as const,
     locationRestorePreview: (name: string, path: string) => ['instructions', 'location-restore-preview', name, path] as const,
     project: ['instructions', 'project'] as const,
+    convert: (target: string, body: unknown) => ['instructions', 'convert', target, body] as const,
   },
   // Everything under `target-files`, so invalidating a target's list also refreshes its files.
   targetFiles: {
@@ -73,13 +90,29 @@ export const queryKeys = {
     content: (name: string, path: string) => ['target-files', name, 'content', path] as const,
   },
   mcp: ['mcp'] as const,
+  mcpRender: (mutation: string) => ['mcp', 'render', mutation] as const,
+  mcpRemovePreview: (project: string | undefined, name: string) => ['mcp-remove-preview', project, name] as const,
+  mcpRestorePreview: (id: string) => ['mcp-restore-preview', id] as const,
+  mcpImport: (source: string, project?: string) => ['mcp-import', source, project] as const,
+  mcpImportPaste: (pasted: string, tomlFrom: unknown) => ['mcp-import-paste', pasted, tomlFrom] as const,
   piExtensions: (name: string) => ['pi-extensions', name] as const,
   // Every Pi target's Extensions tab, which lists the packages Plugins syncs to Pi.
   piExtensionsAll: ['pi-extensions'] as const,
+  piExtensionsPreview: (name: string, changes: unknown) => ['pi-extensions-preview', name, changes] as const,
   ompExtensions: (name: string) => ['omp-extensions', name] as const,
   ompExtensionsAll: ['omp-extensions'] as const,
+  ompExtensionsPreview: (name: string, revision: string, changes: unknown) => ['omp-extensions-preview', name, revision, changes] as const,
   hooks: ['hooks'] as const,
+  hooksCatalog: ['hooks', 'catalog'] as const,
+  hooksImport: (project: string, from: string) => ['hooks', 'import', project, from] as const,
+  hooksRender: (mutation: string) => ['hooks', 'render', mutation] as const,
+  hooksSyncPreview: (project: string, takeover: string) => ['hooks-sync-preview', project, takeover] as const,
+  hooksRemovePreview: (project: string | undefined, name: string) => ['hooks-remove-preview', project, name] as const,
+  hooksRestorePreview: (id: string) => ['hooks-restore-preview', id] as const,
   plugins: ['plugins'] as const,
+  pluginFiles: (name: string) => ['plugin-files', name] as const,
+  pluginFile: (name: string, path: string) => ['plugin-file', name, path] as const,
+  pluginDiscover: (...parts: unknown[]) => ['plugin-discover', ...parts] as const,
   // Under `plugins`, so invalidating that key refreshes both.
   pluginPackages: ['plugins', 'packages'] as const,
   hubConfig: ['hub-config'] as const,

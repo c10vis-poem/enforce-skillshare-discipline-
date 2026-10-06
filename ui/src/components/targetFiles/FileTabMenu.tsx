@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 
 /** The file tabs that don't fit in the tab strip, behind a "+N files" menu. */
 export default function FileTabMenu({ files }: { files: { id: string; label: string; to: string }[] }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const label = t(files.length === 1 ? 'targetFiles.more.one' : 'targetFiles.more.other', { count: files.length });
+  const label = t(plural('targetFiles.more', files.length), { count: files.length });
 
   useEffect(() => {
     if (!open) return;

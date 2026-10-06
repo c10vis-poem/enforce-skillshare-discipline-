@@ -9,10 +9,10 @@ import MCPNotices from './MCPNotices';
 import { RailLine, SyncBox } from '../StatusRail';
 import SyncResultList from '../SyncResultList';
 import { MCP_CHANGED, mcpGroups, runSync } from '../sync/syncView';
-import { useT } from '../../i18n';
-import { queryKeys } from '../../lib/queryKeys';
+import { useT, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
 import { offListFor, projectOf, targetLabel, writes, type MCPChange } from './mcpView';
+import { invalidate } from '../../lib/queryEvents';
 
 function ChangeLines({ changes, roots }: { changes: MCPChange[]; roots: string[] }) {
   const t = useT();
@@ -57,7 +57,7 @@ export function MCPSyncDialog({ plan, shown, onClose }: { plan: MCPPlan; shown: 
       setError(message === MCP_CHANGED ? t('sync.mcpChanged') : message);
     } finally {
       setRunning(false);
-      for (const queryKey of [queryKeys.mcp, ['log']]) void queryClient.invalidateQueries({ queryKey });
+      void invalidate(queryClient, 'mcpSynced');
     }
   };
 
@@ -77,7 +77,7 @@ export function MCPSyncDialog({ plan, shown, onClose }: { plan: MCPPlan; shown: 
             <MCPNotices notices={plan.notices} />
             {/* One row per Agent file can outgrow the dialog; scroll the list so the buttons stay reachable. */}
             <SyncResultList groups={groups} inSync={inSync} className="max-h-[50vh] !overflow-y-auto" />
-            {outside > 0 && <p className="text-[13px] text-ink-2">{t(outside === 1 ? 'mcp.syncDialog.outside.one' : 'mcp.syncDialog.outside.other', { count: outside })}</p>}
+            {outside > 0 && <p className="text-[13px] text-ink-2">{t(plural('mcp.syncDialog.outside', outside), { count: outside })}</p>}
           </>
         )}
         {error && <div className="ss-note bad"><AlertCircle size={16} /><span className="flex-1">{error}</span></div>}
@@ -125,7 +125,7 @@ export default function MCPSyncBox({ changes, roots, plan, check, onBackups }: {
   const [reviewing, setReviewing] = useState<{ plan: MCPPlan; shown: number } | null>(null);
   const pending = changes.filter(writes);
   return (
-    <SyncBox tone={pending.length > 0 ? 'warn' : 'ok'} state={pending.length > 0 ? t(pending.length === 1 ? 'mcp.pending.one' : 'mcp.pending.other', { count: pending.length }) : t('targets.state.synced')}>
+    <SyncBox tone={pending.length > 0 ? 'warn' : 'ok'} state={pending.length > 0 ? t(plural('mcp.pending', pending.length), { count: pending.length }) : t('targets.state.synced')}>
       {pending.length > 0 && (
         <>
           <ChangeLines changes={pending} roots={roots} />

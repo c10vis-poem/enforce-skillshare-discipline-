@@ -6,7 +6,7 @@ import { composeSkillMarkdown, parseSkillMarkdown, type Frontmatter } from '../.
 import { highlightLines } from '../../lib/highlight';
 import { parseRemoteURL } from '../../lib/parseRemoteURL';
 import { formatTrackedRepoName } from '../../lib/resourceNames';
-import { useI18n, useT } from '../../i18n';
+import { useI18n, useT, plural } from '../../i18n';
 import Button from '../Button';
 import ConfirmDialog from '../ConfirmDialog';
 import MarkdownView from '../MarkdownView';
@@ -237,7 +237,7 @@ export default function SkillEditor({ resource, docName, initialContent, onBack,
           <div className="flex h-8 items-center gap-3">
             <h2 className="ss-h2">{t('skillEditor.body')}</h2>
             <span className={`ss-st ${tokens > TOKEN_BUDGET ? 'warn' : 'ok'}`}>
-              {t(tokens > TOKEN_BUDGET ? 'skillEditor.overBudget' : tokens === 1 ? 'skillEditor.underBudget.one' : 'skillEditor.underBudget.other', { tokens: compact.format(tokens), budget: compact.format(TOKEN_BUDGET) })}
+              {t(tokens > TOKEN_BUDGET ? 'skillEditor.overBudget' : plural('skillEditor.underBudget', tokens), { tokens: compact.format(tokens), budget: compact.format(TOKEN_BUDGET) })}
             </span>
             <span className="flex-1" />
             <SegmentedControl

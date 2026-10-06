@@ -11,7 +11,7 @@ import Spinner from '../Spinner';
 import { Checkbox, Select } from '../Input';
 import { inHub, refOptions, skillSource } from './hubShared';
 import { queryKeys } from '../../lib/queryKeys';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 
 interface Props {
   hubName: string;
@@ -165,7 +165,7 @@ export default function AddSkillDialog({ hubName, entries, onAdd, onManual, onCl
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] font-semibold">
-                      {t(found.skills.length === 1 ? 'hubs.addSkill.found.one' : 'hubs.addSkill.found.other', { count: found.skills.length })}
+                      {t(plural('hubs.addSkill.found', found.skills.length), { count: found.skills.length })}
                     </span>
                     {found.skills.length > 1 && (
                       <Button variant="link" onClick={() => setPicked(addable(found.skills, found.root))}>{t('hubs.addSkill.selectAll')}</Button>

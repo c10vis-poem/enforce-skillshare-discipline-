@@ -8,11 +8,12 @@ import CopyButton from '../components/CopyButton';
 import PageHeader from '../components/PageHeader';
 import { PageSkeleton } from '../components/Skeleton';
 import { useAppContext } from '../context/AppContext';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { shortenHome } from '../lib/paths';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { SettingsTabs } from './SettingsPage';
 import { useOverviewQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 type Filter = 'all' | 'error' | 'warning' | 'pass';
 
@@ -54,7 +55,7 @@ export default function DoctorPage() {
       const result = await api.upgradeApp();
       if (result.devMode) {
         setUpgradeMessage(t('updateDialog.restartDev'));
-        await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: queryKeys.versionCheck })]);
+        await Promise.all([refetch(), invalidate(queryClient, 'appUpgraded')]);
         setUpgrading(false);
         return;
       }
@@ -103,8 +104,8 @@ export default function DoctorPage() {
   const counts: Record<Filter, number> = { all: summary.total, error: summary.errors, warning: summary.warnings, pass: summary.pass };
   // Only the parts that have something to report, so a healthy setup reads "13 passed."
   const summaryLine = [
-    summary.errors > 0 && t(summary.errors === 1 ? 'doctor.summary.errors.one' : 'doctor.summary.errors.other', { count: summary.errors }),
-    summary.warnings > 0 && t(summary.warnings === 1 ? 'doctor.summary.warnings.one' : 'doctor.summary.warnings.other', { count: summary.warnings }),
+    summary.errors > 0 && t(plural('doctor.summary.errors', summary.errors), { count: summary.errors }),
+    summary.warnings > 0 && t(plural('doctor.summary.warnings', summary.warnings), { count: summary.warnings }),
     t('doctor.summary.passed', { count: summary.pass }),
   ].filter(Boolean).join(', ');
 

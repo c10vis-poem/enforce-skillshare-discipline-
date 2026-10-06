@@ -18,6 +18,7 @@ import { api } from '../api/client';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { handTheme } from '../lib/codemirror-theme';
 import { PageSkeleton } from '../components/Skeleton';
+import { invalidate } from '../lib/queryEvents';
 
 /* ──────────────────────────────────────────────────────────────────────
  * Props
@@ -159,8 +160,7 @@ export default function AuditRulesYaml({
       await api.putAuditRules(raw);
       toast(t('auditRulesYaml.toast.saved'), 'success');
       setDirty(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.audit.rules });
-      queryClient.invalidateQueries({ queryKey: queryKeys.audit.compiled });
+      void invalidate(queryClient, 'auditRulesChanged');
     } catch (e: unknown) {
       toast((e as Error).message, 'error');
     } finally {
@@ -190,8 +190,7 @@ export default function AuditRulesYaml({
     try {
       await api.initAuditRules();
       toast(t('auditRulesYaml.toast.created'), 'success');
-      queryClient.invalidateQueries({ queryKey: queryKeys.audit.rules });
-      queryClient.invalidateQueries({ queryKey: queryKeys.audit.compiled });
+      void invalidate(queryClient, 'auditRulesChanged');
     } catch (e: unknown) {
       toast((e as Error).message, 'error');
     } finally {

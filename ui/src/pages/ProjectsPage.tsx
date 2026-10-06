@@ -12,11 +12,11 @@ import { PageSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import AddProjectDialog from '../components/projects/AddProjectDialog';
 import { projectHealth, projectRows, projectUrl, type ProjectRow } from '../components/projects/projectView';
-import { refreshTargets } from '../components/targets/targetView';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { shortenHome } from '../lib/paths';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { useAvailableTargetsQuery, useHooksQuery, useMcpQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const TONE = { missing: 'bad', conflict: 'warn', pending: 'warn', synced: 'ok', idle: 'off' } as const;
 const STACK = 6;
@@ -49,8 +49,8 @@ export default function ProjectsPage() {
     const hookCount = Object.keys(hooks.data?.source.projects?.[p.path]?.entries ?? {}).length;
     const filtered = (p.skills?.include.length ?? 0) + (p.skills?.exclude.length ?? 0) > 0;
     return [
-      p.skills && t(filtered ? (skills === 1 ? 'projects.content.skills.one' : 'projects.content.skills.other') : 'projects.content.allSkills', { count: skills }),
-      p.agents && t(agents === 1 ? 'projects.content.agents.one' : 'projects.content.agents.other', { count: agents }),
+      p.skills && t(filtered ? plural('projects.content.skills', skills) : 'projects.content.allSkills', { count: skills }),
+      p.agents && t(plural('projects.content.agents', agents), { count: agents }),
       mcp.data?.source.projects?.[p.path] && (servers > 0 ? t('projects.content.mcp', { count: servers }) : 'MCP'),
       hooks.data?.source.projects?.[p.path] && (hookCount > 0 ? t('projects.content.hooks', { count: hookCount }) : 'Hooks'),
     ].filter(Boolean).join(' · ') || t('projects.content.none');
@@ -61,7 +61,7 @@ export default function ProjectsPage() {
     setBusy(true);
     try {
       await api.convertProject(converting.root);
-      refreshTargets(queryClient);
+      void invalidate(queryClient, 'targetsChanged');
       toast(t('projects.convert.done', { name: shortenHome(converting.root) }), 'success');
       setConverting(null);
     } catch (e) {
@@ -109,7 +109,7 @@ export default function ProjectsPage() {
                   )}
                 </span>
                 <span className="w-[270px] shrink-0 truncate text-[13px] text-ink-2">{content(p)}</span>
-                <span className="w-[130px] shrink-0"><span className={`ss-st ${TONE[state]}`}>{t(state === 'conflict' ? `projects.state.conflict.${count === 1 ? 'one' : 'other'}` : `projects.state.${state}`, { count })}</span></span>
+                <span className="w-[130px] shrink-0"><span className={`ss-st ${TONE[state]}`}>{t(state === 'conflict' ? plural('projects.state.conflict', count) : `projects.state.${state}`, { count })}</span></span>
                 <ChevronRight size={16} className="shrink-0 text-ink-3" />
               </Link>
             );
@@ -150,8 +150,7 @@ export default function ProjectsPage() {
           onClose={() => setAdding(false)}
           onAdded={(root) => {
             setAdding(false);
-            refreshTargets(queryClient);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.mcp });
+            void invalidate(queryClient, 'projectAdded');
             toast(t('projects.added', { name: shortenHome(root) }), 'success');
             // The server answers with the key as typed; the page is addressed by the absolute folder.
             void api.listProjects().then((fresh) => {
@@ -164,7 +163,7 @@ export default function ProjectsPage() {
       <ConfirmDialog
         open={Boolean(converting)}
         loading={busy}
-        title={t(converting?.targets.length === 1 ? 'projects.convert.title.one' : 'projects.convert.title.other', { count: converting?.targets.length ?? 0 })}
+        title={t(plural('projects.convert.title', converting?.targets.length), { count: converting?.targets.length ?? 0 })}
         message={<>
           <p className="font-mono text-[13px]">{converting?.targets.join(', ')} → {shortenHome(converting?.root ?? '')}</p>
           <p>{t('projects.convert.keeps')}</p>

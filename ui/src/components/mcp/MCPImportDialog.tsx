@@ -12,12 +12,13 @@ import DialogShell from '../DialogShell';
 import SegmentedControl from '../SegmentedControl';
 import { Checkbox, Select } from '../Input';
 import { useToast } from '../Toast';
-import { useT } from '../../i18n';
+import { useT, plural } from '../../i18n';
 import { useAppContext } from '../../context/AppContext';
 import { shortenHome } from '../../lib/paths';
 import { describeEndpoint, describeError, hasToolPolicy, targetLabel, parsePiOptions } from './mcpView';
 import { MCPTargetOrder } from './targetOrder';
 import type { AddMode } from './mcpServerDraft';
+import { queryKeys } from '../../lib/queryKeys';
 
 /** Where the configuration comes from. Each entry point fixes one; the dialog never switches. */
 type Source = 'target' | 'paste';
@@ -190,7 +191,7 @@ function SnippetStatus({ pasted, tomlFrom, query, onTomlFrom }: { pasted: string
       {query.error ? (
         <span className="ss-st bad wrap min-w-0">{describeError(t, query.error.message)}</span>
       ) : query.data ? (
-        <span className="ss-st ok">{t(candidates.length === 1 ? 'mcp.detected.one' : 'mcp.detected.other', { format: toml ? 'TOML' : GOOSE_YAML.test(pasted) ? 'YAML' : 'JSON', count: candidates.length })}</span>
+        <span className="ss-st ok">{t(plural('mcp.detected', candidates.length), { format: toml ? 'TOML' : GOOSE_YAML.test(pasted) ? 'YAML' : 'JSON', count: candidates.length })}</span>
       ) : (
         <span className="text-ink-3">{t('mcp.reading')}</span>
       )}
@@ -207,7 +208,7 @@ function SnippetStatus({ pasted, tomlFrom, query, onTomlFrom }: { pasted: string
 function importButtonLabel(adding: boolean, count: number, t: ReturnType<typeof useT>) {
   if (count === 0) return t(adding ? 'mcp.addServer' : 'mcp.importAction');
   const key = adding ? 'mcp.addCount' : 'mcp.importCount';
-  return t(`${key}.${count === 1 ? 'one' : 'other'}`, { count });
+  return t(plural(key, count), { count });
 }
 
 function ImportCandidateList({ tab, candidates, selection, query, saving, onPick }: { tab: Source; candidates: MCPCandidate[]; selection: ReturnType<typeof importSelection>; query: ImportQuery; saving: boolean; onPick: (names: string[]) => void }) {
@@ -225,7 +226,7 @@ function ImportCandidateList({ tab, candidates, selection, query, saving, onPick
           disabled={saving || importable.length === 0}
         />
         <span className="flex-1">
-          {query.isPending && query.fetchStatus !== 'idle' ? t('mcp.reading') : t(candidates.length === 1 ? 'mcp.found.one' : 'mcp.found.other', { count: candidates.length })}
+          {query.isPending && query.fetchStatus !== 'idle' ? t('mcp.reading') : t(plural('mcp.found', candidates.length), { count: candidates.length })}
         </span>
         <span>{t('mcp.transport')}</span>
       </div>
@@ -267,7 +268,7 @@ function ImportTargetNote({ targets, needsTarget }: { targets: string[]; needsTa
     <span className="flex-1 text-[13px]">
       {targets.length === 0
         ? (needsTarget ? <span className="ss-st warn">{t('mcp.pickTarget')}</span> : <span className="text-ink-2">{t('mcp.noTargetsNote')}</span>)
-        : <span className="text-ink-2">{t(targets.length === 1 ? 'mcp.writes.one' : 'mcp.writes.other', { count: targets.length })}</span>}
+        : <span className="text-ink-2">{t(plural('mcp.writes', targets.length), { count: targets.length })}</span>}
     </span>
   );
 }
@@ -291,9 +292,9 @@ function ImportFooter({ adding, count, targets, needsTarget, incompatible, savin
 function useImportQuery(sourceID: string, selectedSource: MCPImportSource | undefined, project: string | undefined, tab: Source, pasted: string, tomlFrom: string) {
   const from = selectedSource?.target ?? '';
   const toml = TOML.test(pasted);
-  const fromTarget = useQuery({ queryKey: ['mcp-import', sourceID, project], queryFn: () => mcpApi.import({ from, ...(selectedSource?.piExtension && { piExtension: selectedSource.piExtension }), ...(project && { root: project }) }), enabled: tab === 'target' && from !== '', gcTime: 0, retry: false });
+  const fromTarget = useQuery({ queryKey: queryKeys.mcpImport(sourceID, project), queryFn: () => mcpApi.import({ from, ...(selectedSource?.piExtension && { piExtension: selectedSource.piExtension }), ...(project && { root: project }) }), enabled: tab === 'target' && from !== '', gcTime: 0, retry: false });
   const fromPaste = useQuery({
-    queryKey: ['mcp-import-paste', pasted, toml && tomlFrom],
+    queryKey: queryKeys.mcpImportPaste(pasted, toml && tomlFrom),
     queryFn: () => mcpApi.import({ content: pasted, ...(toml && { from: tomlFrom }) }),
     enabled: tab === 'paste' && pasted !== '',
     gcTime: 0,
@@ -371,7 +372,7 @@ export default function MCPImportDialog(props: Props) {
       }
     }
     const done = chosen.length - failed.length;
-    if (done > 0) toast(t(done === 1 ? 'mcp.toast.imported.one' : 'mcp.toast.imported.other', { count: done }), 'success');
+    if (done > 0) toast(t(plural('mcp.toast.imported', done), { count: done }), 'success');
     if (failed.length) toast(failed.join('\n'), 'error');
     onImported();
   };

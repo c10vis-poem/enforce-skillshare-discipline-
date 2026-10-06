@@ -35,7 +35,7 @@ interface Props {
   onSaved: (synced: boolean) => void;
 }
 
-const catalogQuery = { queryKey: [...queryKeys.hooks, 'catalog'], queryFn: () => hooksApi.catalog(), staleTime: Infinity };
+const catalogQuery = { queryKey: queryKeys.hooksCatalog, queryFn: () => hooksApi.catalog(), staleTime: Infinity };
 
 /** The filled command target a new target can copy from: the first one, in display order. */
 const copySource = (order: string[], agent: string, draftOf: (a: string) => BindingDraft, agentOf: (key: string) => string) =>

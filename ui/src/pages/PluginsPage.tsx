@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Download, FolderOpen, Package, Plus, RefreshCw, Share2, Trash2, X } from 'lucide-react';
-import { bindingVersion, byPlugin, pluginShareCommand, pluginsApi, syncAction, targetMap, type PluginPlan, type PluginRequest, type PluginResult, type PluginTarget, type PluginInventory } from '../api/plugins';
+import { byPlugin, pluginShareCommand, pluginsApi, targetMap, type PluginTarget, type PluginInventory } from '../api/plugins';
 import AgentIcon from '../components/AgentIcon';
 import Button from '../components/Button';
 import DialogShell from '../components/DialogShell';
@@ -17,12 +17,14 @@ import PluginAddDialog from '../components/plugins/PluginAddDialog';
 import PluginFilesDialog from '../components/plugins/PluginFilesDialog';
 import PluginShareDialog from '../components/plugins/PluginShareDialog';
 import PluginAgents from '../components/plugins/PluginAgents';
-import { keyedMessage, outcomeStatus } from '../components/plugins/outcomeText';
-import PluginList, { VersionChange, type PluginUpdate } from '../components/plugins/PluginList';
+import { keyedMessage, keyedText, outcomeStatus } from '../components/plugins/outcomeText';
+import { installedVersion, usePluginsFlow } from '../components/plugins/pluginsFlow';
+import PluginList, { VersionChange } from '../components/plugins/PluginList';
 import { PluginRunLine, UnchangedRuns } from '../components/plugins/PluginRuns';
-import { useT } from '../i18n';
+import { useT, plural } from '../i18n';
 import { useSlow } from '../hooks/useSlow';
 import { queryKeys } from '../lib/queryKeys';
+import { invalidate } from '../lib/queryEvents';
 
 export default function PluginsPage() {
   const t = useT();
@@ -48,82 +50,12 @@ export default function PluginsPage() {
   const [importing, setImporting] = useState(false);
   const [sharing, setSharing] = useState<string[] | null>(null);
   const [browsing, setBrowsing] = useState<{ name: string; source?: string } | null>(null);
-  const [review, setReview] = useState<{ request: PluginRequest; plan: PluginPlan } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [working, setWorking] = useState('');
-  const [failure, setFailure] = useState('');
-  const [result, setResult] = useState<PluginResult | null>(null);
-  // The server joins each failed target's English text; show the translated messages once each instead.
-  const failureText = (response: PluginResult) => {
-    const failed = new Set((response.result?.results ?? []).filter((r) => r.status === 'failed').map((r) => keyedMessage(t, r)));
-    return response.failure && failed.size ? [...failed].join(' ') : response.failure;
-  };
-  // What the last check found to update, per plugin and Agent, with the version and commit it would bring
-  // (version '' when the source changed without a new one). An applied update takes its Agents off.
-  const [updates, setUpdates] = useState<Record<string, Record<PluginTarget, PluginUpdate>>>({});
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const refresh = () => void invalidate(cache, 'pluginsChanged');
+  const { busy, working, failure, review, updates, outcomes, preview, begin, apply, selectTarget, closeReview, clearResult, todo, active, idle, changed, isPi } =
+    usePluginsFlow({ t, inventory: data, refresh, onPreviewed: () => { setAdding(null); setImporting(false); } });
   // A change with no Agent is to Skillshare itself: the plugin was only added to it, or removed from it.
   const agentLabel = (target: string) => pluginTargets[target]?.label ?? (target || t('plugins.skillshareOnly'));
-  // The backend keys its fixed sentences; a message it assembled at runtime has no key
-  // and is shown as it came, which is also what the CLI prints.
-  const message = (key: string | undefined, text: string | undefined, args?: Record<string, string>) => (key ? t(key, args, text) : text ?? '');
-  const refresh = () => {
-    void cache.invalidateQueries({ queryKey: queryKeys.plugins });
-    void cache.invalidateQueries({ queryKey: queryKeys.config });
-    void cache.invalidateQueries({ queryKey: queryKeys.piExtensionsAll });
-    void cache.invalidateQueries({ queryKey: queryKeys.ompExtensionsAll });
-  };
-  // `key` names the control that started this, so only it shows a spinner.
-  const preview = async (request: PluginRequest, key = '') => {
-    setBusy(true); setWorking(key); setFailure(''); setResult(null);
-    try {
-      const plan = await pluginsApi.preview(request);
-      if (request.action === 'check') {
-        const found: Record<string, Record<PluginTarget, PluginUpdate>> = {};
-        for (const c of plan.changes) if (c.action === 'update-available') (found[c.name] ??= {})[c.target] = { version: c.binding?.version ?? '', commit: c.binding?.commit };
-        setUpdates(found);
-      }
-      setReview({ request, plan }); setAdding(null); setImporting(false);
-    }
-    catch (e) { setFailure((e as Error).message); throw e; }
-    finally { setBusy(false); setWorking(''); }
-  };
-  const begin = (request: PluginRequest, key = '') => { void preview(request, key).catch(() => {}); };
-  const apply = async () => {
-    if (!review) return;
-    setBusy(true); setFailure('');
-    try {
-      const response = await pluginsApi.apply(review.request, review.plan.revision);
-      setResult(response); setFailure(failureText(response)); setReview(null); refresh();
-      if (review.request.action === 'update') {
-        // An Agent comes off once the result reports it updated, or already there (noop); one that
-        // failed, was skipped, or never ran because the apply stopped first keeps its Update action.
-        const done = new Set((response.result?.results ?? []).filter((r) => r.status !== 'failed').map((r) => `${r.name}:${r.target}`));
-        setUpdates((prev) => {
-          const next = { ...prev };
-          for (const c of review.plan.changes) {
-            if ((c.action !== 'update' && c.action !== 'noop') || !done.has(`${c.name}:${c.target}`) || !next[c.name]) continue;
-            next[c.name] = { ...next[c.name] };
-            delete next[c.name][c.target];
-          }
-          return next;
-        });
-      }
-    }
-    catch (e) { setFailure((e as Error).message); refresh(); }
-    finally { setBusy(false); }
-  };
-  const selectTarget = async (name: string, target: PluginTarget, selected: boolean) => {
-    setBusy(true); setWorking(`${name}:${target}`); setFailure(''); setResult(null);
-    try {
-      const request: PluginRequest = { action: selected ? 'enable' : 'disable', name, targets: [target] };
-      const plan = await pluginsApi.preview(request);
-      const response = await pluginsApi.apply(request, plan.revision);
-      if (response.failure) setFailure(failureText(response));
-      refresh();
-    } catch (e) { setFailure((e as Error).message); }
-    finally { setBusy(false); setWorking(''); }
-  };
   if (!data && !error) return <PageSkeleton />;
   const actionText = (action: string) => t(({
     noop: 'plugins.noChanges', skip: 'plugins.outcome.skipped', install: 'resources.install', import: 'plugins.import', update: 'plugins.update',
@@ -132,10 +64,8 @@ export default function PluginsPage() {
   } as Record<string, string>)[action] ?? 'plugins.pending');
   const pluginTargets = targetMap(data?.targetDefinitions);
   const packages = Object.entries(data?.packages ?? {});
-  const outcomes = result?.result?.results ?? [];
   // A plugin with no Agent yet has only what was recorded when it was added.
   const shareable = packages.map(([name, pack]) => ({ name, command: pluginShareCommand(name, Object.values(pack.bindings).find((b) => b?.source) ?? pack) })).filter((p) => p.command);
-  const todo = packages.flatMap(([name, pack]) => Object.entries(pack.bindings).map(([target, b]) => ({ name, target, word: syncAction(b!, data?.hosts.find((h) => h.target === target)) }))).filter((x) => x.word);
   const pending = todo.length;
   const actionTone = (action: string) => (action === 'blocked' ? 'bad' : action === 'noop' ? '' : action === 'skip' ? 'warn' : 'inf');
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>, name: string) => {
@@ -159,28 +89,8 @@ export default function PluginsPage() {
       ],
     });
   };
-  // A package Pi installs itself (no source Skillshare copies from) and bound only to Pi targets
-  // is a Pi package: it gets its own list, in the same rows. A plugin Skillshare installs stays above.
-  const piTargets = new Set((data?.targetDefinitions ?? []).filter((d) => d.npm).map((d) => d.target));
   const names = Object.keys(data?.packages ?? {});
-  const isPi = (name: string) => {
-    // A run can name a package config no longer has, such as one it just removed.
-    const pack = data?.packages[name];
-    if (!pack) return false;
-    const bound = Object.entries(pack.bindings);
-    return !pack.source && bound.length > 0 && bound.every(([target, b]) => piTargets.has(target) && !b?.source);
-  };
   const piPackages = names.filter(isPi);
-  const installedVersion = (name: string, target: string) => {
-    const b = data?.packages[name]?.bindings[target];
-    return b && data ? bindingVersion(data, target, b) : undefined;
-  };
-  // A preview lists every binding; the ones it leaves alone fold away under the ones it changes.
-  const active = review?.plan.changes.filter((c) => c.action !== 'noop') ?? [];
-  const idle = (review?.plan.changes ?? []).filter((c) => c.action === 'noop').map((c) => ({ name: c.name, target: c.target, version: c.binding?.version ?? installedVersion(c.name, c.target) }));
-  // What the last run changed, failures first; Agents that ended the same way share a row.
-  const changed = byPlugin(outcomes.filter((r) => r.status !== 'unchanged').map((r) => ({ ...r, note: r.message ? keyedMessage(t, r) : '' })), (r) => `${r.status}\0${r.note}`)
-    .sort((a, b) => Number(b.status === 'failed') - Number(a.status === 'failed'));
   const plugins = names.filter((name) => !isPi(name));
   const list = (shown: string[], pi?: boolean) => data && (
     <PluginList inventory={data} names={shown} pi={pi} updates={updates} busy={busy} working={working} onToggle={(name, target, on) => void selectTarget(name, target, on)} onMenu={openMenu} onAdd={begin} onBlocked={(name, source) => setAdding({ name, source, bound: data.packages[name]?.bindings, recorded: data.packages[name] })} />
@@ -195,7 +105,7 @@ export default function PluginsPage() {
     <>
       {(packages.length > 0 || outcomes.length > 0) && (
         // What config recorded as pending is known at once; the rest, and "synced", only after the Agents answered.
-        <SyncBox tone={pending > 0 ? 'warn' : hostsReady ? 'ok' : 'busy'} state={pending > 0 ? t(pending === 1 ? 'plugins.pendingCount.one' : 'plugins.pendingCount.other', { count: pending }) : t(hostsReady ? 'targets.state.synced' : 'plugins.checking')}>
+        <SyncBox tone={pending > 0 ? 'warn' : hostsReady ? 'ok' : 'busy'} state={pending > 0 ? t(plural('plugins.pendingCount', pending), { count: pending }) : t(hostsReady ? 'targets.state.synced' : 'plugins.checking')}>
           {pending > 0 && (
             <>
               <div className="flex flex-col gap-1">
@@ -208,7 +118,7 @@ export default function PluginsPage() {
           {/* Outcomes of the action just run, not plugin state, so they live with Sync instead of reading as more inventory. */}
           {outcomes.length > 0 && (
             <div aria-live="polite" className="flex flex-col gap-1.5">
-              <div className="flex items-center text-xs font-semibold text-ink-3">{t('plugins.lastRun')}<IconButton className="ml-auto" size="sm" icon={<X size={14} />} label={t('common.close')} onClick={() => setResult(null)} /></div>
+              <div className="flex items-center text-xs font-semibold text-ink-3">{t('plugins.lastRun')}<IconButton className="ml-auto" size="sm" icon={<X size={14} />} label={t('common.close')} onClick={clearResult} /></div>
               {changed.map((r) => (
                 <PluginRunLine key={`${r.name}:${r.status}:${r.note}`} name={r.name} targets={r.targets} label={agentLabel} note={r.note}
                   className={r.status === 'failed' ? 'rounded-lg bg-bad-bg px-3 py-2' : ''}
@@ -277,7 +187,7 @@ export default function PluginsPage() {
               return (
                 <div key={h.target}>
                   <div className="ss-gh"><span className="ss-at"><AgentIcon target={h.target} size={17} /></span><span className="font-semibold">{(pluginTargets[h.target]?.label ?? h.target)}</span><span className="ss-cnt">{importable.length}</span></div>
-                  {h.installed.length === 0 && <div className="ss-r !min-h-11"><span className="text-[13px] text-ink-3">{message(h.errorKey, h.error, h.errorArgs) || t('plugins.absent')}</span></div>}
+                  {h.installed.length === 0 && <div className="ss-r !min-h-11"><span className="text-[13px] text-ink-3">{keyedText(t, h.errorKey, h.error, h.errorArgs) || t('plugins.absent')}</span></div>}
                   {h.installed.length > 0 && importable.length === 0 && <div className="ss-r !min-h-11"><span className="text-[13px] text-ink-3">{t('plugins.allManaged')}</span></div>}
                   {importable.map((i) => (
                     <div key={i.id} className="ss-r !min-h-11">
@@ -295,10 +205,10 @@ export default function PluginsPage() {
         <div className="df"><Button variant="ghost" disabled={busy} onClick={() => setImporting(false)}>{t('common.close')}</Button></div>
       </DialogShell>
 
-      <DialogShell open={!!review} onClose={() => setReview(null)} preventClose={busy} ariaLabel={t('plugins.preview')} maxWidth="2xl" padding="none">
+      <DialogShell open={!!review} onClose={closeReview} preventClose={busy} ariaLabel={t('plugins.preview')} maxWidth="2xl" padding="none">
         <div className="dh">
           <div className="flex flex-col gap-1"><h2 className="ss-h2">{t('plugins.preview')}</h2><p className="text-[13px] text-ink-2">{t('plugins.previewHelp')}</p></div>
-          <IconButton icon={<X size={16} />} label={t('common.close')} disabled={busy} onClick={() => setReview(null)} />
+          <IconButton icon={<X size={16} />} label={t('common.close')} disabled={busy} onClick={closeReview} />
         </div>
         <div className="db overflow-y-auto">
           {review?.plan.changes.length === 0 ? <p className="text-[13px] text-ink-2">{t('plugins.noChanges')}</p> : (
@@ -308,7 +218,7 @@ export default function PluginsPage() {
                 <div key={`${c.name}:${c.target}`} className="ss-r">
                   <span className="ss-at">{c.target ? <AgentIcon target={c.target} size={17} /> : c.logo ? <img src={c.logo} alt="" className="size-full rounded-[inherit] object-cover" /> : <Package size={15} />}</span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="flex items-center gap-2"><span className="font-mono font-semibold">{c.name}</span><span className="text-[13px] text-ink-2">{agentLabel(c.target)}</span><VersionChange from={installedVersion(c.name, c.target)} to={c.action.startsWith('update') ? c.binding?.version : undefined} fromCommit={data?.packages[c.name]?.bindings[c.target]?.commit} toCommit={c.action.startsWith('update') ? c.binding?.commit : undefined} /></span>
+                    <span className="flex items-center gap-2"><span className="font-mono font-semibold">{c.name}</span><span className="text-[13px] text-ink-2">{agentLabel(c.target)}</span><VersionChange from={installedVersion(data, c.name, c.target)} to={c.action.startsWith('update') ? c.binding?.version : undefined} fromCommit={data?.packages[c.name]?.bindings[c.target]?.commit} toCommit={c.action.startsWith('update') ? c.binding?.commit : undefined} /></span>
                     {!!c.preservedKeys?.length && <span className="text-xs text-ink-3"><span>{t('plugins.preservedKeys')}</span>{' '}{c.preservedKeys.join(' · ')}</span>}
                     {c.action === 'record' ? <span className="text-xs text-ink-3">{t('plugins.recordHelp')}</span> : (c.message || c.components?.length) && <span className="text-xs text-ink-3">{c.message ? keyedMessage(t, c) : c.components!.join(' · ')}</span>}
                   </span>
@@ -326,7 +236,7 @@ export default function PluginsPage() {
           )}
         </div>
         <div className="df">
-          <Button variant="ghost" disabled={busy} onClick={() => setReview(null)}>{t('common.cancel')}</Button>
+          <Button variant="ghost" disabled={busy} onClick={closeReview}>{t('common.cancel')}</Button>
           {review?.request.action !== 'check' && <Button loading={busy} disabled={review?.plan.blocked || !review?.plan.changes.length} onClick={() => void apply()}>{t('plugins.apply')}</Button>}
         </div>
       </DialogShell>

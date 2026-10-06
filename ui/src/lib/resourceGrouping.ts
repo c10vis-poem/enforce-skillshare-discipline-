@@ -11,7 +11,7 @@ export const SOURCE_ORDER: SourceType[] = ['tracked', 'github', 'remote', 'local
 // Source names stay in English, like the CLI.
 export const SOURCE_LABEL: Record<SourceFilter, string> = { all: 'All', tracked: 'Tracked', github: 'GitHub', remote: 'Remote', local: 'Local' };
 
-/** "1 skill" / "3 agents". The i18n layer has no plural rules, so pick the key by count. */
+/** "1 skill" / "3 agents". These keys are named by kind, not `.one`/`.other`, so `plural` does not fit them. */
 export function countLabel(t: ReturnType<typeof useT>, kind: Skill['kind'], count: number): string {
   return t(`resources.count.${kind}${count === 1 ? '' : 's'}`, { count });
 }

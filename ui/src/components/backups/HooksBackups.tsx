@@ -9,10 +9,10 @@ import { PageSkeleton } from '../Skeleton';
 import { useToast } from '../Toast';
 import HooksRestoreDialog from '../hooks/HooksRestoreDialog';
 import { backupTime, hookLabel } from '../hooks/hooksView';
-import { formatDateTime, formatRelativeTime, useI18n } from '../../i18n';
+import { formatDateTime, formatRelativeTime, useI18n, plural } from '../../i18n';
 import { shortenHome } from '../../lib/paths';
-import { queryKeys } from '../../lib/queryKeys';
 import { useHooksQuery } from '../../hooks/useSharedQueries';
+import { invalidate } from '../../lib/queryEvents';
 
 /** Hook backups, grouped by the Agent file they were taken of. */
 export default function HooksBackups() {
@@ -45,7 +45,7 @@ export default function HooksBackups() {
               <span className="ss-at"><AgentIcon target={group[0].target} size={16} /></span>
               <span className="font-semibold">{hookLabel(group[0].target)}</span>
               <span className="min-w-0 flex-1 truncate font-mono text-ink-3" title={group[0].path}>{shortenHome(group[0].path)}</span>
-              <span className="shrink-0 text-ink-3">{t(group.length === 1 ? 'backup.hooks.count.one' : 'backup.hooks.count.other', { count: group.length })}</span>
+              <span className="shrink-0 text-ink-3">{t(plural('backup.hooks.count', group.length), { count: group.length })}</span>
             </div>
             {group.map((b) => {
               const taken = when(b);
@@ -69,7 +69,7 @@ export default function HooksBackups() {
           onClose={() => setRestoring(null)}
           onRestored={() => {
             setRestoring(null);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.hooks });
+            void invalidate(queryClient, 'hooksRestored');
             toast(t('hooks.toast.restored'), 'success');
           }}
         />

@@ -18,12 +18,13 @@ import { countChanges, countEdited, extraGroups, groupByFolder, groupInSync, HOO
 import SyncResult from '../components/sync/SyncResult';
 import SyncError from '../components/sync/SyncError';
 import SkillsOffDialog from '../components/targets/SkillsOffDialog';
-import { joinList, refreshTargets } from '../components/targets/targetView';
-import { formatDateTime, formatRelativeTime, useI18n, useT } from '../i18n';
+import { joinList } from '../components/targets/targetView';
+import { formatDateTime, formatRelativeTime, useI18n, useT, plural } from '../i18n';
 import { shortenHome } from '../lib/paths';
 import { formatAgentDisplayName } from '../lib/resourceNames';
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { useDiffQuery, useHooksQuery, useMcpQuery, useSyncedTargetsQuery } from '../hooks/useSharedQueries';
+import { invalidate } from '../lib/queryEvents';
 
 const ROW_ICON: Record<RowIcon, React.ReactNode> = {
   add: <Plus size={16} className="shrink-0 text-ok" />,
@@ -127,15 +128,14 @@ export default function SyncPage() {
       });
       setOutcome(result ?? null);
       setFailures(failed);
-      if (failed.length > 0) toast(t(failed.length === 1 ? 'sync.toast.failed.one' : 'sync.toast.failed.other', { count: failed.length }), 'warning');
+      if (failed.length > 0) toast(t(plural('sync.toast.failed', failed.length), { count: failed.length }), 'warning');
       else toast(t('sync.toast.done'), 'success');
     } catch (err) {
       const message = (err as Error).message;
       setRunError(message === MCP_CHANGED ? t('sync.mcpChanged') : message === HOOKS_CHANGED ? t('sync.hooksChanged') : message);
     } finally {
       setRunning(false);
-      refreshTargets(queryClient);
-      for (const queryKey of [queryKeys.extrasDiff(), queryKeys.extras, queryKeys.mcp, queryKeys.hooks, ['log']]) void queryClient.invalidateQueries({ queryKey });
+      void invalidate(queryClient, 'syncRan');
     }
   };
 
@@ -153,7 +153,7 @@ export default function SyncPage() {
         {g.part === 'target' && failedTargets.has(g.name) && <span className="ss-tag bad shrink-0">{t('sync.result.lastFailed')}</span>}
         {g.project && <span className="ss-tag shrink-0" title={g.project}>{g.part === 'hooks' ? rootName(g.project) : t('sync.mcp.offList', { project: shortenHome(g.project) })}</span>}
         <span className="flex-1" />
-        {n > 0 && <span className="shrink-0 text-[12px] text-ink-2">{t(n === 1 ? 'sync.changes.one' : 'sync.changes.other', { count: n })}</span>}
+        {n > 0 && <span className="shrink-0 text-[12px] text-ink-2">{t(plural('sync.changes', n), { count: n })}</span>}
       </div>
     );
   };
@@ -167,7 +167,7 @@ export default function SyncPage() {
           <span data-tour="sync-actions">
             <Button variant="primary" onClick={sync} loading={running} disabled={loading || parts.size === 0}>
               {!running && <RefreshCw size={16} />}
-              {count > 0 ? t(count === 1 ? 'sync.run.one' : 'sync.run.other', { count }) : t('sync.run.none')}
+              {count > 0 ? t(plural('sync.run', count), { count }) : t('sync.run.none')}
             </Button>
           </span>
         }
@@ -191,7 +191,7 @@ export default function SyncPage() {
           {edited > 0 && (
             <div className={`ss-note ${force ? 'warn' : 'inf'}`}>
               {force ? <TriangleAlert size={16} /> : <CircleMinus size={16} />}
-              <span className="flex-1">{t(`sync.edited.${force ? 'replace' : 'kept'}.${edited === 1 ? 'one' : 'other'}`, { count: edited })}</span>
+              <span className="flex-1">{t(plural(`sync.edited.${force ? 'replace' : 'kept'}`, edited), { count: edited })}</span>
             </div>
           )}
 
@@ -217,7 +217,7 @@ export default function SyncPage() {
           {!!outcome?.path_overlap && (
             <div className="ss-note warn !items-center">
               <TriangleAlert size={16} />
-              <span className="flex-1">{t(outcome.path_overlap === 1 ? 'sync.pathOverlap.one' : 'sync.pathOverlap.other', { count: outcome.path_overlap })}</span>
+              <span className="flex-1">{t(plural('sync.pathOverlap', outcome.path_overlap), { count: outcome.path_overlap })}</span>
               <Link to="/doctor" className="ss-btn sm">{t('sync.openDoctor')}</Link>
             </div>
           )}
@@ -275,7 +275,7 @@ export default function SyncPage() {
                 {resources.inSync.length > 0 && (
                   <button type="button" className="ss-gh w-full text-left" aria-expanded={open.has('inSync')} onClick={() => setOpen((s) => toggle(s, 'inSync'))}>
                     {!open.has('inSync') && <span className="ss-stack ml-1.5">{resources.inSync.slice(0, 4).map((name) => <span key={name} className="ss-at"><AgentIcon target={name} size={14} /></span>)}</span>}
-                    <span className="font-semibold">{t(resources.inSync.length === 1 ? 'sync.inSync.one' : 'sync.inSync.other', { count: resources.inSync.length })}</span>
+                    <span className="font-semibold">{t(plural('sync.inSync', resources.inSync.length), { count: resources.inSync.length })}</span>
                     <span className="flex-1" />
                     {open.has('inSync') ? <ChevronDown size={15} className="text-ink-3" /> : <ChevronRight size={15} className="text-ink-3" />}
                   </button>
@@ -325,7 +325,7 @@ export default function SyncPage() {
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-expanded={open.has('ignored')} onClick={() => setOpen((s) => toggle(s, 'ignored'))}>
                       {open.has('ignored') ? <ChevronDown size={14} className="shrink-0 text-ink-3" /> : <ChevronRight size={14} className="shrink-0 text-ink-3" />}
                       <EyeOff size={15} className="shrink-0 text-ink-3" />
-                      <span><b>{t(ignored.length === 1 ? 'sync.ignored.one' : 'sync.ignored.other', { count: ignored.length })}</b>{!open.has('ignored') && <> <span className="text-ink-2">{t('sync.ignored.by')}</span></>}</span>
+                      <span><b>{t(plural('sync.ignored', ignored.length), { count: ignored.length })}</b>{!open.has('ignored') && <> <span className="text-ink-2">{t('sync.ignored.by')}</span></>}</span>
                     </button>
                     <Link to="/config" className="shrink-0 font-semibold">{t('sync.ignored.edit')}</Link>
                   </div>
@@ -353,7 +353,7 @@ export default function SyncPage() {
                 <div key={d.target} className="ss-r !min-h-11 text-[13px]">
                   <TriangleAlert size={15} className="ml-6 shrink-0 text-warn" />
                   <span className="min-w-0 flex-1">
-                    <b>{t((d.skippedCount ?? 0) === 1 ? 'sync.skipped.one' : 'sync.skipped.other', { count: d.skippedCount ?? 0, name: d.target })}</b>{' '}
+                    <b>{t(plural('sync.skipped', d.skippedCount ?? 0), { count: d.skippedCount ?? 0, name: d.target })}</b>{' '}
                     <span className="text-ink-2">{t('sync.skipped.hint', { name: d.target })}</span>
                   </span>
                   <Link to={`/targets/${encodeURIComponent(d.target)}`} className="shrink-0 font-semibold">{t('sync.skipped.open')}</Link>
@@ -365,7 +365,7 @@ export default function SyncPage() {
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" aria-expanded={open.has('local')} onClick={() => setOpen((s) => toggle(s, 'local'))}>
                       {open.has('local') ? <ChevronDown size={14} className="shrink-0 text-ink-3" /> : <ChevronRight size={14} className="shrink-0 text-ink-3" />}
                       <ArrowDownToLine size={15} className="shrink-0 text-ink-3" />
-                      <span><b>{t(local.length === 1 ? 'sync.local.one' : 'sync.local.other', { count: local.length })}</b> <span className="text-ink-2">{t('sync.local.hint')}</span></span>
+                      <span><b>{t(plural('sync.local', local.length), { count: local.length })}</b> <span className="text-ink-2">{t('sync.local.hint')}</span></span>
                     </button>
                     <button type="button" className="shrink-0 font-semibold" onClick={() => setCollecting(true)}>{t('sync.local.collect')}</button>
                   </div>
@@ -431,8 +431,8 @@ export default function SyncPage() {
           onClose={() => setStopping('')}
           onStopped={(removed) => {
             setStopping('');
-            refreshTargets(queryClient);
-            toast(t(removed === 1 ? 'targetDetail.skillsOff.stopped.one' : 'targetDetail.skillsOff.stopped.other', { name: stopTarget.name, count: removed }), 'success');
+            void invalidate(queryClient, 'targetsChanged');
+            toast(t(plural('targetDetail.skillsOff.stopped', removed), { name: stopTarget.name, count: removed }), 'success');
           }}
         />
       )}

@@ -5,7 +5,7 @@ import { pluginsApi } from '../../api/plugins';
 
 const context = vi.hoisted(() => ({ isProjectMode: false }));
 vi.mock('../../context/AppContext', () => ({ useAppContext: () => context }));
-vi.mock('../../i18n', () => ({ useT: () => (key: string) => key }));
+vi.mock('../../i18n', async (importOriginal) => ({ ...await importOriginal<typeof import('../../i18n')>(), useT: () => (key: string) => key }));
 vi.mock('../../api/plugins', async (original) => ({ ...await original<typeof import('../../api/plugins')>(), pluginsApi: { discover: vi.fn() } }));
 
 describe('PluginAddDialog targets', () => {

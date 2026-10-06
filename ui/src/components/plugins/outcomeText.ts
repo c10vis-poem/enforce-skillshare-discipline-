@@ -27,6 +27,11 @@ const messageKeys: Record<string, string> = {
 
 export const outcomeStatus = (t: T, status: string) => statusKeys[status] ? t(statusKeys[status], undefined, status) : status;
 export const outcomeMessage = (t: T, message: string) => messageKeys[message] ? t(messageKeys[message], undefined, message) : message;
-// A message the server names with a key, such as why an update skipped an Agent.
+/**
+ * The backend keys its fixed sentences; a message it assembled at runtime has no key
+ * and is shown as it came, which is also what the CLI prints.
+ */
+export const keyedText = (t: T, key: string | undefined, text: string | undefined, args?: Record<string, string>) => (key ? t(key, args, text) : text ?? '');
+// An outcome's message: keyed as above, else one of the fixed sentences older outcomes carry.
 export const keyedMessage = (t: T, m: { message?: string; messageKey?: string; messageArgs?: Record<string, string> }) =>
-  m.messageKey ? t(m.messageKey, m.messageArgs, m.message) : outcomeMessage(t, m.message ?? '');
+  m.messageKey ? keyedText(t, m.messageKey, m.message, m.messageArgs) : outcomeMessage(t, m.message ?? '');

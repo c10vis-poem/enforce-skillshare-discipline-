@@ -7,7 +7,7 @@ import { api } from '../../api/client';
 import type { Target } from '../../api/client';
 import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
-import { useI18n } from '../../i18n';
+import { useI18n, plural } from '../../i18n';
 import Button from '../Button';
 import DialogShell from '../DialogShell';
 import AgentIcon from '../AgentIcon';
@@ -103,7 +103,7 @@ export default function SkillsOffDialog({ target, readFrom, readers, managed, on
               : remove.length === 0 ? t('targetDetail.skillsOff.removeNone', { path })
                 : (
                   <>
-                    {t(remove.length === 1 ? 'targetDetail.skillsOff.remove.one' : 'targetDetail.skillsOff.remove.other', { count: remove.length, path })}{' '}
+                    {t(plural('targetDetail.skillsOff.remove', remove.length), { count: remove.length, path })}{' '}
                     <Button variant="link" className="!inline" onClick={() => setShowRemoved(!showRemoved)} aria-expanded={showRemoved}>
                       {t(showRemoved ? 'targetDetail.skillsOff.hide' : 'targetDetail.skillsOff.show')}
                     </Button>
@@ -114,15 +114,15 @@ export default function SkillsOffDialog({ target, readFrom, readers, managed, on
                     )}
                   </>
                 ))}
-            {keep.length > 0 && row(Folder, t(keep.length === 1 ? 'targetDetail.skillsOff.keep.one' : 'targetDetail.skillsOff.keep.other', { count: keep.length, names: names(keep) }))}
-            {copies.length > 0 && row(Copy, t(copies.length === 1 ? 'targetDetail.skillsOff.copies.one' : 'targetDetail.skillsOff.copies.other', { count: copies.length, names: names(copies), path }))}
+            {keep.length > 0 && row(Folder, t(plural('targetDetail.skillsOff.keep', keep.length), { count: keep.length, names: names(keep) }))}
+            {copies.length > 0 && row(Copy, t(plural('targetDetail.skillsOff.copies', copies.length), { count: copies.length, names: names(copies), path }))}
             {managed.length > 0 && row(Check, t('targetDetail.skillsOff.managed', { items: joinList(managed, locale) }))}
           </ul>
         )}
         {readFrom && (
           <div className="ss-note inf">
             <span className="flex-1">
-              {t(readFrom.linkedCount === 1 ? 'targetDetail.skillsOff.stillSees.one' : 'targetDetail.skillsOff.stillSees.other', { name: target.name, from: readFrom.name, path: shortenHome(readFrom.path), count: readFrom.linkedCount })}
+              {t(plural('targetDetail.skillsOff.stillSees', readFrom.linkedCount), { name: target.name, from: readFrom.name, path: shortenHome(readFrom.path), count: readFrom.linkedCount })}
             </span>
           </div>
         )}
