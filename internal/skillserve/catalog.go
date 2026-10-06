@@ -4,6 +4,7 @@
 package skillserve
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -39,9 +40,9 @@ type Skill struct {
 	Resources   []File         `json:"resources"`
 }
 
-// servedFile locates a manifest file: the resolved skill directory and the
-// slash path inside it.
-type servedFile struct{ dir, rel string }
+// servedFile locates a manifest file: the resolved skill directory, the
+// slash path inside it, and the digest it was listed with.
+type servedFile struct{ dir, rel, digest string }
 
 // Skip is a skill left out of the catalog, by source path.
 type Skip struct {
@@ -148,7 +149,7 @@ func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 			return nil, nil, err.Error()
 		}
 		uri := base + "/" + escapePath(f.Rel)
-		files[uri] = servedFile{dir: p.Dir, rel: f.Rel}
+		files[uri] = servedFile{dir: p.Dir, rel: f.Rel, digest: sum}
 		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: f.Size})
 	}
 	return skill, files, ""
@@ -179,7 +180,16 @@ func (c *Catalog) Read(uri string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(io.LimitReader(f, skillpkg.MaxBytes))
+	data, err := io.ReadAll(io.LimitReader(f, skillpkg.MaxBytes))
+	if err != nil {
+		return nil, err
+	}
+	// A file edited since it was listed would fail the client's digest check;
+	// the next refresh lists it again.
+	if fmt.Sprintf("sha256:%x", sha256.Sum256(data)) != sf.digest {
+		return nil, fmt.Errorf("%s changed since it was listed; list the skills again", uri)
+	}
+	return data, nil
 }
 
 func escapePath(p string) string {

@@ -258,6 +258,49 @@ func TestRead_ServesOnlyManifestFilesInsideTheSkill(t *testing.T) {
 	}
 }
 
+// Bytes that no longer match the listed digest would be rejected by a verifying client.
+func TestRead_RefusesFileChangedSinceListed(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "doc/SKILL.md"), skillMD("doc"))
+	writeFile(t, filepath.Join(src, "doc/notes.md"), "one")
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(src, "doc/notes.md"), "two")
+
+	if _, err := c.Read("skill://doc/notes.md"); err == nil || !strings.Contains(err.Error(), "changed") {
+		t.Errorf("Read error = %v, want the file reported as changed", err)
+	}
+}
+
+func TestBuild_ReadsFrontmatterAfterBOM(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "bom/SKILL.md"), "\ufeff"+skillMD("bom"))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 1 {
+		t.Errorf("skills=%v warnings=%v, want bom served", c.Skills, c.Skipped)
+	}
+}
+
+func TestBuild_SkipsSkillWithNonStringCompatibilityOrOversizedSkillMD(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "list/SKILL.md"), "---\nname: list\ndescription: Use when testing\ncompatibility: [linux]\n---\n")
+	writeFile(t, filepath.Join(src, "huge/SKILL.md"), skillMD("huge")+strings.Repeat("x", skillpkg.MaxBytes))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped list") || !hasWarning(c, "skipped huge: SKILL.md is over") {
+		t.Errorf("skills=%v warnings=%v, want list and huge skipped", c.Skills, c.Skipped)
+	}
+}
+
 func TestRead_ServesListedFileWithBackslashInName(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("a backslash separates paths on Windows")

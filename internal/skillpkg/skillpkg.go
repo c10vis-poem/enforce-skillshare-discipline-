@@ -41,6 +41,14 @@ type Package struct {
 func Load(dir string) (*Package, error) {
 	dirName := filepath.Base(filepath.Clean(dir)) // a followed link's name, not its target's
 	dir = utils.ResolveSymlink(dir)
+	// Stat first, so an oversized SKILL.md is skipped without reading it into memory.
+	info, err := os.Stat(filepath.Join(dir, "SKILL.md"))
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > MaxBytes {
+		return nil, fmt.Errorf("SKILL.md is over %d MiB", MaxBytes>>20)
+	}
 	content, err := os.ReadFile(filepath.Join(dir, "SKILL.md"))
 	if err != nil {
 		return nil, err
@@ -62,7 +70,10 @@ func Load(dir string) (*Package, error) {
 	}
 	// metadata is left unchecked: the format wants string values, but lists there are
 	// common and tool clients read them fine, so skipping those skills would cost more.
-	compat, _ := fm["compatibility"].(string)
+	compat, ok := fm["compatibility"].(string)
+	if _, set := fm["compatibility"]; set && !ok {
+		return nil, fmt.Errorf("compatibility must be text")
+	}
 	if n := utf8.RuneCountInString(compat); n > MaxCompatibility {
 		return nil, fmt.Errorf("compatibility has %d characters; the limit is %d", n, MaxCompatibility)
 	}

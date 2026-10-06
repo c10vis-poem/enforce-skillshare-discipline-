@@ -217,7 +217,8 @@ func extractFrontmatterRaw(filePath string) string {
 // ParseFrontmatterMap returns the complete YAML frontmatter of SKILL.md content.
 // The Agent Skills format requires the file to begin with it, closed by a second ---.
 func ParseFrontmatterMap(content []byte) (map[string]any, error) {
-	lines := strings.Split(string(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))), "\n")
+	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
+	lines := strings.Split(string(content), "\n")
 	if strings.TrimSpace(lines[0]) != "---" {
 		return nil, fmt.Errorf("no frontmatter at the start")
 	}
