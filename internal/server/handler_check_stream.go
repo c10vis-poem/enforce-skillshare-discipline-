@@ -3,13 +3,11 @@ package server
 import (
 	"net/http"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"skillshare/internal/check"
-	"skillshare/internal/install"
 )
 
 // handleCheckStream serves an SSE endpoint that streams check progress in real time.
@@ -40,34 +38,15 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 	safeSend("discovering", map[string]string{"phase": "scanning source directory"})
 
 	repos, linked := dashboardRepos(sourceDir, walk)
-	skills, _ := install.GetUpdatableSkills(sourceDir)
-
-	// --- Pre-process: group skills by URL (fast, local only) ---
-	urlGroups := make(map[urlBranchGroup][]skillWithMetaEntry)
-	var localResults []skillCheckResult
-
-	for _, skill := range skills {
-		if followedCheckout(filepath.Join(sourceDir, skill), walk.Follow) != "" {
-			continue
-		}
-		entry := s.skillEntry(skill)
-		if entry == nil || entry.RepoURL == "" {
-			localResults = append(localResults, localCheckResult(skill, entry, projectRoot))
-			continue
-		}
-		key := urlBranchGroup{url: entry.RepoURL, branch: entry.Branch}
-		urlGroups[key] = append(urlGroups[key], skillWithMetaEntry{
-			name:  skill,
-			entry: entry,
-		})
-	}
+	// Group skills by remote (fast, local only).
+	plan := s.planSkillCheck(sourceDir, projectRoot, walk)
 
 	// Total = repos + URL groups (the actual network-bound work units).
-	total := len(repos) + len(urlGroups)
+	total := len(repos) + plan.Remotes()
 	safeSend("start", map[string]any{
 		"total":   total,
 		"repos":   len(repos),
-		"sources": len(urlGroups),
+		"sources": plan.Remotes(),
 	})
 
 	// Atomic counter + ticker for progress events
@@ -107,118 +86,23 @@ func (s *Server) handleCheckStream(w http.ResponseWriter, r *http.Request) {
 		checked.Add(1)
 	}
 
-	// --- Phase 2: Check skills by URL group (1 work unit per URL) ---
-	skillResults := append([]skillCheckResult{}, localResults...)
-
-	for key, group := range urlGroups {
-		select {
-		case <-ctx.Done():
-			close(done)
-			wg.Wait()
-			return
-		default:
-		}
-
-		remoteHash, err := key.remoteHash()
-
-		if err != nil {
-			for _, sw := range group {
-				r := skillCheckResult{
-					Name:    sw.name,
-					Source:  sw.entry.Source,
-					Version: sw.entry.Version,
-					Status:  "error",
-				}
-				if !sw.entry.InstalledAt.IsZero() {
-					r.InstalledAt = sw.entry.InstalledAt.Format("2006-01-02")
-				}
-				skillResults = append(skillResults, r)
-			}
-			checked.Add(1)
-			continue
-		}
-
-		// Fast path: all commit hashes match
-		allMatch := true
-		for _, sw := range group {
-			if sw.entry.Version != remoteHash {
-				allMatch = false
-				break
-			}
-		}
-		if allMatch {
-			for _, sw := range group {
-				r := skillCheckResult{
-					Name:    sw.name,
-					Source:  sw.entry.Source,
-					Version: sw.entry.Version,
-					Status:  "up_to_date",
-				}
-				if !sw.entry.InstalledAt.IsZero() {
-					r.InstalledAt = sw.entry.InstalledAt.Format("2006-01-02")
-				}
-				skillResults = append(skillResults, r)
-			}
-			checked.Add(1)
-			continue
-		}
-
-		// Slow path: tree hash comparison
-		var hasTreeHash bool
-		for _, sw := range group {
-			if sw.entry.TreeHash != "" && sw.entry.Subdir != "" {
-				hasTreeHash = true
-				break
-			}
-		}
-
-		var remoteTreeHashes map[string]string
-		if hasTreeHash {
-			remoteTreeHashes = check.FetchRemoteTreeHashesForRef(key.url, key.branch)
-		}
-
-		for _, sw := range group {
-			r := skillCheckResult{
-				Name:    sw.name,
-				Source:  sw.entry.Source,
-				Version: sw.entry.Version,
-			}
-			if !sw.entry.InstalledAt.IsZero() {
-				r.InstalledAt = sw.entry.InstalledAt.Format("2006-01-02")
-			}
-
-			if sw.entry.Version == remoteHash {
-				r.Status = "up_to_date"
-			} else if sw.entry.TreeHash != "" && sw.entry.Subdir != "" && remoteTreeHashes != nil {
-				normalizedSubdir := strings.TrimPrefix(sw.entry.Subdir, "/")
-				if rh, ok := remoteTreeHashes[normalizedSubdir]; ok && sw.entry.TreeHash == rh {
-					r.Status = "up_to_date"
-				} else {
-					r.Status = "update_available"
-				}
-			} else {
-				r.Status = "update_available"
-			}
-
-			skillResults = append(skillResults, r)
-		}
-		checked.Add(1)
-	}
+	// --- Phase 2: Check skills by remote (1 work unit per remote) ---
+	resolved, err := plan.Run(ctx, check.Options{OnRemoteDone: func(int) { checked.Add(1) }})
 
 	// Stop ticker
 	close(done)
 	wg.Wait()
+	if err != nil {
+		return
+	}
 
 	if repoResults == nil {
 		repoResults = []repoCheckResult{}
-	}
-	if skillResults == nil {
-		skillResults = []skillCheckResult{}
 	}
 
 	safeSend("done", map[string]any{
 		"tracked_repos": repoResults,
 		"linked_repos":  linked,
-		"skills":        skillResults,
+		"skills":        dashboardSkillResults(resolved),
 	})
 }
