@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,7 +15,7 @@ import (
 	"skillshare/internal/sourcefs"
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
-	"skillshare/internal/trash"
+	"skillshare/internal/uninstall"
 	"skillshare/internal/utils"
 )
 
@@ -427,64 +426,16 @@ func (s *Server) handleUninstallRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Move to trash first — only clean gitignore after durable removal.
-	if err := sourcefs.CheckMoveOut(s.cfg.EffectiveSkillsSource(), repoPath, s.skillsWalk().Follow); err != nil {
-		writeError(w, http.StatusConflict, err.Error())
+	force := r.URL.Query().Get("force") == "true"
+	res := s.uninstallSkills([]uninstall.Item{s.repoUninstallItem(repoName, repoPath)}, force)[0]
+	if res.Err != nil {
+		status := http.StatusConflict
+		var trashErr *uninstall.TrashError
+		if errors.As(res.Err, &trashErr) {
+			status = http.StatusInternalServerError
+		}
+		writeError(w, status, uninstallErrorMessage(res))
 		return
-	}
-	if _, err := trash.MoveToTrash(repoPath, repoName, s.trashBase()); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to trash repo: "+err.Error())
-		return
-	}
-
-	gitDir := s.gitignoreDir()
-	if gitDir != "" {
-		if s.IsProjectMode() {
-			install.RemoveFromGitIgnore(gitDir, s.projectGitignorePrefix()+"/"+repoName)
-		} else {
-			install.RemoveFromGitIgnore(gitDir, repoName)
-		}
-	}
-
-	// Prune store entries: the repo itself + skills belonging to it.
-	// Legacy entries use Group without "_" prefix (e.g., "team-skills" for repo "_team-skills").
-	// Only apply legacy matching for top-level repos (no "/" in repoName) to avoid
-	// basename collisions between sibling nested repos like org/_team-skills vs dept/_team-skills.
-	legacyGroup := ""
-	if !strings.Contains(repoName, "/") {
-		legacyGroup = strings.TrimPrefix(repoName, "_")
-	}
-	for _, name := range s.skillsStore.List() {
-		entry := s.skillsStore.Get(name)
-		if entry == nil {
-			continue
-		}
-		// Match the repo's own entry (e.g., "_team-skills" or "org/_team-skills")
-		if name == repoName {
-			s.skillsStore.Remove(name)
-			continue
-		}
-		// Match tracked skills grouped under this repo (exact group match)
-		if entry.Tracked && entry.Group == repoName {
-			s.skillsStore.Remove(name)
-			continue
-		}
-		// Match legacy grouped entries (top-level repos only, e.g., group="team-skills")
-		if legacyGroup != "" && entry.Tracked && entry.Group == legacyGroup {
-			s.skillsStore.Remove(name)
-			continue
-		}
-		// Match nested members (e.g., "org/_team-skills/sub-skill")
-		if strings.HasPrefix(name, repoName+"/") {
-			s.skillsStore.Remove(name)
-			continue
-		}
-	}
-
-	s.skillsStore.RemoveTargetOverrides(repoName)
-
-	if err := s.skillsStore.Save(s.cfg.EffectiveSkillsSource()); err != nil {
-		log.Printf("warning: failed to save metadata after repo uninstall: %v", err)
 	}
 
 	s.writeOpsLog("uninstall", "ok", start, map[string]any{
@@ -521,17 +472,9 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 		}
 
 		displayName := agentMetaKey(agent.RelPath)
-		legacySidecar := filepath.Join(filepath.Dir(agent.SourcePath), filepath.Base(displayName)+".skillshare-meta.json")
-		if _, err := trash.MoveAgentToTrash(agent.SourcePath, legacySidecar, displayName, s.agentTrashBase()); err != nil {
+		if err := s.uninstallAgents(agentsSource, []uninstall.Agent{{Name: displayName, File: agent.SourcePath}})[0]; err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to trash agent: "+err.Error())
 			return
-		}
-
-		if s.agentsStore != nil {
-			s.agentsStore.Remove(displayName)
-			if err := s.agentsStore.Save(agentsSource); err != nil {
-				log.Printf("warning: failed to save agent metadata after uninstall: %v", err)
-			}
 		}
 
 		s.writeOpsLog("uninstall", "ok", start, map[string]any{
@@ -560,8 +503,6 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if d != nil {
-		baseName := filepath.Base(d.SourcePath)
-
 		// Followed checkouts allow single-skill removal; managed repos do not.
 		_, followed := walk.Follow.Resolve(d.SourcePath)
 		if d.IsInRepo && !followed {
@@ -569,25 +510,21 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := sourcefs.CheckSkillMoveOut(source, d.SourcePath, walk.Follow); err != nil {
+		res := s.uninstallSkills([]uninstall.Item{skillUninstallItem(d, followed)}, false)[0]
+		if res.Err != nil {
 			status := http.StatusConflict
-			if errors.Is(err, sourcefs.ErrLinkedSkillRoot) {
+			var trashErr *uninstall.TrashError
+			if errors.As(res.Err, &trashErr) {
+				status = http.StatusInternalServerError
+			} else if errors.Is(res.Err, sourcefs.ErrLinkedSkillRoot) {
 				status = http.StatusBadRequest
 			}
-			writeError(w, status, err.Error())
-			return
-		}
-		trashName := baseName
-		if followed {
-			trashName = d.RelPath // Restore through the same first-level source link.
-		}
-		if _, err := trash.MoveToTrash(d.SourcePath, trashName, s.trashBase()); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to trash skill: "+err.Error())
+			writeError(w, status, uninstallErrorMessage(res))
 			return
 		}
 
 		s.writeOpsLog("uninstall", "ok", start, map[string]any{
-			"name":  trashName,
+			"name":  res.Item.TrashName,
 			"type":  "skill",
 			"scope": "ui",
 		}, "")

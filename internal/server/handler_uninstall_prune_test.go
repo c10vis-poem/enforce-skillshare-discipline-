@@ -1,0 +1,267 @@
+package server
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"skillshare/internal/install"
+)
+
+// pruneCase seeds a source and a metadata store, uninstalls one name through
+// a dashboard route, and names the store keys that must be gone or kept.
+type pruneCase struct {
+	name    string
+	repos   []string // tracked repos to create (committed, one member skill "a")
+	skills  []string // plain skill dirs to create
+	entries map[string]*install.MetadataEntry
+	remove  string
+	gone    []string
+	kept    []string
+}
+
+// pruneSource marks an entry reconcile keeps while its directory exists.
+const pruneSource = "github.com/acme/skills"
+
+var pruneCases = []pruneCase{
+	{
+		name:  "repo entry and full-path members",
+		repos: []string{"_team"},
+		entries: map[string]*install.MetadataEntry{
+			"_team":   {Tracked: true},
+			"_team/a": {Group: "_team", Tracked: true},
+		},
+		remove: "_team",
+		gone:   []string{"_team", "_team/a"},
+	},
+	{
+		name:  "legacy basename key grouped under the repo",
+		repos: []string{"_team"},
+		entries: map[string]*install.MetadataEntry{
+			"a": {Group: "_team", Tracked: true},
+		},
+		remove: "_team",
+		gone:   []string{"a"},
+	},
+	{
+		name:  "legacy group without the underscore prefix",
+		repos: []string{"_team"},
+		entries: map[string]*install.MetadataEntry{
+			"team/a": {Group: "team", Tracked: true},
+		},
+		remove: "_team",
+		gone:   []string{"team/a"},
+	},
+	{
+		name:   "untracked group that shares the repo's name stays",
+		repos:  []string{"_team"},
+		skills: []string{"team/a"},
+		entries: map[string]*install.MetadataEntry{
+			"team/a": {Group: "team", Source: pruneSource},
+		},
+		remove: "_team",
+		kept:   []string{"team/a"},
+	},
+	{
+		name:   "sibling repo with a shared name prefix stays",
+		repos:  []string{"_team", "_team-other"},
+		skills: nil,
+		entries: map[string]*install.MetadataEntry{
+			"_team-other/a": {Group: "_team-other", Source: pruneSource},
+		},
+		remove: "_team",
+		kept:   []string{"_team-other/a"},
+	},
+}
+
+func seedPruneCase(t *testing.T, tc pruneCase) (*Server, string) {
+	t.Helper()
+	s, src := newTestServer(t)
+	for _, repo := range tc.repos {
+		addSkill(t, src, repo+"/a")
+		initGitRepo(t, filepath.Join(src, repo)) // commits the member skill
+	}
+	for _, skill := range tc.skills {
+		addSkill(t, src, skill)
+	}
+	s.skillsStore = install.NewMetadataStore()
+	for key, entry := range tc.entries {
+		e := *entry
+		s.skillsStore.Set(key, &e)
+	}
+	return s, src
+}
+
+func assertPruned(t *testing.T, s *Server, src string, tc pruneCase) {
+	t.Helper()
+	saved, err := install.LoadMetadata(src)
+	if err != nil {
+		t.Fatalf("load saved metadata: %v", err)
+	}
+	for _, key := range tc.gone {
+		if s.skillsStore.Has(key) || saved.Has(key) {
+			t.Errorf("entry %q should be pruned (memory=%v, disk=%v)", key, s.skillsStore.Has(key), saved.Has(key))
+		}
+	}
+	for _, key := range tc.kept {
+		if !s.skillsStore.Has(key) || !saved.Has(key) {
+			t.Errorf("entry %q should be kept (memory=%v, disk=%v)", key, s.skillsStore.Has(key), saved.Has(key))
+		}
+	}
+}
+
+func postBatchUninstall(t *testing.T, s *Server, force bool, names ...string) (int, []batchUninstallItemResult) {
+	t.Helper()
+	b, _ := json.Marshal(batchUninstallRequest{Names: names, Force: force})
+	rr := httptest.NewRecorder()
+	s.handleBatchUninstall(rr, httptest.NewRequest(http.MethodPost, "/api/uninstall/batch", bytes.NewReader(b)))
+	var resp struct {
+		Results []batchUninstallItemResult `json:"results"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode batch response: %v: %s", err, rr.Body.String())
+	}
+	return rr.Code, resp.Results
+}
+
+func deleteRepo(t *testing.T, s *Server, name, query string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodDelete, "/api/repos/"+name+query, nil)
+	req.SetPathValue("name", name)
+	rr := httptest.NewRecorder()
+	s.handleUninstallRepo(rr, req)
+	return rr
+}
+
+func deleteSkill(t *testing.T, s *Server, name string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodDelete, "/api/resources/"+name, nil)
+	req.SetPathValue("name", name)
+	rr := httptest.NewRecorder()
+	s.handleUninstallSkill(rr, req)
+	return rr
+}
+
+func TestHandleBatchUninstall_PrunesMetadata(t *testing.T) {
+	for _, tc := range pruneCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, src := seedPruneCase(t, tc)
+			if code, results := postBatchUninstall(t, s, false, tc.remove); code != http.StatusOK || len(results) != 1 || !results[0].Success {
+				t.Fatalf("uninstall failed: %d %+v", code, results)
+			}
+			assertPruned(t, s, src, tc)
+		})
+	}
+}
+
+func TestHandleUninstallRepo_PrunesMetadata(t *testing.T) {
+	for _, tc := range pruneCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, src := seedPruneCase(t, tc)
+			if rr := deleteRepo(t, s, tc.remove, ""); rr.Code != http.StatusOK {
+				t.Fatalf("uninstall failed: %d %s", rr.Code, rr.Body.String())
+			}
+			assertPruned(t, s, src, tc)
+		})
+	}
+}
+
+// A plain skill and a grouped skill may share a basename; removing one must
+// leave the other's install metadata alone.
+func TestHandleUninstallSkill_PrunesMetadata(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		t.Run(map[bool]string{false: "single", true: "batch"}[batch], func(t *testing.T) {
+			s, src := newTestServer(t)
+			addSkill(t, src, "foo")
+			addSkill(t, src, "frontend/foo")
+			s.skillsStore = install.NewMetadataStore()
+			s.skillsStore.Set("foo", &install.MetadataEntry{Source: pruneSource})
+			s.skillsStore.Set("frontend/foo", &install.MetadataEntry{Group: "frontend", Source: pruneSource})
+			s.skillsStore.SetTargetOverride("foo", []string{"claude"})
+			if err := s.skillsStore.Save(src); err != nil {
+				t.Fatal(err)
+			}
+
+			if batch {
+				if code, results := postBatchUninstall(t, s, false, "foo"); code != http.StatusOK || !results[0].Success {
+					t.Fatalf("uninstall failed: %d %+v", code, results)
+				}
+			} else if rr := deleteSkill(t, s, "foo"); rr.Code != http.StatusOK {
+				t.Fatalf("uninstall failed: %d %s", rr.Code, rr.Body.String())
+			}
+
+			assertPruned(t, s, src, pruneCase{gone: []string{"foo"}, kept: []string{"frontend/foo"}})
+			if overrides := install.LoadTargetOverrides(src); len(overrides) != 0 {
+				t.Errorf("target override of the removed skill should be gone, got %v", overrides)
+			}
+		})
+	}
+}
+
+func TestHandleUninstallRepo_DirtyRepoNeedsForce(t *testing.T) {
+	s, src := newTestServer(t)
+	repoDir := filepath.Join(src, "_team")
+	os.MkdirAll(repoDir, 0755)
+	initGitRepo(t, repoDir)
+	addSkill(t, src, "_team/a") // uncommitted
+
+	rr := deleteRepo(t, s, "_team", "")
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for a dirty repo, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(repoDir); err != nil {
+		t.Fatalf("dirty repo must stay in place: %v", err)
+	}
+
+	if rr := deleteRepo(t, s, "_team", "?force=true"); rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 with force, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(repoDir); !os.IsNotExist(err) {
+		t.Fatalf("forced uninstall should remove the repo, stat err=%v", err)
+	}
+}
+
+func TestHandleUninstallRepo_GitStatusErrorNeedsForce(t *testing.T) {
+	s, src := newTestServer(t)
+	repoDir := addTrackedRepoWithBrokenIndex(t, src, "_team")
+
+	if rr := deleteRepo(t, s, "_team", ""); rr.Code != http.StatusConflict {
+		t.Fatalf("expected 409 when git status fails, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(repoDir); err != nil {
+		t.Fatalf("repo must stay in place: %v", err)
+	}
+}
+
+// A followed source link whose folder is itself a skill is refused by every
+// route, also when the checkout is a git repo and named as a tracked repo.
+func TestHandleUninstallRepo_FollowedLinkRootSkillRefused(t *testing.T) {
+	s, src := newTestServer(t)
+	s.cfg.FollowSourceLinks = true
+	if err := s.saveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	checkout := t.TempDir()
+	if err := os.WriteFile(filepath.Join(checkout, "SKILL.md"), []byte("---\nname: dev\n---\n# dev"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	initGitRepo(t, checkout)
+	link := filepath.Join(src, "_dev")
+	if err := os.Symlink(checkout, link); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := deleteRepo(t, s, "_dev", "?force=true")
+
+	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "use unlink to remove the link") {
+		t.Fatalf("expected 409 pointing at unlink, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatalf("the link must stay: %v", err)
+	}
+}
