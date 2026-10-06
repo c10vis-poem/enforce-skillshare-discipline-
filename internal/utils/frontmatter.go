@@ -219,7 +219,8 @@ func extractFrontmatterRaw(filePath string) string {
 func ParseFrontmatterMap(content []byte) (map[string]any, error) {
 	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
 	lines := strings.Split(string(content), "\n")
-	if strings.TrimSpace(lines[0]) != "---" {
+	// Exactly ---: an indented delimiter does not open frontmatter. A CRLF file keeps its \r.
+	if strings.TrimSuffix(lines[0], "\r") != "---" {
 		return nil, fmt.Errorf("no frontmatter at the start")
 	}
 	if !slices.ContainsFunc(lines[1:], func(l string) bool { return strings.TrimSpace(l) == "---" }) {

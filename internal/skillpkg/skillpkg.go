@@ -41,10 +41,14 @@ type Package struct {
 func Load(dir string) (*Package, error) {
 	dirName := filepath.Base(filepath.Clean(dir)) // a followed link's name, not its target's
 	dir = utils.ResolveSymlink(dir)
-	// Stat first, so an oversized SKILL.md is skipped without reading it into memory.
-	info, err := os.Stat(filepath.Join(dir, "SKILL.md"))
+	// Lstat first: a linked SKILL.md would be missing from the manifest, which lists no
+	// links, and an oversized one is skipped without reading it into memory.
+	info, err := os.Lstat(filepath.Join(dir, "SKILL.md"))
 	if err != nil {
 		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("SKILL.md is not a regular file")
 	}
 	if info.Size() > MaxBytes {
 		return nil, fmt.Errorf("SKILL.md is over %d MiB", MaxBytes>>20)

@@ -156,13 +156,14 @@ func TestBuild_SkipsSkillWhoseFrontmatterIsNotAtTheStart(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "late/SKILL.md"), "# intro\n"+skillMD("late"))
 	writeFile(t, filepath.Join(src, "open/SKILL.md"), "---\nname: open\ndescription: Use when testing open\n# open\n")
+	writeFile(t, filepath.Join(src, "indented/SKILL.md"), "  "+skillMD("indented"))
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") || !hasWarning(c, "skipped open") {
-		t.Errorf("skills=%v warnings=%v, want late and unclosed open skipped", c.Skills, c.Skipped)
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") || !hasWarning(c, "skipped open") || !hasWarning(c, "skipped indented") {
+		t.Errorf("skills=%v warnings=%v, want late, unclosed open and indented skipped", c.Skills, c.Skipped)
 	}
 }
 
@@ -274,16 +275,38 @@ func TestRead_RefusesFileChangedSinceListed(t *testing.T) {
 	}
 }
 
-func TestBuild_ReadsFrontmatterAfterBOM(t *testing.T) {
+func TestBuild_ReadsFrontmatterAfterBOMOrWithCRLF(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "bom/SKILL.md"), "\ufeff"+skillMD("bom"))
+	writeFile(t, filepath.Join(src, "crlf/SKILL.md"), strings.ReplaceAll(skillMD("crlf"), "\n", "\r\n"))
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 1 {
-		t.Errorf("skills=%v warnings=%v, want bom served", c.Skills, c.Skipped)
+	if len(c.Skills) != 2 {
+		t.Errorf("skills=%v warnings=%v, want bom and crlf served", c.Skills, c.Skipped)
+	}
+}
+
+// The walk lists no links, so a linked SKILL.md would leave the skill without its own file.
+func TestBuild_SkipsSkillWhoseSkillMDIsALink(t *testing.T) {
+	src := t.TempDir()
+	target := filepath.Join(t.TempDir(), "SKILL.md")
+	writeFile(t, target, skillMD("linked"))
+	if err := os.MkdirAll(filepath.Join(src, "linked"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(src, "linked/SKILL.md")); err != nil {
+		t.Skip("symlinks unavailable:", err)
+	}
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped linked") {
+		t.Errorf("skills=%v warnings=%v, want linked skipped", c.Skills, c.Skipped)
 	}
 }
 
