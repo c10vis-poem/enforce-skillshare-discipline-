@@ -188,6 +188,26 @@ describe('parsePiOptions', () => {
       .toEqual([undefined, undefined, undefined, 'oauth.authServerMetadataUrl', 'oauth.authServerMetadataUrl', 'oauth.authServerMetadataUrl']);
   });
 
+  it('checks Pi CIMD registration and callback restrictions before saving', () => {
+    const valid = [
+      { clientRegistration: 'dcr', clientId: 'registered' },
+      { clientRegistration: 'cimd' },
+      { clientRegistration: 'cimd', callbackUrl: 'http://localhost:8765/callback' },
+      { clientRegistration: 'cimd', callbackUrl: 'http://127.0.0.1/callback' },
+    ];
+    const invalid = [
+      { clientRegistration: 'other' },
+      { clientRegistration: null },
+      { clientRegistration: 'cimd', clientId: '' },
+      { clientRegistration: 'cimd', clientName: 'Pi' },
+      ...['http://[::1]/callback', 'http://localhost/other', 'https://localhost/callback',
+        'http://example.com/callback', 'http://localhost/callback?x=1', 'not a URL']
+        .map((callbackUrl) => ({ clientRegistration: 'cimd', callbackUrl })),
+    ];
+    for (const oauth of valid) expect(parsePiOptions(JSON.stringify({ oauth }))).toEqual({ value: { oauth } });
+    for (const oauth of invalid) expect(parsePiOptions(JSON.stringify({ oauth })).bad).toBeTruthy();
+  });
+
   it("refuses only Pi's toolExposure while the server has a tool policy", () => {
     expect([parsePiOptions('{"toolExposure": {"a": "hidden"}}', true), parsePiOptions('{"exposure": "direct"}', true)])
       .toEqual([{ overlap: 'toolExposure' }, { value: { exposure: 'direct' } }]);

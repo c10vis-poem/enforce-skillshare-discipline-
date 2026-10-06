@@ -1008,6 +1008,10 @@ connections and authorize OAuth. For simple Pi-only setup, `pi mcp add` edits th
 file; add `-l` for a project. `pi mcp list` checks connections by starting every enabled
 server; `pi mcp login NAME` requires user approval.
 
+Pi 1.0.4 adds `--no-mcp` to disable MCP for one run; `--tools` filters MCP tools
+only when an entry starts with `mcp__`. Check these launch flags if a synced server
+is unavailable.
+
 Pi server names allow only letters, digits, `_` and `-`, and Pi reads names that differ
 only in `-` and `_` as one server, so sync refuses the second. A Pi project entry replaces the
 global entry of the same name; to turn off a global server in one project, see
@@ -1027,6 +1031,10 @@ until you replace the entry or remove the override in Pi.
 `piOptions` holds the other per-server fields of Pi's built-in MCP. Only Pi receives
 them.
 
+- `oauth.clientRegistration` accepts `dcr` (Pi default) or `cimd` (Pi 1.0.1+). With
+  `cimd`, omit `clientId` and `clientName`; a `callbackUrl` must use HTTP on
+  `localhost` or `127.0.0.1` with path `/callback`. The authorization server must
+  support CIMD for public clients.
 - `exposure` accepts `codemode` (Pi default), `codemode-deferred` (an older name for
   `codemode`), `deferred`, `direct` or `hidden`. `toolExposure` maps tool names or wildcard patterns to one of those
   values: an exact name wins, then the first matching pattern. Skillshare keeps the

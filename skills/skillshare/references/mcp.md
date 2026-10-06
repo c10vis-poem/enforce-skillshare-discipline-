@@ -256,6 +256,7 @@ skillshare mcp add docs --url https://example.com/mcp --target pi --pi-options '
 skillshare mcp edit docs --pi-options '{}' --no-tui
 ```
 
+- `oauth.clientRegistration` accepts `dcr` (Pi default) or `cimd` (Pi 1.0.1+). With `cimd`, omit `clientId` and `clientName`; a `callbackUrl` must use HTTP on `localhost` or `127.0.0.1` with path `/callback`. The authorization server must support CIMD for public clients.
 - `exposure` sits next to `tools` and also sets how allowed tools are offered. Prefer
   `tools` over `toolExposure`; a server cannot set both.
 - JSON replaces the source options. A cleared field is removed from Pi's file when
