@@ -8,7 +8,7 @@ skillshare が標準で対応している AI CLI の完全なリストです。
 
 ## 概要
 
-skillshare は **65以上の AI CLI ツール** に対応しています。`skillshare init` を実行すると、
+skillshare は、共有の Universal target を含む **79 の組み込み target** を提供しています。`skillshare init` を実行すると、
 インストール済みのツールを自動的に検出し設定します。
 
 ---
@@ -42,6 +42,7 @@ skillshare は **65以上の AI CLI ツール** に対応しています。`skil
   <a className="target-badge" href="#target-crush">Crush</a>
   <a className="target-badge" href="#target-cursor">Cursor</a>
   <a className="target-badge" href="#target-deepagents">Deep Agents</a>
+  <a className="target-badge" href="#target-deepseek-harness">DeepSeek Harness</a>
   <a className="target-badge" href="#target-devin">Devin</a>
   <a className="target-badge" href="#target-dexto">Dexto</a>
   <a className="target-badge" href="#target-droid">Droid</a>
@@ -49,6 +50,7 @@ skillshare は **65以上の AI CLI ツール** に対応しています。`skil
   <a className="target-badge" href="#target-forgecode">ForgeCode</a>
   <a className="target-badge" href="#target-fx">fx</a>
   <a className="target-badge" href="#target-gemini">Gemini CLI</a>
+  <a className="target-badge" href="#target-gitlab-duo">GitLab Duo</a>
   <a className="target-badge" href="#target-goose">Goose</a>
   <a className="target-badge" href="#target-grok">Grok</a>
   <a className="target-badge" href="#target-hermes">Hermes</a>
@@ -130,6 +132,7 @@ skillshare は **65以上の AI CLI ツール** に対応しています。`skil
 <tr id="target-crush"><td>crush</td><td><code>&#126;/.config/crush/skills</code></td><td><code>.crush/skills</code></td></tr>
 <tr id="target-cursor"><td>cursor</td><td><code>&#126;/.cursor/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-deepagents"><td>deepagents</td><td><code>&#126;/.deepagents/agent/skills</code></td><td><code>.deepagents/skills</code></td></tr>
+<tr id="target-deepseek-harness"><td>deepseek-harness</td><td><code>&#126;/.dsh/skills</code></td><td><code>.dsh/skills</code></td></tr>
 <tr id="target-devin"><td>devin</td><td><code>&#126;/.config/devin/skills</code></td><td><code>.devin/skills</code></td></tr>
 <tr id="target-dexto"><td>dexto</td><td><code>&#126;/.agents/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-droid"><td>droid</td><td><code>&#126;/.factory/skills</code></td><td><code>.factory/skills</code></td></tr>
@@ -138,6 +141,7 @@ skillshare は **65以上の AI CLI ツール** に対応しています。`skil
 <tr id="target-fx"><td>fx</td><td><code>&#126;/.fx/skills</code></td><td><code>.fx/skills</code></td></tr>
 
 <tr id="target-gemini"><td>gemini</td><td><code>&#126;/.gemini/skills</code></td><td><code>.gemini/skills</code></td></tr>
+<tr id="target-gitlab-duo"><td>gitlab-duo</td><td><code>&#126;/.gitlab/duo/skills</code></td><td><code>skills</code></td></tr>
 <tr id="target-goose"><td>goose</td><td><code>&#126;/.agents/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-grok"><td>grok</td><td><code>&#126;/.grok/skills</code></td><td><code>.grok/skills</code></td></tr>
 <tr id="target-hermes"><td>hermes</td><td><code>&#126;/.hermes/skills</code></td><td><code>.hermes/skills</code></td></tr>
@@ -197,6 +201,44 @@ skillshare は **65以上の AI CLI ツール** に対応しています。`skil
 共存の詳細は [FAQ: npx skills と universal を併用する](/docs/troubleshooting/faq#using-universal-alongside-npx-skills)
 を参照してください。
 :::
+
+## Oh My Pi (OMP)
+
+ネイティブの Skill、[MCP 設定](../commands/mcp.md#omp)、
+[コード hooks](../commands/hooks.md#omp) には `omp` を使います。
+Skill は global では `~/.omp/agent/skills`、project では `.omp/skills` に入ります。OMP は
+`<skill>/SKILL.md` を 1 階層だけスキャンし、description を必須とします。Skillshare のデフォルトの
+flat な target 命名はこのレイアウトに合っています。`oh-my-pi` は Skill の target のエイリアスで、MCP の
+クライアント ID は `omp` です。
+
+MCP は Pi のファイルではなく、`~/.omp/agent/mcp.json` または `.omp/mcp.json` を使います。sync は
+OMP の有効化/無効化リストとネイティブのサーバー設定を保持します。名前付きプロファイルには、
+`agent: omp` と明示的な `config_dir` を指定して[アカウント target を宣言](./configuration.md#agent-config-dir)してください。プロファイルパスの自動選択は別の仕組みです。
+
+ダッシュボードの **Extensions** タブは、ネイティブ、設定、hook、plugin の
+extension ファイルと、そのスコープ、検査した設定からの選択状態を一覧表示します。選択済みであっても、
+読み込まれている、または実行中であることを意味しません。対応するスタンドアロンのモジュールは、
+リビジョンを確認するプレビューと適用で切り替えられます。非対応または不確かな行は
+読み取り専用のままです。インベントリが extension のコードをインポートしたり設定を移行したりすることはありません。
+Hooks が所有するファイルは、Skillshare の所有権の記録とファイルのハッシュが一致する場合にのみ Hooks にリンクされます。
+
+[OMP の plugin 管理](../commands/plugin.md#omp)は、ネイティブのユーザー/project スコープで、マーケットプレイス経由の
+ローカル/Git source に対応します。OMP のアカウントは plugin のストレージをリダイレクトしません。
+extension 編集の検証済みバージョン、所有権、ネイティブロックの要件も同じリファレンスを参照してください。
+
+OMP には project の信頼確認がありません。hooks を同期する前にコードを確認してください。書き込まれた
+extension は次回の OMP 起動時に実行される可能性があります。
+
+## DeepSeek Harness と GitLab Duo
+
+上記のパスはデフォルトです。組み込みの global パスについて、skillshare は次の設定にも従います。
+
+- **DeepSeek Harness:** `DSH_HOME` で `<DSH_HOME>/skills` を選択します。空または空白だけの値の場合はデフォルトを使います。このツールは `~/.agents/skills` と project の `.agents/skills` も読み込みますが、project の target は `.dsh/skills` のままです。[ネイティブの Skill 検出のドキュメント](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem/README.md)を参照してください。
+- **GitLab Duo:** `GLAB_CONFIG_DIR` で `<GLAB_CONFIG_DIR>/skills` を選択します。それ以外の場合、`XDG_CONFIG_HOME` で `<XDG_CONFIG_HOME>/gitlab/duo/skills` を選択します。どちらの上書きもない場合、Windows は `%APPDATA%\GitLab\duo\skills`、macOS/Linux は `~/.gitlab/duo/skills` を使います。project の target は `.gitlab/duo/skills` ではなく `skills` です。
+
+GitLab Duo のユーザーレベルの Skill は実験的機能で、`glab duo cli --enable-global-skills true` または `GITLAB_ENABLE_GLOBAL_SKILLS=true` が必要です。global の Skill が有効な場合は、共有の `~/.agents/skills` ディレクトリも読み込みます。ファイルを同期するだけでは検出は有効になりません。[GitLab の Agent Skills のドキュメント](https://docs.gitlab.com/user/duo_agent_platform/customize/agent_skills/)を参照してください。
+
+skillshare は、ツールと同じネイティブのホームの上書きを付けて実行してください。skillshare の設定に明示的に書いた Skill のパスは変わりません。ツール固有の設定や、`DSH_AGENTS_HOME` などの別の共有ルートには、明示的な target パスが必要です。
 
 ## エイリアス
 

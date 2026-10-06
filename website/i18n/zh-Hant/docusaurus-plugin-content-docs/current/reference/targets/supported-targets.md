@@ -8,7 +8,7 @@ skillshare 開箱即用支援的 AI CLI 完整清單。
 
 ## 總覽
 
-skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時，它會自動偵測並設定任何已安裝的工具。
+skillshare 提供 **79 個內建 targets**，包含共用的 Universal target。當你執行 `skillshare init` 時，它會自動偵測並設定任何已安裝的工具。
 
 ---
 
@@ -41,6 +41,7 @@ skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時
   <a className="target-badge" href="#target-crush">Crush</a>
   <a className="target-badge" href="#target-cursor">Cursor</a>
   <a className="target-badge" href="#target-deepagents">Deep Agents</a>
+  <a className="target-badge" href="#target-deepseek-harness">DeepSeek Harness</a>
   <a className="target-badge" href="#target-devin">Devin</a>
   <a className="target-badge" href="#target-dexto">Dexto</a>
   <a className="target-badge" href="#target-droid">Droid</a>
@@ -48,6 +49,7 @@ skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時
   <a className="target-badge" href="#target-forgecode">ForgeCode</a>
   <a className="target-badge" href="#target-fx">fx</a>
   <a className="target-badge" href="#target-gemini">Gemini CLI</a>
+  <a className="target-badge" href="#target-gitlab-duo">GitLab Duo</a>
   <a className="target-badge" href="#target-goose">Goose</a>
   <a className="target-badge" href="#target-grok">Grok</a>
   <a className="target-badge" href="#target-hermes">Hermes</a>
@@ -129,6 +131,7 @@ skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時
 <tr id="target-crush"><td>crush</td><td><code>&#126;/.config/crush/skills</code></td><td><code>.crush/skills</code></td></tr>
 <tr id="target-cursor"><td>cursor</td><td><code>&#126;/.cursor/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-deepagents"><td>deepagents</td><td><code>&#126;/.deepagents/agent/skills</code></td><td><code>.deepagents/skills</code></td></tr>
+<tr id="target-deepseek-harness"><td>deepseek-harness</td><td><code>&#126;/.dsh/skills</code></td><td><code>.dsh/skills</code></td></tr>
 <tr id="target-devin"><td>devin</td><td><code>&#126;/.config/devin/skills</code></td><td><code>.devin/skills</code></td></tr>
 <tr id="target-dexto"><td>dexto</td><td><code>&#126;/.agents/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-droid"><td>droid</td><td><code>&#126;/.factory/skills</code></td><td><code>.factory/skills</code></td></tr>
@@ -137,6 +140,7 @@ skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時
 <tr id="target-fx"><td>fx</td><td><code>&#126;/.fx/skills</code></td><td><code>.fx/skills</code></td></tr>
 
 <tr id="target-gemini"><td>gemini</td><td><code>&#126;/.gemini/skills</code></td><td><code>.gemini/skills</code></td></tr>
+<tr id="target-gitlab-duo"><td>gitlab-duo</td><td><code>&#126;/.gitlab/duo/skills</code></td><td><code>skills</code></td></tr>
 <tr id="target-goose"><td>goose</td><td><code>&#126;/.agents/skills</code></td><td><code>.agents/skills</code></td></tr>
 <tr id="target-grok"><td>grok</td><td><code>&#126;/.grok/skills</code></td><td><code>.grok/skills</code></td></tr>
 <tr id="target-hermes"><td>hermes</td><td><code>&#126;/.hermes/skills</code></td><td><code>.hermes/skills</code></td></tr>
@@ -191,6 +195,43 @@ skillshare 支援 **65+ 個 AI CLI 工具**。當你執行 `skillshare init` 時
 
 這與 [npx skills CLI](https://github.com/vercel-labs/skills) 使用的是同一個路徑。共存細節請參閱 [FAQ：搭配 npx skills 使用 universal](/docs/troubleshooting/faq#using-universal-alongside-npx-skills)。
 :::
+
+## Oh My Pi (OMP)
+
+使用 `omp` 管理原生 skills、[MCP 設定](../commands/mcp.md#omp)與
+[程式碼 hooks](../commands/hooks.md#omp)。
+Skills 在全域會放到 `~/.omp/agent/skills`，在 project 中放到 `.omp/skills`。OMP 只掃描
+一層 `<skill>/SKILL.md`，且要求必須有 description；Skillshare 預設的 flat target 命名
+符合這種結構。`oh-my-pi` 是 skill target 的別名；MCP client ID 為 `omp`。
+
+MCP 使用 `~/.omp/agent/mcp.json` 或 `.omp/mcp.json`，而不是 Pi 的檔案。同步會保留
+OMP 的啟用／停用清單與原生 server 設定。若要使用具名 profile，請以 `agent: omp`
+與明確的 `config_dir` [宣告帳號 target](./configuration.md#agent-config-dir)；
+自動的 profile 路徑選擇則是另一回事。
+
+Dashboard 的 **Extensions** 分頁會列出原生、已設定、hook 與 plugin 的 extension
+檔案、它們的 scope，以及從檢查到的設定得出的選取狀態。已選取不代表已載入或正在執行。
+支援的獨立 module 可以透過會檢查版本的預覽與套用來切換；不支援或不確定的列維持唯讀。
+這份清單絕不會匯入 extension 程式碼，也不會遷移設定。只有在 Skillshare 的所有權紀錄與
+檔案雜湊相符時，由 Hooks 擁有的檔案才會連回 Hooks。
+
+[OMP plugin 管理](../commands/plugin.md#omp)支援在原生 user/project scope 中，以
+marketplace 為基礎的本機/Git source。OMP 帳號不會改變 plugin 的儲存位置。extension
+編輯對已驗證版本、所有權與原生鎖的要求，請參閱同一份參考文件。
+
+OMP 沒有 project 信任提示。同步 hooks 前請先審閱程式碼：寫入的 extension 可能會在下次
+OMP 啟動時執行。
+
+## DeepSeek Harness and GitLab Duo
+
+上方列出的是預設路徑。對於內建的全域路徑，skillshare 也會遵循：
+
+- **DeepSeek Harness：** `DSH_HOME` 會選擇 `<DSH_HOME>/skills`。空值或只有空白的值會使用預設路徑。該工具也會讀取 `~/.agents/skills` 與 project 的 `.agents/skills`；它的 project target 仍為 `.dsh/skills`。參見[原生 skill 探索文件](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/skill/skill-filesystem/README.md)。
+- **GitLab Duo：** `GLAB_CONFIG_DIR` 會選擇 `<GLAB_CONFIG_DIR>/skills`；否則由 `XDG_CONFIG_HOME` 選擇 `<XDG_CONFIG_HOME>/gitlab/duo/skills`。兩者都未設定時，Windows 使用 `%APPDATA%\GitLab\duo\skills`，macOS/Linux 則使用 `~/.gitlab/duo/skills`。它的 project target 是 `skills`，不是 `.gitlab/duo/skills`。
+
+GitLab Duo 的使用者層級 skills 仍屬實驗性功能，需要 `glab duo cli --enable-global-skills true` 或 `GITLAB_ENABLE_GLOBAL_SKILLS=true`。啟用全域 skills 時，它也會讀取共用的 `~/.agents/skills` 目錄。光是同步檔案並不會啟用探索。參見 [GitLab 的 Agent Skills 文件](https://docs.gitlab.com/user/duo_agent_platform/customize/agent_skills/)。
+
+請以與該工具相同的原生 home 覆寫設定來執行 skillshare。skillshare 設定中明確指定的 skills 路徑維持不變；工具專屬的設定以及其他共用根目錄（例如 `DSH_AGENTS_HOME`）需要明確指定 target 路徑。
 
 ## 別名
 

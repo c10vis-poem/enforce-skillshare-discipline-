@@ -46,7 +46,7 @@
 </p>
 
 > [!NOTE]
-> **최신 버전**: v0.24.6 — `diff`와 대시보드의 Sync 탭이 sync를 마친 변환된 agent(Codex, OpenCode)를 더 이상 대기 중으로 표시하지 않으며 각 target의 include/exclude를 따릅니다. Targets 목록에서 target의 각 항목이 해당 탭으로 바로 연결됩니다. Memory에 **Refresh** 버튼이 추가되었고 agent는 짧은 사실을 `INDEX.md`에 기록합니다. skills 폴더 밖을 가리키는 skill 이름은 대시보드에서 거부됩니다. 전체 새 기능과 수정 사항은 [Releases](https://github.com/runkids/skillshare/releases)와 [변경 내역](https://skillshare.runkids.cc/changelog)에서 확인하세요.
+> **최신 버전**: v0.25.0 — `skillshare mcp serve`는 MCP(SEP-2640 Skills extension)로 skills를 제공하여 MCP endpoint에만 연결할 수 있는 agent도 사용할 수 있게 합니다. 이 extension을 지원하지 않는 client를 위해 `list_skills`와 `read_skill` 두 tool이 있으며, 대시보드의 **Add server**에 **Skillshare** 탭이 추가되었습니다. `skillshare link`와 `unlink`는 자신의 checkout이나 외장 드라이브처럼 다른 곳에 있는 폴더를 followed source link로 추가하거나 제거하며, Skills 페이지에서도 할 수 있습니다. Oh My Pi(`omp`) target은 이제 MCP, 코드 hooks, plugins, extension 선택을 지원합니다. 전체 새 기능과 수정 사항은 [Releases](https://github.com/runkids/skillshare/releases)와 [변경 내역](https://skillshare.runkids.cc/changelog)에서 확인하세요.
 
 ## skillshare를 쓰는 이유
 

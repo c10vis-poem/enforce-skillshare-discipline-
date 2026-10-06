@@ -252,7 +252,7 @@ When dashboard target assignment writes frontmatter, it also uses this boundary:
 
 Replacing a skill behind a followed link keeps the old skill until the replacement succeeds; a copy failure restores it. Links in incoming staged content are copied as real files or directories, and dangling links are skipped.
 
-When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted.
+When moving a skill to trash across filesystems, nested file and directory links are preserved as links with their original target text; their targets are never copied or deleted. On Windows a junction stays a junction, so no Developer Mode is needed.
 
 `--group` accepts the link name for `update` and `check` (`skillshare update --group _dev-skills`). A group nested below the link, such as `_dev-skills/sub`, is not accepted by `--group`; name its skills instead. `skillshare uninstall --group _dev-skills` is refused because it would empty the real checkout: use `skillshare unlink _dev-skills` for the link, or name the skills to trash.
 

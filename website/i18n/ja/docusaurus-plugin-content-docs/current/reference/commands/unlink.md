@@ -49,6 +49,7 @@ $ skillshare unlink my-skill
 |------|-------------|
 | `--project, -p` | カレントディレクトリの project レベルの config を使用 |
 | `--global, -g` | global config を使用（`~/.config/skillshare`） |
+| `--` | オプションの終わり。`-` で始まる名前を指定できる |
 | `--help, -h` | ヘルプを表示 |
 
 ## 関連項目

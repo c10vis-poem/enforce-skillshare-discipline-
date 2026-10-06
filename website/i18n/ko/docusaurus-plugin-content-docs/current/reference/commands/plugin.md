@@ -49,10 +49,10 @@ skillshare plugin remove review --no-tui
 
 | Option | 의미 |
 |---|---|
-| `--target TARGET` | 반복 가능한 선택: `claude`, `codex`, `cursor`, `antigravity`(`agy` alias), `antigravity-cli`, `copilot`, `grok`, `pi`, `opencode`, 또는 [Agent의 다른 계정](#accounts) 이름. 아래 capability 표 참고 |
+| `--target TARGET` | 반복 가능한 선택: `claude`, `codex`, `cursor`, `antigravity`(`agy` alias), `antigravity-cli`, `copilot`, `grok`, `pi`, `omp`, `opencode`, 또는 [Agent의 다른 계정](#accounts) 이름. 아래 capability 표 참고 |
 | `--plugin NAME` | source marketplace에서 plugin 하나를 선택 |
 | `--name NAME` | 추가하거나 import할 때의 논리적 패키지 이름 |
-| `--from TARGET` | Claude, Codex, Antigravity CLI, Copilot, Grok, Pi, OpenCode, 또는 [Agent의 다른 계정](#accounts)에서 import |
+| `--from TARGET` | Claude, Codex, Antigravity CLI, Copilot, Grok, Pi, OMP marketplace, OpenCode, 또는 [Agent의 다른 계정](#accounts)에서 import |
 | `--dry-run`, `-n` | Skillshare나 Agent 설정을 변경하지 않고 미리보기 |
 | `--source-ref REF` | `discover`, `add`, `update`를 위한 Git 브랜치, 태그, 또는 커밋. 원격 source에만 해당 |
 | `--entry PATH` | 패키지 루트 기준의 명시적으로 빌드된 OpenCode JS/TS entry(`discover`와 `add`) |
@@ -60,7 +60,7 @@ skillshare plugin remove review --no-tui
 | `--json` | 기계가 읽을 수 있는 출력. TUI를 비활성화 |
 | `--no-tui` | 대화형 메뉴를 비활성화. `tui: false`도 준수 |
 | `--global`, `-g` | global Skillshare config와 네이티브 사용자 scope |
-| `--project`, `-p` | project config. Claude, Antigravity, Pi, 또는 OpenCode(global로 폴백하지 않음) |
+| `--project`, `-p` | project config. Claude, Antigravity, Pi, OMP, 또는 OpenCode(global로 폴백하지 않음) |
 
 JSON 출력에는 source 경로와 네이티브 식별자가 포함됩니다. source URL에 자격 증명을 넣지 마세요. 실패한 변경 작업도 target별로는 성공한 결과를 반환할 수 있습니다. 어떤 target이든 실패하면 CLI는 0이 아닌 코드로 종료됩니다. 재시도하기 전에 결과를 확인하세요.
 
@@ -73,6 +73,7 @@ JSON 출력에는 source 경로와 네이티브 식별자가 포함됩니다. so
 | Cursor | `.cursor-plugin/plugin.json` 또는 Agent Plugins 루트 매니페스트 | 예 | 아니요 | 검토된 로컬 사본 교체 |
 | Antigravity Desktop | 명시적 이름이 있는 루트 `plugin.json` | 예 | 예 | 검토된 로컬 사본 교체 |
 | Pi | `pi` 리소스가 있는 `package.json`, 또는 `pi-package` 키워드와 관례적인 리소스 폴더 | 예 | 예, 네이티브 project trust 사용 시 | 관리되는 source 스냅샷 새로고침 |
+| Oh My Pi | 네이티브 호환 메타데이터를 가진 marketplace 기반 로컬/Git plugin | 새 cache 설치/재설치, import, scope 단위 제거 | OMP의 project anchor에서 | 업데이트 차단, 제거 시 공유 cache 유지 |
 | OpenCode | SDK dependency가 있는 `package.json`, `.opencode/plugins/` entry, 또는 명시적 `--entry` | 예 | 예 | 관리되는 source 스냅샷 새로고침 |
 
 | Antigravity CLI | `agy`가 허용하는 네이티브 루트 매니페스트 또는 Claude 매니페스트 | 예 | 아니요 | 활성화 상태를 유지하기 위해 네이티브로 업데이트 |
@@ -114,6 +115,36 @@ skillshare plugin import demo@market --from claude-work
 
 이러한 local 패키지에는 `plugin add`를 사용하세요. 기존의 local 폴더나 marketplace 설치를 import하는 것은 지원되지 않습니다. Skillshare는 소유하지 않은 폴더, symlink, 또는 로컬에서 편집된 관리 콘텐츠를 덮어쓰기를 거부합니다. 명시적인 Antigravity 매니페스트 이름은 Git checkout과 스냅샷 전반에서 identity를 안정적으로 유지합니다.
 
+### Oh My Pi (OMP) {#omp}
+
+OMP는 Pi의 패키지 명령이 아니라 자체 marketplace lifecycle을 사용합니다. Skillshare는 검토한 로컬/Git plugin source를 관리하고, `name@marketplace`로 식별되는 네이티브 marketplace 항목을 import합니다:
+
+```bash
+skillshare plugin add ./my-omp-plugin --target omp --dry-run --json -g
+skillshare plugin add ./my-omp-plugin --target omp --no-tui -g
+skillshare plugin import demo@my-market --from omp --dry-run --json -g
+```
+
+설치하려면 OMP **18.6.1**, 검토한 로컬/Git source, 검증되었고 이전에 사용되지 않은 cache 대상 경로, 그리고 아직 존재하지 않는 scope-local 런타임 대상 경로가 필요합니다. 런타임 패키지 이름은 marketplace 이름만이 아니라 검토한 source에서 가져옵니다. 기존 모듈 디렉터리나 링크가 있으면 교체하지 않고 설치를 차단합니다. 대상 경로는 미리보기에 묶이며 설치 전에 다시 확인됩니다. adapter는 plugin 트리를 한데 유지하고, 네이티브 marketplace 설치를 사용하며, 결과 등록을 검증합니다. 카탈로그는 `.omp-plugin/marketplace.json` 또는 기존의 `.claude-plugin/marketplace.json`을 사용할 수 있습니다. 미리보기는 파일을 쓸 수 있는 OMP의 네이티브 `--dry-run`을 호출하지 않습니다. 적용하기 전에 source를 검토하세요. OMP는 다음 시작 시 project trust 확인 없이 plugin extension과 tool을 프로세스 안에서 실행할 수 있습니다. 설치되었다고 해서 해당 리소스가 성공적으로 로드되었다는 증거는 아닙니다.
+
+**OMP 18.6.1의 공유 cache 제한:** 네이티브 uninstall과 upgrade는 다른 프로젝트가 아직 참조하는 plugin cache 파일을 삭제하거나 교체할 수 있습니다. 네이티브 inventory는 사용자 레지스트리와 현재 프로젝트의 레지스트리만 나열하므로, 다른 프로젝트에 대해 이 작업이 안전한지 확인할 수 없습니다. Skillshare는 이런 파괴적인 명령을 호출하지 않습니다. **Remove**와 disable 후 sync는 대신 scope 단위 adapter를 사용해 해당 설치의 레지스트리 항목, 런타임 선택, 검증된 `node_modules` 링크를 삭제합니다. plugin은 단순히 비활성화되는 것이 아니라 그 scope에서 제거됩니다. 공유 cache, marketplace, plugin 설정은 유지되며 cache garbage collection은 시도하지 않습니다. 이전 cache가 아직 남아 있으면 재설치 시 다른 프로젝트가 사용할 수 있는 파일을 교체하지 않고 새로운 marketplace/cache identity를 자동으로 선택합니다. 읽을 수 없거나, 링크이거나, 디렉터리가 아닌 cache 대상 경로는 계속 차단됩니다.
+
+제거하려면 검증된 18.6.1 메타데이터 계약, 일치하는 설치 버전, 모호하지 않은 JSON, 증명된 런타임 링크 소유권이 필요합니다. 실제 모듈 폴더, 외부 링크, npm dependency 충돌, 모호한 런타임 소유자는 거부됩니다. cache manifest가 없으면 adapter는 scope-local 링크가 해당 설치의 cache를 가리키는 고유한 runtime-lock 키를 요구합니다. marketplace 이름을 추측하지 않으며, 실제 런타임 링크가 여전히 설치된 상태에서 성공을 보고하지도 않습니다. 검증할 수 없는 활성 설치는 계속 차단됩니다. 네이티브 uninstall이 이미 cache, 등록, 런타임 링크/선택을 제거했다면 Forget은 오래된 Skillshare binding만 삭제합니다. 다른 plugin의 `node_modules` 디렉터리는 이를 막지 않습니다. 네이티브 파일이 바뀌면 미리보기는 무효가 됩니다. 일부만 완료된 제거는 전체 네이티브 설정 백업을 저장하지 않고 유지된 cache와 binding identity에서 다시 시도할 수 있습니다. Windows에서 쓰려면 추가로 검증 가능한 비공개 ACL이 필요합니다. Skillshare는 통과시키기 위해 권한을 변경하지 않습니다. extension 코드는 실행되지 않습니다.
+
+adapter는 Skillshare의 제거 작업을 직렬화하고 네이티브 파일 revision을 확인하지만, OMP의 plugin 명령은 그 lock에 참여하지 않습니다. 네이티브 plugin 변경을 동시에 실행하지 마세요. 이것은 여러 파일에 걸친 atomic 네이티브 트랜잭션이 아닙니다. 파괴적이지 않은 upgrade 계약이 마련될 때까지 **업데이트는 계속 차단됩니다**. import된 코드는 검토한 source 없이 업그레이드되지 않습니다.
+
+project 작업은 선택한 루트가 OMP의 네이티브 project anchor와 일치해야 합니다. 조용히 global이나 상위 프로젝트에 설치하지 않습니다. 네이티브 profile/config-root override(`PI_CONFIG_DIR`, `PI_CODING_AGENT_DIR`, `OMP_PROFILE` 또는 `PI_PROFILE`)가 있으면 plugin 관리가 차단됩니다. 네이티브 cache 위치가 바뀌면 기존 미리보기는 무효가 됩니다. 임의의 계정 `config_dir`은 OMP의 plugin store를 바꾸지 않으므로 OMP 계정 plugin target은 지원되지 않습니다.
+
+네이티브 npm/Git/link 패키지는 inventory에 표시되지만 marketplace plugin으로 import되지 않습니다. 이런 패키지는 OMP에서 관리하세요. `plugin add npm:...`은 여전히 Pi 전용 workflow입니다. plugin의 extension, hooks, skills, MCP 항목을 Skillshare의 다른 리소스로 따로 복사하지 마세요.
+
+#### 독립형 OMP extension 선택
+
+OMP target의 **Extensions** 탭을 열어 파일 기반 선택을 검토하세요. 카드는 파일을 source와 scope별로 묶으며, plugin은 검사한 패키지 루트별로, 나머지 파일은 디렉터리별로 묶습니다. 파일 목록은 계속 표시됩니다. plugin 카드는 extension 폴더 이름이 아니라 네이티브 패키지 identity에서 가져온 패키지 아이콘과 `Plugins · <name>` 제목을 사용합니다. 알려진 manifest 버전과 scope는 계속 표시되며, 반복되는 출처 태그 대신 **Open Plugins** 탐색 아이콘이 있습니다. 공유 폴더는 plugin 기준 상대 경로이고, 전체 파일 경로는 tooltip에 남습니다. **Details**는 Pi와 같은 레이블이 붙은 2열 레이아웃으로 전체 source, 네이티브 이름, 선택 식별자, 메모를 보여 줍니다. identity 메타데이터가 없으면 검사한 폴더로 대체하며, 패키지 identity나 버전을 추측하지 않습니다. 읽기 전용 사유와 Hooks 또는 Plugins로 가는 링크는 해당 항목과 함께 계속 표시됩니다. 지원되는 독립형 모듈에는 스위치가 있습니다. **Preview**는 변경 사항을 보여 주고, **Apply**는 선택한 네이티브 YAML 설정 파일의 `disabledExtensions`만 씁니다. global, project, 명시적으로 구성한 계정 디렉터리는 서로 분리됩니다. 편집기는 관련 없는 YAML과 주석을 유지하고, OMP의 네이티브 lock 아래에서 검토한 revision을 다시 확인하며, 오래되었거나 사용 중인 쓰기는 거부합니다.
+
+선택 편집에는 선택한 launcher 뒤에 검증 가능한 OMP **18.6.1** 패키지가 필요합니다. 식별되지 않은 버전, 독립형 바이너리, wrapper launcher는 읽기 전용으로 남습니다. 이 확인은 OMP를 실행하지 않고 패키지 메타데이터를 읽습니다. 같은 이름의 모듈 그룹, disabled-name 필터를 우회하는 명시적 파일, 주변의 `hooks/pre|post` factory, 불확실한 선택, 링크된 경로는 읽기 전용입니다. Hooks 소유 항목과 plugin 소유 항목은 각각의 관리자에게 맡겨집니다.
+
+백업은 변경 전후의 선택과 설정 해시를 Skillshare state 디렉터리의 `omp-extensions/backups` 아래에 기록하며, 관련 없는 YAML 값이나 자격 증명은 기록하지 않습니다. 이것은 선택 복구 기록이며 설정 전체를 복원하는 것이 아닙니다. 적용에 성공했다는 것은 디스크의 설정을 의미할 뿐 실행 중인 extension을 뜻하지 않습니다. 재시작/다시 로드는 OMP에서 수행해야 합니다.
+
 ### Pi와 OpenCode
 
 Pi는 같은 패키지의 첫 번째 전역 등록과 마지막 프로젝트 등록을 우선합니다. 앞선 전역 소스나 뒤의 프로젝트 소스의 identity를 확인할 수 없으면 Skillshare는 어느 등록이 우선하는지 증명할 수 없으므로, 덮어써질 수 있는 항목(상속하는 프로젝트 delta 포함)을 Unknown／읽기 전용으로 유지합니다. URL의 query를 제거해 identity를 추측하지 않습니다. 이 불확실성의 영향을 받지 않는, 확인된 항목은 계속 편집할 수 있습니다.
@@ -137,9 +168,9 @@ Pi는 패키지 이름마다 항목을 하나만 유지합니다. Pi에 같은 �
 
 #### 패키지의 extension 선택
 
-대시보드에서 `pi`와 Pi 계정의 target 페이지에는 **Extensions** 탭이 있습니다. 해당 target의 `settings.json`에 있는 각 패키지 항목과 그 필터가 선택하는 extension을 보여 줍니다. 스위치는 해당 항목의 `extensions` 목록에 정확한 `+path` 또는 `-path` 규칙 하나를 씁니다. 다만 그 파일 자체의 정확한 규칙을 삭제하는 것만으로 스위치가 원하는 상태가 되면 그 규칙을 삭제합니다. 따라서 파일을 남은 규칙이 선택하는 상태로 되돌려도 규칙이 남지 않습니다. **Remove rule**은 스위치가 규칙을 삭제하지 않는 경우에 표시되며, 해당 파일의 정확한 규칙(상대 경로든 절대 경로든)을 삭제하며, 이후 그 파일은 남은 규칙에 따라 결정됩니다. 결과는 미리보기에 표시됩니다. 적용 시에는 항상 먼저 미리보기를 보여 주고 이 목록만 수정합니다. 항목의 다른 키, `skills`, `prompts`, `themes` 필터, glob과 `!` 규칙, 파일의 나머지 부분은 그대로 유지됩니다. 문자열 항목은 규칙을 담을 수 있도록 `{"source": ...}`로 바뀝니다. 문자열 항목에서 Pi는 패키지의 skills, prompts, themes를 `pi` manifest에서만 불러오지만, 객체 항목은 manifest에 없는 것을 패키지의 `skills`, `prompts`, `themes` 폴더에서도 불러옵니다. 그런 폴더가 있는 패키지의 문자열 항목은 변환 후에도 해당 리소스가 그대로인지 Skillshare가 확인할 수 없으므로 읽기 전용입니다. 파일 하나를 가리키는 소스도 Pi가 그대로 불러오고 필터를 무시하므로 읽기 전용입니다. 미리보기 이후 파일이 변경되었거나 Pi가 설정 잠금을 보유하고 있으면 아무것도 쓰지 않습니다. 쓰는 동안 Skillshare는 Pi와 같은 방식으로 그 잠금을 보유하며, 잠금을 잃으면 쓰지 않습니다. 적용 전에 변경되는 extension 목록과 변경 전후 파일 해시의 기록을 저장합니다. 성공적으로 적용된 기록은 자동으로 삭제하지 않고 보존하며, 적용에 실패하면 해당 시도에서 새로 만든 기록만 삭제합니다. 이 기록은 `settings.json`의 사본이 아니며 설정 파일 전체를 복원할 수 없습니다. 이 탭에는 Pi로 직접 설치한 패키지([pi.dev](https://pi.dev/packages)의 `npm:` 패키지 등)를 포함해 설정에 있는 모든 패키지가 표시됩니다. Skillshare는 `plugin`을 통해서만 패키지를 설치하고 제거합니다. `plugin add`는 로컬 디렉터리, Git 소스 또는 [npm 패키지](#pidev의-npm-패키지)를 받고, `plugin import --from pi`는 Pi로 설치한 패키지를 관리 대상으로 가져옵니다.
+대시보드에서 `pi`와 Pi 계정의 target 페이지에는 **Extensions** 탭이 있습니다. 해당 target의 `settings.json`에 있는 각 패키지 항목과 그 필터가 선택하는 extension을 보여 줍니다. Skillshare가 관리하는 패키지는 OMP plugin 카드와 같이 패키지 아이콘과 `Plugins · <name>` 제목을 사용합니다. 설치된 버전, scope, 관련 project override 형태는 그대로 유지되며, 탐색 아이콘은 Plugins를 엽니다. 관리되지 않는 Pi 패키지는 네이티브 identity와 Pi 아이콘을 유지합니다. 이 표시 방식은 소유권이나 extension 선택 규칙을 바꾸지 않습니다. extension 행은 계속 표시되며, **Details**는 source와 filter 규칙을 별도로 보여 줍니다. 스위치는 해당 항목의 `extensions` 목록에 정확한 `+path` 또는 `-path` 규칙 하나를 씁니다. 다만 그 파일 자체의 정확한 규칙을 삭제하는 것만으로 스위치가 원하는 상태가 되면 그 규칙을 삭제합니다. 따라서 파일을 남은 규칙이 선택하는 상태로 되돌려도 규칙이 남지 않습니다. **Remove rule**은 스위치가 규칙을 삭제하지 않는 경우에 표시되며, 해당 파일의 정확한 규칙(상대 경로든 절대 경로든)을 삭제하며, 이후 그 파일은 남은 규칙에 따라 결정됩니다. 결과는 미리보기에 표시됩니다. 적용 시에는 항상 먼저 미리보기를 보여 주고 이 목록만 수정합니다. 항목의 다른 키, `skills`, `prompts`, `themes` 필터, glob과 `!` 규칙, 파일의 나머지 부분은 그대로 유지됩니다. 문자열 항목은 규칙을 담을 수 있도록 `{"source": ...}`로 바뀝니다. 문자열 항목에서 Pi는 패키지의 skills, prompts, themes를 `pi` manifest에서만 불러오지만, 객체 항목은 manifest에 없는 것을 패키지의 `skills`, `prompts`, `themes` 폴더에서도 불러옵니다. 그런 폴더가 있는 패키지의 문자열 항목은 변환 후에도 해당 리소스가 그대로인지 Skillshare가 확인할 수 없으므로 읽기 전용입니다. 파일 하나를 가리키는 소스도 Pi가 그대로 불러오고 필터를 무시하므로 읽기 전용입니다. 미리보기 이후 파일이 변경되었거나 Pi가 설정 잠금을 보유하고 있으면 아무것도 쓰지 않습니다. 쓰는 동안 Skillshare는 Pi와 같은 방식으로 그 잠금을 보유하며, 잠금을 잃으면 쓰지 않습니다. 적용 전에 변경되는 extension 목록과 변경 전후 파일 해시의 기록을 저장합니다. 성공적으로 적용된 기록은 자동으로 삭제하지 않고 보존하며, 적용에 실패하면 해당 시도에서 새로 만든 기록만 삭제합니다. 이 기록은 `settings.json`의 사본이 아니며 설정 파일 전체를 복원할 수 없습니다. 이 탭에는 Pi로 직접 설치한 패키지([pi.dev](https://pi.dev/packages)의 `npm:` 패키지 등)를 포함해 설정에 있는 모든 패키지가 표시됩니다. Skillshare는 `plugin`을 통해서만 패키지를 설치하고 제거합니다. `plugin add`는 로컬 디렉터리, Git 소스 또는 [npm 패키지](#pidev의-npm-패키지)를 받고, `plugin import --from pi`는 Pi로 설치한 패키지를 관리 대상으로 가져옵니다.
 
-Skillshare는 패키지를 실행하지 않고 읽기 때문에, 이 탭은 설정이 어떤 파일을 선택하는지(**설정** 열)를 보여 줄 뿐 Pi가 실제로 로드했는지는 보여 주지 않습니다. 적용 후에는 Pi를 다시 로드하세요. 설정에서 지정했지만 패키지에 없는 파일은 없음으로 표시됩니다. Skillshare가 판단할 수 없는 선택은 **판단할 수 없음**으로 표시되고 이유와 변경 방법이 함께 나오며, 켜짐이나 꺼짐을 추측하지 않습니다. 편집하려면 해당 target의 Pi가 0.99.2 이상(Pi 자체로 확인한 가장 오래된 버전)이어야 하고 설정이 엄격한 JSON이어야 합니다. 그보다 오래된 버전은 읽기 전용이며 탭에 감지한 버전이 표시됩니다. 다른 실행 파일을 쓰는 Pi 계정은 읽기 전용이며 Skillshare는 그것을 실행하지 않습니다. 목록이 `[]`(아무것도 로드하지 않음)인 항목은 읽기 전용이며, Skillshare가 평가할 수 없는 패턴(예: emoji에 대한 `?`)으로 결정되는 extension도 읽기 전용입니다. 소스가 비어 있거나, 소스 또는 규칙에 짝이 없는 UTF-16 서로게이트 이스케이프나 잘못된 UTF-8이 있는 항목은 Skillshare가 Pi와 똑같이 읽을 수 없으므로 작성된 그대로 읽기 전용입니다. Pi는 패키지의 첫 번째 전역 항목만 사용하므로, Skillshare가 그 항목을 읽을 수 없으면 같은 패키지의 이후 항목도 읽기 전용입니다.
+Skillshare는 패키지를 실행하지 않고 읽기 때문에, 이 탭은 설정이 어떤 파일을 선택하는지(스위치와 선택 메모)를 보여 줄 뿐 Pi가 실제로 로드했는지는 보여 주지 않습니다. 적용 후에는 Pi를 다시 로드하세요. 설정에서 지정했지만 패키지에 없는 파일은 없음으로 표시됩니다. Skillshare가 판단할 수 없는 선택은 **판단할 수 없음**으로 표시되고 이유와 변경 방법이 함께 나오며, 켜짐이나 꺼짐을 추측하지 않습니다. 편집하려면 해당 target의 Pi가 0.99.2 이상(Pi 자체로 확인한 가장 오래된 버전)이어야 하고 설정이 엄격한 JSON이어야 합니다. 그보다 오래된 버전은 읽기 전용이며 탭에 감지한 버전이 표시됩니다. 다른 실행 파일을 쓰는 Pi 계정은 읽기 전용이며 Skillshare는 그것을 실행하지 않습니다. 목록이 `[]`(아무것도 로드하지 않음)인 항목은 읽기 전용이며, Skillshare가 평가할 수 없는 패턴(예: emoji에 대한 `?`)으로 결정되는 extension도 읽기 전용입니다. 소스가 비어 있거나, 소스 또는 규칙에 짝이 없는 UTF-16 서로게이트 이스케이프나 잘못된 UTF-8이 있는 항목은 Skillshare가 Pi와 똑같이 읽을 수 없으므로 작성된 그대로 읽기 전용입니다. Pi는 패키지의 첫 번째 전역 항목만 사용하므로, Skillshare가 그 항목을 읽을 수 없으면 같은 패키지의 이후 항목도 읽기 전용입니다.
 
 Pi로 동기화하는 프로젝트도 프로젝트 페이지에 같은 탭이 있습니다. 프로젝트 설정을 전역 설정 위에 적용했을 때 각 패키지가 무엇을 선택하는지 보여 주며, `pi (global)`에서 상속한 것인지 프로젝트 재정의인지 표시합니다. 스위치는 규칙을 프로젝트의 `.pi/settings.json`에만 저장하며, `pi config`와 같은 방식으로 씁니다. 전역 패키지에는 지정한 파일만 바꾸는 프로젝트 항목 `{"source": ..., "autoload": false, "extensions": [...]}`이 추가되고 전역 항목은 그대로 유지됩니다. 로컬 소스는 `.pi` 기준 상대 경로로, npm 또는 git 소스는 전역 설정에 적힌 그대로 씁니다. 이런 항목의 마지막 프로젝트 규칙을 제거하면 이전 등록의 filters가 활성화되지 않을 때만 항목을 제거하고, 그렇지 않으면 빈 winning override를 유지합니다. 명시적인 JSON `false`만 delta이며 `autoload: null`은 `false`가 아닙니다. 대응하는 전역 항목이 없고 `autoload: false`인 프로젝트 항목은 `+`로 지정한 파일만 로드합니다. 파일과 그 `.pi` 폴더는 적용할 때만 만들어집니다. 전역 설정과 Pi의 `trust.json`은 절대 쓰지 않으며, Skillshare가 대신 프로젝트를 신뢰하지도 않습니다. Pi는 프로젝트를 신뢰할 때만 프로젝트 설정을 사용합니다. 자격 증명이나 쿼리가 있는 전역 소스는 프로젝트에 복사하지 않으므로 그 패키지는 프로젝트에서 읽기 전용이며, 프로젝트 설정에 Skillshare가 읽을 수 없는 항목이 있으면 모든 패키지가 읽기 전용입니다. 적용 중에는 프로젝트 파일에 대한 Pi의 잠금을 유지하고, 쓰기 직전에 두 설정 파일과 패키지를 다시 확인합니다. Pi 자체의 `extensions` 폴더에 있는 extension([extras](./extras.md)가 그곳에 연결한 파일 포함)은 변경할 위치와 함께 읽기 전용으로 표시됩니다. 프로젝트는 자체 폴더(Pi는 프로젝트를 신뢰할 때만 읽음)와 전역 폴더를 표시합니다.
 

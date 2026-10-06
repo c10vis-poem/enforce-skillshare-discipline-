@@ -49,6 +49,7 @@ $ skillshare unlink my-skill
 |------|-------------|
 | `--project, -p` | 현재 디렉터리의 project 레벨 config 사용 |
 | `--global, -g` | global config 사용(`~/.config/skillshare`) |
+| `--` | 옵션 끝. `-`로 시작하는 이름 허용 |
 | `--help, -h` | 도움말 표시 |
 
 ## 참고

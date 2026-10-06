@@ -256,7 +256,7 @@ skillshare target claude --target-naming standard
 skillshare sync
 ```
 
-**Standard mode** follows the [Agent Skills specification](https://agentskills.io/specification), which requires the SKILL.md `name` field to match the parent directory name. Skills with invalid names or name collisions are warned and skipped.
+**Standard mode** follows the [Agent Skills specification](https://agentskills.io/specification), which requires the SKILL.md `name` field to match the parent directory name. A valid name has at most 64 lowercase letters (in any script), digits and single hyphens, and does not start or end with `-`; underscores are not allowed. Skills with invalid names or name collisions are warned and skipped.
 
 **Migration**: Switching from `flat` to `standard` automatically renames existing managed entries in place. If a local skill already occupies the bare name, the legacy flat entry is preserved.
 

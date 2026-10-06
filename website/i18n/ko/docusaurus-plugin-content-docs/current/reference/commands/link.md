@@ -11,6 +11,7 @@ skillshare link ~/code/dev-skills                  # _dev-skills로 링크
 skillshare link ~/code/dev-skills --enable         # 링크하고 따라가기 켜기
 skillshare link ~/code/dev-skills --name _mine     # 링크 이름 지정
 skillshare link ../team --name _team -p            # project source에 링크
+skillshare link -- -checkout                       # -로 시작하는 경로 링크
 ```
 
 ## 언제 사용하나요
@@ -34,7 +35,7 @@ Next
 2. discovery가 따라가는 링크를 검사하는 것과 같은 방식으로 폴더를 검사합니다. 이름이 이미 있거나, 폴더가 source 자체 또는 그 상위이거나, source 안에 있거나, sync target과 겹치거나, 없거나, 읽을 수 없거나, 디렉터리가 아니면 링크를 거부합니다.
 3. 링크를 만듭니다. macOS와 Linux에서는 절대 경로 symlink입니다. Windows에서는 junction을 만들며 개발자 모드나 관리자 권한이 필요 없습니다. junction을 만들지 못했을 때만 디렉터리 symlink를 시도합니다.
 4. 폴더에 `.git` 항목이 없으면 경고가 표시됩니다. 링크는 동작하지만 `skillshare update`로 pull할 수는 없습니다.
-5. `follow_source_links`가 꺼져 있으면 `--enable`을 주지 않는 한 config를 바꾸지 않습니다. 주지 않으면 `skillshare doctor`와 같은 안내를 출력합니다.
+5. `follow_source_links`가 꺼져 있으면 `--enable`을 주지 않는 한 config를 바꾸지 않습니다. 주지 않으면 `skillshare doctor`와 같은 안내를 출력합니다. `--enable`로 config를 저장하지 못하면 새 링크를 다시 제거하고 명령이 실패하므로, 따라가지 않는 링크가 남지 않습니다. 대시보드의 **Link folder** 체크박스도 같습니다.
 
 ## 옵션
 
@@ -44,6 +45,7 @@ Next
 | `--enable` | `follow_source_links: true`도 설정 |
 | `--project, -p` | 현재 디렉터리의 project 레벨 config 사용 |
 | `--global, -g` | global config 사용(`~/.config/skillshare`) |
+| `--` | 옵션 끝. `-`로 시작하는 경로 허용 |
 | `--help, -h` | 도움말 표시 |
 
 ## `--enable` 없이 실행할 때

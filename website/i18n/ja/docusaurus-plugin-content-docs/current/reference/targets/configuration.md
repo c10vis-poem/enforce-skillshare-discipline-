@@ -254,7 +254,7 @@ skillshare sync
 
 追従するリンクの背後にある Skill を置き換えるときは、置き換えが成功するまで元の Skill を保持し、コピーに失敗した場合は元に戻します。取り込む内容のリンクは実際のファイルやディレクトリとしてコピーされ、リンク先がないものはスキップされます。
 
-Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。
+Skill を別のファイルシステムの trash に移す場合も、内部のファイルやディレクトリのリンクは元のリンク先の文字列を保ったリンクとして保存されます。リンク先はコピーも削除もされません。Windows ではジャンクションはジャンクションのまま保たれるため、Developer Mode は不要です。
 
 `update` と `check` の `--group` はリンク名を受け付けます（`skillshare update --group _dev-skills`）。`_dev-skills/sub` のようにリンクの下にネストされたグループは `--group` では受け付けられません。代わりにその Skill を名前で指定してください。`skillshare uninstall --group _dev-skills` は、実際のチェックアウトを空にしてしまうため拒否されます。リンクには `skillshare unlink _dev-skills` を使うか、trash に移動する Skill を名前で指定してください。
 
@@ -340,11 +340,11 @@ targets:
     config_dir: ~/.codex-work    # skills は ~/.codex-work/skills に入る
 ```
 
-Codex は共有の `~/.agents/skills` も読み込みますが、アカウントが所有するのは自分のディレクトリだけなので、その Skill は `<config_dir>/skills` に入ります。Pi も同じ仕組みです。agents ディレクトリを持つのは Claude だけです。
+Codex は共有の `~/.agents/skills` も読み込みますが、アカウントが所有するのは自分のディレクトリだけなので、その Skill は `<config_dir>/skills` に入ります。Pi と OMP も同じ仕組みです。agents ディレクトリを持つのは Claude だけです。
 
 | フィールド | 説明 |
 |-------|-------------|
-| `agent` | 組み込みの Agent。`claude`（`CLAUDE_CONFIG_DIR`）、`codex`（`CODEX_HOME`）、`pi`（`PI_CODING_AGENT_DIR`） |
+| `agent` | 組み込みの Agent。`claude`（`CLAUDE_CONFIG_DIR`）、`codex`（`CODEX_HOME`）、`pi` または `omp`（どちらも `PI_CODING_AGENT_DIR`） |
 | `config_dir` | そのアカウントの Config ディレクトリ。絶対パスか `~` で始まること、Agent のデフォルトのディレクトリではないこと、1 つの Target だけが使うこと |
 | `cli` | 任意。このアカウントの [plugin コマンド](/docs/reference/commands/plugin#accounts)を、Agent 本体ではなく互換 CLI で実行します（Pi なら `omo` など）。`PATH` 上の名前か、絶対パス（`~` で始めても可）。引数なしの実行ファイル 1 つだけで、shell alias は使えません |
 
@@ -360,7 +360,7 @@ targets:
 
 `cli` が変えるのは、plugin のインストールと削除に使うプログラムだけです。Skill、Agent、MCP サーバーはこれまでどおり `config_dir` に書き込まれます。
 
-`mode`、`include`、`exclude` などの Target 設定は、他の Target と同じように機能します。自分で書いた `skills.path` や `agents.path` は、導き出されたパスより優先されます。Target 名は [MCP Target](/docs/reference/commands/mcp#accounts) や [plugin Target](/docs/reference/commands/plugin#accounts) としても使えます。 [hooks Target](/docs/reference/commands/hooks#accounts) としても使えます。
+`mode`、`include`、`exclude` などの Target 設定は、他の Target と同じように機能します。自分で書いた `skills.path` や `agents.path` は、導き出されたパスより優先されます。Target 名は [MCP Target](/docs/reference/commands/mcp#accounts) としても使えます。それらのリソースが対応する Agent では、[plugin Target](/docs/reference/commands/plugin#accounts) や [hooks Target](/docs/reference/commands/hooks#accounts) にもなります。OMP のアカウントは Skill、instructions、files、MCP、ネイティブのコード hooks に対応しますが、plugin の sync には対応しません。その Extensions タブはネイティブモジュールを一覧表示し、ネイティブのバージョン、ファイルの識別情報、設定スコープが検証された場合にのみ[選択の編集](/docs/reference/commands/plugin#omp)を提供します。実行時の状態モニターではありません。
 
 #### ツールが読むファイル {#target-instructions}
 

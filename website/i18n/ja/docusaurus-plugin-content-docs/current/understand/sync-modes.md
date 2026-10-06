@@ -257,7 +257,7 @@ skillshare target claude --target-naming standard
 skillshare sync
 ```
 
-**Standard mode** は [Agent Skills specification](https://agentskills.io/specification) に従い、SKILL.md の `name` フィールドが親ディレクトリ名と一致することを要求します。名前が無効な Skill や名前の衝突は警告され、スキップされます。
+**Standard mode** は [Agent Skills specification](https://agentskills.io/specification) に従い、SKILL.md の `name` フィールドが親ディレクトリ名と一致することを要求します。有効な名前は最大 64 文字の小文字（どの文字体系でも可）、数字、単独のハイフンで構成され、`-` で始まったり終わったりしません。アンダースコアは使えません。名前が無効な Skill や名前の衝突は警告され、スキップされます。
 
 **移行**: `flat` から `standard` に切り替えると、既存の管理対象エントリはその場で自動的にリネームされます。ローカル Skill が既にそのベア名を占有している場合、レガシーの flat エントリは保持されます。
 

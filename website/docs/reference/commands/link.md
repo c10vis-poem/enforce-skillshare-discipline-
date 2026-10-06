@@ -11,6 +11,7 @@ skillshare link ~/code/dev-skills                  # Link as _dev-skills
 skillshare link ~/code/dev-skills --enable         # Link and turn on following
 skillshare link ~/code/dev-skills --name _mine     # Choose the link name
 skillshare link ../team --name _team -p            # Link into the project source
+skillshare link -- -checkout                       # Link a path starting with -
 ```
 
 ## When to Use
@@ -34,7 +35,7 @@ Next
 2. The folder is checked the same way discovery checks a followed link. The link is refused when the name already exists, or when the folder is the source or a parent of it, sits inside the source, overlaps a sync target, is missing, is unreadable, or is not a directory.
 3. The link is created: an absolute symlink on macOS and Linux. On Windows a junction is created, which needs no Developer Mode or elevation; a directory symlink is tried only when the junction fails.
 4. When the folder has no `.git` entry, a warning says so: the link still works, but `skillshare update` cannot pull it.
-5. When `follow_source_links` is off, the config is not changed unless you pass `--enable`. Without it, the command prints the same hint as `skillshare doctor`.
+5. When `follow_source_links` is off, the config is not changed unless you pass `--enable`. Without it, the command prints the same hint as `skillshare doctor`. If `--enable` cannot save the config, the new link is removed again and the command fails, so no unfollowed link is left behind. The dashboard's **Link folder** checkbox works the same way.
 
 ## Options
 
@@ -44,6 +45,7 @@ Next
 | `--enable` | Also set `follow_source_links: true` |
 | `--project, -p` | Use project-level config in current directory |
 | `--global, -g` | Use global config (`~/.config/skillshare`) |
+| `--` | End options; allow a path starting with `-` |
 | `--help, -h` | Show help |
 
 ## Without `--enable`

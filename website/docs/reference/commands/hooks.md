@@ -222,6 +222,7 @@ hooks:
 | `claude` | `<config_dir>/settings.json` |
 | `codex` | `<config_dir>/hooks.json` |
 | `pi` | `<config_dir>/extensions/skillshare-NAME.ts` |
+| `omp` | `<config_dir>/extensions/skillshare-NAME.ts` |
 
 Command scripts go to `<config_dir>/hooks/skillshare/NAME/`. Accounts are
 global only: project configs and `hooks.projects` bind the Agent itself, because

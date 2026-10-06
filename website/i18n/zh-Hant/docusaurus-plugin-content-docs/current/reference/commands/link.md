@@ -11,6 +11,7 @@ skillshare link ~/code/dev-skills                  # 以 _dev-skills 連結
 skillshare link ~/code/dev-skills --enable         # 連結並開啟跟進
 skillshare link ~/code/dev-skills --name _mine     # 自訂連結名稱
 skillshare link ../team --name _team -p            # 連結進專案的 source
+skillshare link -- -checkout                       # 連結以 - 開頭的路徑
 ```
 
 ## 何時使用
@@ -34,7 +35,7 @@ Next
 2. 以 discovery 檢查已跟進連結的相同方式檢查資料夾。若名稱已存在，或資料夾是 source 本身或其上層、位於 source 內、與 sync target 重疊、不存在、無法讀取或不是目錄，連結會被拒絕。
 3. 建立連結：macOS 與 Linux 上是絕對路徑的 symlink。Windows 上會建立 junction，不需要開發人員模式或系統管理員權限；只有 junction 建立失敗時才改試目錄 symlink。
 4. 資料夾沒有 `.git` 項目時會顯示警告：連結仍然可用，但 `skillshare update` 無法 pull 它。
-5. `follow_source_links` 關閉時，除非加上 `--enable`，否則不會改動設定。沒有加時，指令會印出與 `skillshare doctor` 相同的提示。
+5. `follow_source_links` 關閉時，除非加上 `--enable`，否則不會改動設定。沒有加時，指令會印出與 `skillshare doctor` 相同的提示。如果 `--enable` 無法儲存設定，新建的連結會被移除、指令失敗，不會留下未被跟隨的連結。Dashboard 的 **Link folder** 核取方塊也一樣。
 
 ## 選項
 
@@ -44,6 +45,7 @@ Next
 | `--enable` | 同時設定 `follow_source_links: true` |
 | `--project, -p` | 使用目前目錄的專案層級設定 |
 | `--global, -g` | 使用全域設定（`~/.config/skillshare`） |
+| `--` | 結束選項；允許以 `-` 開頭的路徑 |
 | `--help, -h` | 顯示說明 |
 
 ## 不加 `--enable`
