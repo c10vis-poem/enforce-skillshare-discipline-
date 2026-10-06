@@ -1,6 +1,9 @@
 package config
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,6 +65,30 @@ func TestValidateExtraConnections_ManagedModesShareAFile(t *testing.T) {
 	}
 	if err := share("prepend", "copy"); err == nil {
 		t.Error("prepend + copy should conflict: copy owns the whole file")
+	}
+}
+
+// A block target that is a link to another extra's source would have the block
+// written into that source; it is refused as an import target already is.
+func TestValidateExtraConnections_BlockTargetLinkedToAnotherSourceConflicts(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "src", "other"), 0755)
+	os.WriteFile(filepath.Join(root, "src", "other", "AGENTS.md"), []byte("x"), 0644)
+	tgt := filepath.Join(root, "tgt")
+	os.MkdirAll(tgt, 0755)
+	if err := os.Symlink(filepath.Join(root, "src", "other", "AGENTS.md"), filepath.Join(tgt, "CLAUDE.md")); err != nil {
+		t.Skip(err)
+	}
+	sourceDir := func(e ExtraConfig) string { return filepath.Join(root, "src", e.Name) }
+	for _, mode := range []string{"prepend", "append"} {
+		err := ValidateExtraConnections([]ExtraConfig{
+			{Name: "team", File: "AGENTS.md", Targets: []ExtraTargetConfig{{Path: tgt, As: "CLAUDE.md", Mode: mode}}},
+			{Name: "other", File: "AGENTS.md"},
+		}, sourceDir, func(p string) string { return p })
+		var conflict *ExtraTargetConflict
+		if !errors.As(err, &conflict) || conflict.Name != "other" {
+			t.Errorf("%s: err = %v, want a conflict naming other", mode, err)
+		}
 	}
 }
 

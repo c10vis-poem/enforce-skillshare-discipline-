@@ -56,7 +56,9 @@ func ValidateExtraConnections(extras []ExtraConfig, sourceDir func(ExtraConfig) 
 				return &ExtraTargetConflict{Name: name, Target: file}
 			}
 			owners[file] = owner{extra.Name, target.Mode}
-			if target.Mode == "import" {
+			// Modes that edit the target in place would write through a link into
+			// another extra's source.
+			if ManagedExtraMode(target.Mode) {
 				if name := ExtraSourceAt(extras, file, sourceDir); name != "" && name != extra.Name {
 					return &ExtraTargetConflict{Name: name, Target: file}
 				}

@@ -63,8 +63,10 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 			}
 		}
 		// Inside a fence a marker is text, except the end marker of an open block
-		// when the fence never closes: then the source itself left it open.
-		if fenceLen > 0 && open != nil && line == contentBlockEnd && !fenceCloses(lines[i+1:], fenceChar, fenceLen) {
+		// whose source left that fence open: the body so far matches the hash the
+		// block was written with, or (an edited block) the fence never closes.
+		if fenceLen > 0 && open != nil && line == contentBlockEnd &&
+			(contentBlockHash(blockBodyOf(lines[open.start+1:i])) == open.hash || !fenceCloses(lines[i+1:], fenceChar, fenceLen)) {
 			fenceChar, fenceLen = 0, 0
 		}
 		if fenceLen > 0 || indent >= 4 || strings.HasPrefix(raw, "\t") {
@@ -76,11 +78,7 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 				return nil, false
 			}
 			open.end = i
-			body := make([]string, 0, i-open.start-1)
-			for _, l := range lines[open.start+1 : i] {
-				body = append(body, strings.TrimSuffix(l, "\r"))
-			}
-			open.body = strings.Join(body, "\n")
+			open.body = blockBodyOf(lines[open.start+1 : i])
 			out = append(out, *open)
 			open = nil
 		case strings.HasPrefix(line, "<!-- skillshare:extra "):
@@ -92,6 +90,37 @@ func parseContentBlocks(lines []string) ([]contentBlock, bool) {
 		}
 	}
 	return out, open == nil
+}
+
+// blockBodyOf joins the lines between a block's markers as its body.
+func blockBodyOf(lines []string) string {
+	body := make([]string, len(lines))
+	for i, l := range lines {
+		body[i] = strings.TrimSuffix(l, "\r")
+	}
+	return strings.Join(body, "\n")
+}
+
+// endsInOpenFence reports whether content leaves a Markdown code fence open, so
+// a block appended after it would be read as part of that code.
+func endsInOpenFence(content string) bool {
+	fenceChar, fenceLen := byte(0), 0
+	for _, raw := range strings.Split(content, "\n") {
+		raw = strings.TrimSuffix(raw, "\r")
+		if len(raw)-len(strings.TrimLeft(raw, " ")) >= 4 || strings.HasPrefix(raw, "\t") {
+			continue
+		}
+		line := strings.TrimSpace(raw)
+		c, n := fenceRun(line)
+		switch {
+		case n < 3:
+		case fenceLen == 0:
+			fenceChar, fenceLen = c, n
+		case c == fenceChar && n >= fenceLen && strings.TrimLeft(line, string(c)) == "":
+			fenceChar, fenceLen = 0, 0
+		}
+	}
+	return fenceLen > 0
 }
 
 // fenceCloses reports whether a fence of c repeated at least n times is closed
@@ -250,6 +279,9 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 		case f.Mode == "prepend":
 			updated = block + eol + content
 		default:
+			if endsInOpenFence(content) {
+				return nil, fmt.Errorf("%s ends inside an open code fence; close it before appending %s, or the block would read as code", f.Target, f.Source)
+			}
 			if !strings.HasSuffix(content, "\n") {
 				content += eol
 			}
@@ -298,14 +330,22 @@ func applyExtraBlock(f ExtraFile, dryRun, overwriteEdited bool) (*ExtraResult, e
 }
 
 // blockInPlace reports whether b sits where f.Mode puts a block: nothing but
-// blank lines before it (prepend) or after it (append).
+// blank lines and other managed blocks before it (prepend) or after it
+// (append). Sibling blocks on the same side keep their order.
 func (f ExtraFile) blockInPlace(b *contentBlock, lines []string) bool {
-	rest := lines[:b.start]
-	if f.Mode == "append" {
-		rest = lines[b.end+1:]
+	managed := make([]bool, len(lines))
+	blocks, _ := parseContentBlocks(lines)
+	for _, o := range blocks {
+		for i := o.start; i <= o.end; i++ {
+			managed[i] = true
+		}
 	}
-	for _, l := range rest {
-		if strings.TrimSpace(l) != "" {
+	from, to := 0, b.start
+	if f.Mode == "append" {
+		from, to = b.end+1, len(lines)
+	}
+	for i := from; i < to; i++ {
+		if !managed[i] && strings.TrimSpace(lines[i]) != "" {
 			return false
 		}
 	}

@@ -199,6 +199,11 @@ func recordExtraRestorePoint(f ExtraFile) error {
 		if stripped, changed := removeImportLine(string(data), f.importLine()); changed {
 			data = []byte(stripped)
 		}
+		// A damaged block cannot be told apart from the user's lines; keeping it
+		// in the restore point would bring it back on detach.
+		if _, findErr := f.findContentBlock(strings.Split(string(data), "\n")); findErr != nil {
+			return findErr
+		}
 		if stripped, changed := f.removeContentBlock(string(data)); changed {
 			data = []byte(stripped)
 		}

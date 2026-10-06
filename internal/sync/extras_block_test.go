@@ -352,6 +352,81 @@ func TestSyncExtraFile_SourceWithUnclosedFenceStaysSynced(t *testing.T) {
 	}
 }
 
+// Switching to symlink with a damaged block would record the block as the
+// user's restore point; the switch is refused instead.
+func TestSyncExtraFile_DamagedBlockRefusesSwitchToLink(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend"), false, ""); err != nil {
+		t.Fatal(err)
+	}
+	damaged := strings.Replace(readFile(t, target), contentBlockEnd+"\n", "", 1)
+	os.WriteFile(target, []byte(damaged), 0644)
+
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "symlink"), false, ""); err == nil || !strings.Contains(err.Error(), "damaged") {
+		t.Fatalf("err = %v, want a damaged-block refusal", err)
+	}
+	if got := readFile(t, target); got != damaged {
+		t.Fatalf("a refused switch must leave the file alone:\n%s", got)
+	}
+}
+
+func TestSyncExtraFile_AppendAfterOpenFenceIsRefused(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "rule")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	mine := "# Mine\n\n```sh\necho unfinished\n"
+	os.WriteFile(target, []byte(mine), 0644)
+	if _, err := SyncExtraFile(NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "append"), false, ""); err == nil || !strings.Contains(err.Error(), "fence") {
+		t.Fatalf("err = %v, want an open-fence refusal", err)
+	}
+	if got := readFile(t, target); got != mine {
+		t.Fatalf("a refused append must leave the file alone:\n%s", got)
+	}
+}
+
+// A prepend body with an unclosed fence, followed by the user's own fenced
+// code, still ends where it was written: the hash marks the real end marker.
+func TestSyncExtraFile_UnclosedFenceBodyBeforeUserCodeStaysSynced(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "```sh\necho from source\n")
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("```go\nfmt.Println()\n```\n"), 0644)
+	f := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend")
+	for i := 0; i < 2; i++ {
+		if _, err := SyncExtraFile(f, false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := ExtraFileStatus(f); got != "synced" {
+		t.Errorf("status = %q, want synced", got)
+	}
+}
+
+// Two prepend blocks keep their order: the second is not misplaced just
+// because the first sits above it.
+func TestSyncExtraFile_SiblingPrependBlocksKeepTheirOrder(t *testing.T) {
+	src, tgt := setupExtraFileTest(t, "a")
+	os.WriteFile(filepath.Join(src, "TEAM.md"), []byte("b"), 0644)
+	target := filepath.Join(tgt, "CLAUDE.md")
+	os.WriteFile(target, []byte("# Mine\n"), 0644)
+	a := NewExtraFile(src, "AGENTS.md", tgt, "CLAUDE.md", "prepend")
+	b := NewExtraFile(src, "TEAM.md", tgt, "CLAUDE.md", "prepend")
+	for _, f := range []ExtraFile{a, b} {
+		if _, err := SyncExtraFile(f, false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	settled := readFile(t, target)
+	for _, f := range []ExtraFile{a, b, a} {
+		if _, err := SyncExtraFile(f, false, ""); err != nil {
+			t.Fatal(err)
+		}
+		if got := readFile(t, target); got != settled {
+			t.Fatalf("syncing %s again reordered the blocks:\n%s\nwant\n%s", f.Source, got, settled)
+		}
+	}
+}
+
 func TestSyncExtraFile_ChangingPrependToAppendMovesTheBlock(t *testing.T) {
 	src, tgt := setupExtraFileTest(t, "rule")
 	target := filepath.Join(tgt, "CLAUDE.md")
