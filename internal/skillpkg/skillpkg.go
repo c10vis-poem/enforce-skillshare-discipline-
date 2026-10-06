@@ -75,8 +75,8 @@ func Load(dir string) (*Package, error) {
 	// metadata is left unchecked: the format wants string values, but lists there are
 	// common and tool clients read them fine, so skipping those skills would cost more.
 	compat, ok := fm["compatibility"].(string)
-	if _, set := fm["compatibility"]; set && !ok {
-		return nil, fmt.Errorf("compatibility must be text")
+	if _, set := fm["compatibility"]; set && (!ok || compat == "") {
+		return nil, fmt.Errorf("compatibility must be non-empty text")
 	}
 	if n := utf8.RuneCountInString(compat); n > MaxCompatibility {
 		return nil, fmt.Errorf("compatibility has %d characters; the limit is %d", n, MaxCompatibility)

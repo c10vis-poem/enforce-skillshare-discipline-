@@ -174,12 +174,13 @@ func TestBuild_SkipsSkillWhoseDescriptionOrCompatibilityIsTooLong(t *testing.T) 
 	writeFile(t, filepath.Join(src, "long/SKILL.md"), skill("long", strings.Repeat("a", 1025)))
 	writeFile(t, filepath.Join(src, "wide/SKILL.md"), skill("wide", strings.Repeat("技", 1024)))
 	writeFile(t, filepath.Join(src, "compat/SKILL.md"), "---\nname: compat\ndescription: Use when testing\ncompatibility: "+strings.Repeat("a", 501)+"\n---\n")
+	writeFile(t, filepath.Join(src, "blank/SKILL.md"), "---\nname: blank\ndescription: Use when testing\ncompatibility: \"\"\n---\n")
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 1 || c.Skills[0].URI != "skill://wide/SKILL.md" || !hasWarning(c, "skipped long") || !hasWarning(c, "skipped compat") {
+	if len(c.Skills) != 1 || c.Skills[0].URI != "skill://wide/SKILL.md" || !hasWarning(c, "skipped long") || !hasWarning(c, "skipped compat") || !hasWarning(c, "skipped blank") {
 		t.Errorf("skills=%v warnings=%v, want long and compat skipped, wide served", c.Skills, c.Skipped)
 	}
 }
