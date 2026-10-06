@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
@@ -22,10 +21,9 @@ const (
 
 // File is one regular file of a package.
 type File struct {
-	Path    string // absolute
-	Rel     string // slash-separated, relative to the package directory
-	Size    int64
-	ModTime time.Time
+	Path string // absolute
+	Rel  string // slash-separated, relative to the package directory
+	Size int64
 }
 
 // Package is a valid skill directory.
@@ -81,7 +79,7 @@ func Load(dir string) (*Package, error) {
 		if err != nil {
 			return err
 		}
-		p.Files = append(p.Files, File{Path: path, Rel: filepath.ToSlash(rel), Size: info.Size(), ModTime: info.ModTime()})
+		p.Files = append(p.Files, File{Path: path, Rel: filepath.ToSlash(rel), Size: info.Size()})
 		return nil
 	})
 	if err != nil {

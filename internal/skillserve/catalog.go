@@ -12,7 +12,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	"skillshare/internal/config"
 	"skillshare/internal/skillpkg"
@@ -59,8 +58,7 @@ type Catalog struct {
 	byFile  map[string]servedFile
 }
 
-// Builder builds catalogs from the skills source. It keeps the digests of the
-// last build so unchanged files are not hashed again.
+// Builder builds catalogs from the skills source.
 type Builder struct {
 	Source string
 	Walk   sourcewalk.Options
@@ -68,14 +66,6 @@ type Builder struct {
 	// every enabled skill is served.
 	Target string
 	Skills *config.ResourceTargetConfig
-
-	digests map[string]digest
-}
-
-type digest struct {
-	size  int64
-	mtime time.Time
-	sum   string
 }
 
 // Build discovers the source and returns the skills to serve. Skills that are
@@ -112,9 +102,8 @@ func (b *Builder) Build() (*Catalog, error) {
 		reason string
 	}
 	loads := make([]loaded, len(selected))
-	next := map[string]digest{}
 	for i, s := range selected {
-		loads[i].skill, loads[i].files, loads[i].reason = b.load(s, next)
+		loads[i].skill, loads[i].files, loads[i].reason = load(s)
 	}
 	// Deepest first, so a nested skill skipped for any reason also skips its parents,
 	// which would otherwise publish its files as their own.
@@ -139,12 +128,13 @@ func (b *Builder) Build() (*Catalog, error) {
 		c.bySkill[l.skill.URI] = l.skill
 		maps.Copy(c.byFile, l.files)
 	}
-	b.digests = next
 	return c, nil
 }
 
 // load builds one entry and its files, or returns why the skill is skipped.
-func (b *Builder) load(s ssync.DiscoveredSkill, next map[string]digest) (*Skill, map[string]servedFile, string) {
+// Every build hashes every file: size and mtime cannot prove the content is
+// unchanged (cp -p, rsync -t), and a stale digest makes hosts reject the file.
+func load(s ssync.DiscoveredSkill) (*Skill, map[string]servedFile, string) {
 	p, err := skillpkg.Load(s.SourcePath)
 	if err != nil {
 		return nil, nil, err.Error()
@@ -153,7 +143,7 @@ func (b *Builder) load(s ssync.DiscoveredSkill, next map[string]digest) (*Skill,
 	skill := &Skill{URI: base + "/SKILL.md", Frontmatter: p.Frontmatter}
 	files := make(map[string]servedFile, len(p.Files))
 	for _, f := range p.Files {
-		sum, err := b.digest(f, next)
+		sum, err := utils.FileHashFormatted(f.Path)
 		if err != nil {
 			return nil, nil, err.Error()
 		}
@@ -162,21 +152,6 @@ func (b *Builder) load(s ssync.DiscoveredSkill, next map[string]digest) (*Skill,
 		skill.Resources = append(skill.Resources, File{URI: uri, Digest: sum, Size: f.Size})
 	}
 	return skill, files, ""
-}
-
-// ponytail: size+mtime keys the digest cache, so a same-size edit within the
-// filesystem's mtime granularity keeps the old digest until the next change.
-func (b *Builder) digest(f skillpkg.File, next map[string]digest) (string, error) {
-	if d, ok := b.digests[f.Path]; ok && d.size == f.Size && d.mtime.Equal(f.ModTime) {
-		next[f.Path] = d
-		return d.sum, nil
-	}
-	sum, err := utils.FileHashFormatted(f.Path)
-	if err != nil {
-		return "", err
-	}
-	next[f.Path] = digest{size: f.Size, mtime: f.ModTime, sum: sum}
-	return sum, nil
 }
 
 // Skill returns the served skill whose SKILL.md URI is uri.

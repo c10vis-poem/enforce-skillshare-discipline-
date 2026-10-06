@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -213,7 +214,11 @@ func extractFrontmatterRaw(filePath string) string {
 }
 
 // ParseFrontmatterMap returns the complete YAML frontmatter of SKILL.md content.
+// The Agent Skills format requires the file to begin with it.
 func ParseFrontmatterMap(content []byte) (map[string]any, error) {
+	if first, _, _ := strings.Cut(string(bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))), "\n"); strings.TrimSpace(first) != "---" {
+		return nil, fmt.Errorf("no frontmatter at the start")
+	}
 	raw := extractFrontmatterRawFromBytes(content)
 	if raw == "" {
 		return nil, fmt.Errorf("no frontmatter")

@@ -151,6 +151,20 @@ func TestBuild_SkipsSkillWhoseFrontmatterJSONCannotCarry(t *testing.T) {
 	}
 }
 
+// The Skills extension requires SKILL.md to begin with its frontmatter.
+func TestBuild_SkipsSkillWhoseFrontmatterIsNotAtTheStart(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "late/SKILL.md"), "# intro\n"+skillMD("late"))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") {
+		t.Errorf("skills=%v warnings=%v, want late skipped", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsSkillOverFileLimit(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))
@@ -177,7 +191,15 @@ func TestBuild_RefreshesDigestWhenContentChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, ref, "two!")
+	// Same size and modification time, as cp -p or rsync -t leave it.
+	info, err := os.Stat(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, ref, "two")
+	if err := os.Chtimes(ref, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
 	second, err := b.Build()
 	if err != nil {
 		t.Fatal(err)

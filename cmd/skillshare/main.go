@@ -124,11 +124,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// mcp serve speaks the protocol on stdout, so its errors and trailers stay off it.
+	serving := cmd == "mcp" && len(args) > 0 && args[0] == "serve"
 	if err := handler(args); err != nil {
 		// jsonSilentError means JSON output was already written to stdout;
 		// exit non-zero without adding plain-text noise.
 		var silent *jsonSilentError
 		if errors.As(err, &silent) {
+			os.Exit(1)
+		}
+		if serving {
+			fmt.Fprintf(os.Stderr, "✗ %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println()
@@ -140,8 +146,7 @@ func main() {
 	// --format json/sarif/markdown) must produce only structured data on
 	// stdout and nothing on stderr.  Skip the trailing newline and update
 	// check entirely so machine consumers get a clean payload.
-	// mcp serve speaks the protocol on stdout, so it gets neither either.
-	if !isStructuredOutput(args) && !(cmd == "mcp" && len(args) > 0 && args[0] == "serve") {
+	if !isStructuredOutput(args) && !serving {
 		fmt.Println()
 
 		// Check for updates (non-blocking, silent on errors)

@@ -100,6 +100,10 @@ func TestMCPServe_RejectsUnknownTarget(t *testing.T) {
 
 	r := sb.RunCLI("mcp", "serve", "--target", "nope")
 
+	// stdout is the protocol stream, so the error goes to stderr alone.
 	r.AssertFailure(t)
-	r.AssertAnyOutputContains(t, `unknown target "nope"`)
+	r.AssertErrorContains(t, `unknown target "nope"`)
+	if r.Stdout != "" {
+		t.Errorf("stdout = %q, want nothing", r.Stdout)
+	}
 }
