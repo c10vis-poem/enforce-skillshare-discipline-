@@ -60,7 +60,7 @@ func hubSource(hubURL, subdir string) *Source {
 func TestDiscoverFromGitSubdir_RefusesSubmodulePaths(t *testing.T) {
 	hubURL, upURL := newHubWithSubmodule(t)
 
-	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a", "vendor//up", "Vendor/Up"} {
+	for _, subdir := range []string{"vendor/up", "vendor/up/skills/a", "vendor//up"} {
 		t.Run(subdir, func(t *testing.T) {
 			result, err := DiscoverFromGitSubdir(hubSource(hubURL, subdir))
 			if err == nil {
@@ -87,6 +87,31 @@ func TestInstall_RefusesSubmoduleSubdir(t *testing.T) {
 	}
 }
 
+func TestSubmoduleError_CaseVariantFollowsFilesystem(t *testing.T) {
+	hubURL, _ := newHubWithSubmodule(t)
+	repo := filepath.Join(t.TempDir(), "repo")
+	mustRunGit(t, "", "clone", "-q", hubURL, repo) // leaves vendor/up as an empty dir
+
+	_, statErr := os.Stat(filepath.Join(repo, "Vendor", "Up"))
+	foldsCase := statErr == nil
+	if err := submoduleError(repo, "Vendor/Up", nil); (err != nil) != foldsCase {
+		t.Fatalf("case-insensitive filesystem = %v, but submoduleError(Vendor/Up) = %v", foldsCase, err)
+	}
+}
+
+func TestInstallTrackedRepo_RefusesSubmoduleSubdir(t *testing.T) {
+	hubURL, _ := newHubWithSubmodule(t)
+	sourceDir := t.TempDir()
+
+	_, err := InstallTrackedRepo(hubSource(hubURL, "vendor/up"), sourceDir, InstallOptions{Name: "up", Force: true})
+	if err == nil || !strings.Contains(err.Error(), "git submodule") {
+		t.Fatalf("expected a submodule error, got: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(sourceDir, "_up")); !os.IsNotExist(statErr) {
+		t.Fatalf("the refused tracked clone should be removed, stat err = %v", statErr)
+	}
+}
+
 func TestGitlinkString_HidesURLCredentials(t *testing.T) {
 	for raw, want := range map[string]string{
 		"https://user:s3cret@example.com/org/up.git":         "https://example.com/org/up.git",
@@ -94,6 +119,8 @@ func TestGitlinkString_HidesURLCredentials(t *testing.T) {
 		"https://user:s3 cret@example.com/org/up.git#s3cret": "https://example.com/org/up.git",
 		"../up.git?token=s3cret":                             "../up.git",
 		"s3cret@example.com:org/up.git":                      "example.com:org/up.git",
+		"https:/user:s3cret@example.com/org/up.git":          "example.com/org/up.git",
+		"//user:s3cret@example.com/org/up.git":               "example.com/org/up.git",
 	} {
 		got := gitlink{Path: "vendor/up", Commit: "abc", URL: raw}.String()
 		if strings.Contains(got, "s3cret") || !strings.Contains(got, want) {

@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -25,28 +26,20 @@ func (l gitlink) String() string {
 }
 
 // displayURL drops userinfo, query and fragment from a .gitmodules URL, which
-// may carry a token, before it reaches terminal output or an API error. It
-// works on the text rather than net/url so relative, scp-style and malformed
-// URLs are stripped too; a token is often the username alone.
+// may carry a token, before it reaches terminal output or an API error. git
+// accepts any text there, so this fails closed on the raw string: everything
+// before the last "@" goes, keeping only a well-formed "scheme://" prefix.
 func displayURL(raw string) string {
 	raw, _, _ = strings.Cut(raw, "#")
 	raw, _, _ = strings.Cut(raw, "?")
-	scheme, rest, ok := strings.Cut(raw, "://")
-	if !ok {
-		// scp-style user@host:path; a relative path has a "/" before any "@".
-		if at := strings.Index(raw, "@"); at >= 0 && !strings.Contains(raw[:at], "/") {
-			return raw[at+1:]
-		}
+	at := strings.LastIndex(raw, "@")
+	if at < 0 {
 		return raw
 	}
-	authority, tail, hasPath := strings.Cut(rest, "/")
-	if i := strings.LastIndex(authority, "@"); i >= 0 {
-		authority = authority[i+1:]
+	if scheme, _, ok := strings.Cut(raw[:at], "://"); ok {
+		return scheme + "://" + raw[at+1:]
 	}
-	if hasPath {
-		authority += "/" + tail
-	}
-	return scheme + "://" + authority
+	return raw[at+1:]
 }
 
 // repoGitlinks lists the submodules recorded in HEAD of repoPath. extraEnv
@@ -102,17 +95,27 @@ func repoGitlinks(repoPath string, extraEnv []string) []gitlink {
 
 // submoduleError refuses a subdir that is a submodule or lies inside one,
 // which would otherwise install an empty directory or report a missing path.
-// Case is ignored: on Windows and macOS "Vendor/Up" opens the empty
-// "vendor/up" checkout, and on Linux such a near-twin path does not exist.
+// A case variant ("Vendor/Up" for "vendor/up") counts only when the
+// filesystem opens the same directory for both, as Windows and macOS do.
 func submoduleError(repoPath, subdir string, extraEnv []string) error {
 	subdir = strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(subdir)), "/")
 	for _, l := range repoGitlinks(repoPath, extraEnv) {
 		n := len(l.Path)
-		if len(subdir) >= n && strings.EqualFold(subdir[:n], l.Path) && (len(subdir) == n || subdir[n] == '/') {
+		if len(subdir) < n || (len(subdir) > n && subdir[n] != '/') {
+			continue
+		}
+		prefix := subdir[:n]
+		if prefix == l.Path || (strings.EqualFold(prefix, l.Path) && sameDir(filepath.Join(repoPath, prefix), filepath.Join(repoPath, l.Path))) {
 			return fmt.Errorf("'%s' is in git submodule %s, and skillshare does not fetch submodules; install from that repository instead, or copy the files into this one", subdir, l)
 		}
 	}
 	return nil
+}
+
+func sameDir(a, b string) bool {
+	ai, errA := os.Stat(a)
+	bi, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(ai, bi)
 }
 
 // submoduleWarnings names each submodule whose contents a whole-repo install skips.

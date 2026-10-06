@@ -114,6 +114,13 @@ func installTrackedRepoImpl(source *Source, sourceDir string, opts InstallOption
 		}
 	}
 
+	if source.HasSubdir() {
+		if err := submoduleError(destPath, source.Subdir, source.authEnv()); err != nil {
+			_ = src.RemoveAll(destRel)
+			return nil, err
+		}
+	}
+
 	// Discover skills in the cloned repo. Include root SKILL.md so the count
 	// matches what `skillshare sync` will see: every SKILL.md inside a tracked
 	// repo (root and nested alike) becomes an independent skill on sync.
