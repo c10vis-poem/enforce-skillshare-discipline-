@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -92,6 +93,47 @@ func TestDownloadGitHubDirWithAPIBase_RateLimit(t *testing.T) {
 	var rl *ghclient.RateLimitError
 	if !errors.As(err, &rl) {
 		t.Fatalf("error = %T %v, want RateLimitError", err, err)
+	}
+}
+
+func TestWriteDownloadedFile_ShebangIsExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes are not meaningful on Windows")
+	}
+	dir := t.TempDir()
+	for name, want := range map[string]struct {
+		body string
+		mode os.FileMode
+	}{
+		"run.sh":   {"#!/bin/sh\necho hi\n", 0755},
+		"notes.md": {"# notes\n", 0644},
+		"tiny":     {"#", 0644},
+	} {
+		path := filepath.Join(dir, name)
+		if err := writeDownloadedFile(path, strings.NewReader(want.body)); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != want.body {
+			t.Fatalf("%s content = %q, want %q", name, data, want.body)
+		}
+		info, _ := os.Stat(path)
+		if got := info.Mode().Perm(); got != want.mode {
+			t.Fatalf("%s mode = %o, want %o", name, got, want.mode)
+		}
+	}
+
+	// A script re-downloaded as plain content loses its bit.
+	path := filepath.Join(dir, "run.sh")
+	if err := writeDownloadedFile(path, strings.NewReader("plain text\n")); err != nil {
+		t.Fatal(err)
+	}
+	info, _ := os.Stat(path)
+	if got := info.Mode().Perm(); got != 0644 {
+		t.Fatalf("re-downloaded run.sh mode = %o, want 644", got)
 	}
 }
 
