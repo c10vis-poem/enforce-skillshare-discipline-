@@ -173,12 +173,13 @@ func TestBuild_SkipsSkillWhoseFrontmatterIsNotAtTheStart(t *testing.T) {
 	writeFile(t, filepath.Join(src, "late/SKILL.md"), "# intro\n"+skillMD("late"))
 	writeFile(t, filepath.Join(src, "open/SKILL.md"), "---\nname: open\ndescription: Use when testing open\n# open\n")
 	writeFile(t, filepath.Join(src, "indented/SKILL.md"), "  "+skillMD("indented"))
+	writeFile(t, filepath.Join(src, "closer/SKILL.md"), "---\nname: closer\ndescription: Use when testing\n  ---\n# closer\n")
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") || !hasWarning(c, "skipped open") || !hasWarning(c, "skipped indented") {
+	if len(c.Skills) != 0 || !hasWarning(c, "skipped late") || !hasWarning(c, "skipped open") || !hasWarning(c, "skipped indented") || !hasWarning(c, "skipped closer") {
 		t.Errorf("skills=%v warnings=%v, want late, unclosed open and indented skipped", c.Skills, c.Skipped)
 	}
 }

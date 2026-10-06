@@ -228,7 +228,7 @@ func ParseFrontmatterMap(content []byte) (map[string]any, error) {
 				return nil, fmt.Errorf("no frontmatter at the start")
 			}
 			start = len(line)
-		} else if string(bytes.TrimSpace(line)) == "---" {
+		} else if string(bytes.TrimRight(line, "\r\n")) == "---" { // also exactly ---
 			end = pos
 			break
 		}
