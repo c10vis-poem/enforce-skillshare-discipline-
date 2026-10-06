@@ -338,7 +338,7 @@ svg.lucide { flex: none; stroke-width: var(--isw); }
 .ss-tbl thead th { background: var(--sunken); color: var(--ink); font-weight: 600; }
 .ss-tbl.fm tbody th { width: 1%; white-space: nowrap; font: 500 12.5px/1.5 var(--fm); color: var(--ink-2); background: var(--sunken); }
 .ss-tbl.fm td { color: var(--ink); }
-.ss-bulk { position: fixed; z-index: 40; left: 50%; bottom: 28px; transform: translateX(-50%); margin-left: 116px; display: flex; align-items: center; gap: 6px; height: 46px; padding: 0 8px 0 16px; color: var(--ink); background: rgba(255,255,255,.82); backdrop-filter: blur(18px) saturate(180%); border-radius: 14px; box-shadow: var(--sh-float); font-size: 13px; }
+.ss-bulk { position: fixed; z-index: 40; left: 50%; bottom: 28px; transform: translateX(-50%); margin-left: 116px; display: flex; align-items: center; gap: 6px; width: max-content; max-width: calc(100vw - 24px); height: 46px; padding: 0 8px 0 16px; color: var(--ink); background: rgba(255,255,255,.82); backdrop-filter: blur(18px) saturate(180%); border-radius: 14px; box-shadow: var(--sh-float); font-size: 13px; }
 :root:not([data-theme="playful"]).dark .ss-bulk { background: rgba(40,38,35,.82); }
 :root[data-theme="playful"] .ss-bulk { background: var(--sel); color: var(--sel-ink); border: 2px solid var(--line); border-radius: var(--r-btn); backdrop-filter: none; }
 .ss-bulk .dv { width: 1px; height: 20px; background: var(--line-2); margin: 0 6px; }
