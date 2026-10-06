@@ -173,7 +173,7 @@ func (s *MetadataStore) RemoveByNames(names map[string]bool) {
 		entry := s.Get(key)
 		full := KeyToRelPath(key, entry)
 		for name := range names {
-			if key == name || full == name ||
+			if full == name ||
 				strings.HasPrefix(key, name+"/") || strings.HasPrefix(full, name+"/") ||
 				inLegacyRepoGroup(entry, name) {
 				s.Remove(key)

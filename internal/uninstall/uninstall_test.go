@@ -164,7 +164,7 @@ func TestRun_MissingItemIsATrashErrorAndPrunesNothing(t *testing.T) {
 	if !errors.As(out.Results[0].Err, &trashErr) {
 		t.Fatalf("expected a TrashError, got %v", out.Results[0].Err)
 	}
-	if !f.opts.Store.Has("ghost") || len(out.Removed()) != 0 {
+	if !f.opts.Store.Has("ghost") {
 		t.Error("a failed item must keep its metadata")
 	}
 }

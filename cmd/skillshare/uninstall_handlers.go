@@ -292,9 +292,15 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 		}
 		return noTargetsErr
 	}
-	// A linked folder that is itself a skill is refused before any preflight,
-	// so a dirty checkout is never told to retry with --force.
-	checks := uninstall.Preflight(mode.items(targets), mode.options())
+	// Preflight refuses a linked folder that is itself a skill before it looks
+	// at git state, so a dirty checkout is never told to retry with --force.
+	checkItems := mode.items(targets)
+	if opts.dryRun {
+		for i := range checkItems {
+			checkItems[i].Repo = false // a dry run reports no git state
+		}
+	}
+	checks := uninstall.Preflight(checkItems, mode.options())
 	for _, err := range checks {
 		var gitErr *uninstall.StatusError
 		if err == nil || errors.Is(err, uninstall.ErrDirty) || errors.As(err, &gitErr) {
@@ -337,7 +343,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 					preflight = append(preflight, t)
 					continue
 				}
-				statusErr := &gitStatusError{err: gitErr.Err}
+				statusErr := gitErr
 				if single {
 					if opts.jsonOutput {
 						return writeJSONError(statusErr)
@@ -467,34 +473,33 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 		sp.Stop()
 	}
 
-	verboseSingle := !batch && !opts.jsonOutput
 	var succeeded []*uninstallTarget
 	failed := preflightFailed
 	for i, r := range out.Results {
 		if r.Err == nil {
 			succeeded = append(succeeded, targets[i])
-			continue
-		}
-		err := r.Err
-		var trashErr *uninstall.TrashError
-		if verboseSingle && errors.As(err, &trashErr) {
-			err = trashErr.Err // a single target reports the bare cause
-		}
-		failed = append(failed, fmt.Sprintf("%s: %v", targets[i].name, err))
-		if verboseSingle && (mode.reportAfterFinalize || errors.Is(err, sourcefs.ErrLinkedSkillRoot)) {
-			ui.Warning("Failed to uninstall %s: %v", targets[i].name, err)
+		} else {
+			failed = append(failed, fmt.Sprintf("%s: %v", targets[i].name, r.Err))
 		}
 	}
 
-	if batch && !opts.jsonOutput {
+	switch {
+	case opts.jsonOutput:
+	case batch:
 		printUninstallBatch(targets, out.Results, summary, len(failed), preflightSkipped, mode, start)
-	}
-	if verboseSingle {
-		if len(succeeded) == 1 {
-			fmt.Printf("%s Uninstall %s %s\n", ui.StyledMark(ui.MarkOK), succeeded[0].name, ui.DimText("→ trash, kept 7 days"))
-		}
+	case out.Results[0].Err == nil:
+		fmt.Printf("%s Uninstall %s %s\n", ui.StyledMark(ui.MarkOK), targets[0].name, ui.DimText("→ trash, kept 7 days"))
 		if out.GitignoreErr != nil {
 			ui.Warning("Could not update .gitignore: %v", out.GitignoreErr)
+		}
+	default:
+		err := out.Results[0].Err
+		var trashErr *uninstall.TrashError
+		if errors.As(err, &trashErr) {
+			err = trashErr.Err // a single target reports the bare cause
+		}
+		if mode.reportAfterFinalize || errors.Is(err, sourcefs.ErrLinkedSkillRoot) {
+			ui.Warning("Failed to uninstall %s: %v", targets[0].name, err)
 		}
 	}
 

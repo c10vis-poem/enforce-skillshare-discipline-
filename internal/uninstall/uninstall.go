@@ -64,17 +64,6 @@ type Outcome struct {
 	SaveErr      error
 }
 
-// Removed returns the items that were moved to the trash.
-func (o Outcome) Removed() []Item {
-	var removed []Item
-	for _, r := range o.Results {
-		if r.Err == nil {
-			removed = append(removed, r.Item)
-		}
-	}
-	return removed
-}
-
 // Preflight reports why each item cannot be uninstalled, without changing
 // anything and regardless of Force, so a caller can warn or confirm first.
 // The error is a move-out refusal, ErrDirty or a *StatusError. Move-out comes
@@ -168,7 +157,7 @@ func Agents(agents []Agent, sourceDir, trashDir string, store *install.MetadataS
 	errs = make([]error, len(agents))
 	removed := false
 	for i, a := range agents {
-		sidecar := filepath.Join(filepath.Dir(a.File), filepath.Base(a.Name)+".skillshare-meta.json")
+		sidecar := filepath.Join(filepath.Dir(a.File), filepath.Base(a.Name)+install.MetaFileName)
 		if _, errs[i] = trash.MoveAgentToTrash(a.File, sidecar, a.Name, trashDir); errs[i] != nil {
 			continue
 		}

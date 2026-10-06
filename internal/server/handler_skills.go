@@ -429,12 +429,7 @@ func (s *Server) handleUninstallRepo(w http.ResponseWriter, r *http.Request) {
 	force := r.URL.Query().Get("force") == "true"
 	res := s.uninstallSkills([]uninstall.Item{s.repoUninstallItem(repoName, repoPath)}, force)[0]
 	if res.Err != nil {
-		status := http.StatusConflict
-		var trashErr *uninstall.TrashError
-		if errors.As(res.Err, &trashErr) {
-			status = http.StatusInternalServerError
-		}
-		writeError(w, status, uninstallErrorMessage(res))
+		writeError(w, uninstallErrorStatus(res.Err), uninstallErrorMessage(res))
 		return
 	}
 
@@ -512,11 +507,8 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 
 		res := s.uninstallSkills([]uninstall.Item{skillUninstallItem(d, followed)}, false)[0]
 		if res.Err != nil {
-			status := http.StatusConflict
-			var trashErr *uninstall.TrashError
-			if errors.As(res.Err, &trashErr) {
-				status = http.StatusInternalServerError
-			} else if errors.Is(res.Err, sourcefs.ErrLinkedSkillRoot) {
+			status := uninstallErrorStatus(res.Err)
+			if errors.Is(res.Err, sourcefs.ErrLinkedSkillRoot) {
 				status = http.StatusBadRequest
 			}
 			writeError(w, status, uninstallErrorMessage(res))

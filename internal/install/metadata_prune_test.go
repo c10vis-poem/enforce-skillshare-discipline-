@@ -73,6 +73,12 @@ func TestRemoveByNames(t *testing.T) {
 			kept:    []string{"frontend/foo"},
 		},
 		{
+			name:    "legacy basename key of a grouped skill is not the top-level name",
+			entries: map[string]*MetadataEntry{"foo": {Group: "frontend"}},
+			remove:  []string{"foo"},
+			kept:    []string{"foo"},
+		},
+		{
 			name:    "top-level skill with the same basename stays",
 			entries: map[string]*MetadataEntry{"foo": {}, "frontend/foo": {Group: "frontend"}},
 			remove:  []string{"frontend/foo"},

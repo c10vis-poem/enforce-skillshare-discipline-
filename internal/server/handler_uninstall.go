@@ -262,6 +262,16 @@ func (s *Server) uninstallAgents(agentsSource string, agents []uninstall.Agent) 
 	return errs
 }
 
+// uninstallErrorStatus is the HTTP status of a failed single uninstall: a
+// refusal is a conflict, a failed move is the server's fault.
+func uninstallErrorStatus(err error) int {
+	var trashErr *uninstall.TrashError
+	if errors.As(err, &trashErr) {
+		return http.StatusInternalServerError
+	}
+	return http.StatusConflict
+}
+
 // uninstallErrorMessage words a failed result for the dashboard.
 func uninstallErrorMessage(r uninstall.Result) string {
 	var trashErr *uninstall.TrashError
