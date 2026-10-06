@@ -590,6 +590,45 @@ func TestBundledOpencodeAgentExtension_RequiresDescription(t *testing.T) {
 	}
 }
 
+func TestBundledExtensions_InModuleProject(t *testing.T) {
+	requireNode(t)
+	root := testRepoRoot(t)
+	for _, tc := range []struct {
+		name string
+		want string
+	}{
+		{"codex-agents", "developer_instructions = \"\"\"\nUse $ARGUMENTS\n\"\"\""},
+		{"gemini-commands", "prompt = \"\"\"\nUse {{args}}\n\"\"\""},
+		{"opencode-agents", "mode: subagent\n---\nUse $ARGUMENTS\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			project := t.TempDir()
+			if err := os.WriteFile(filepath.Join(project, "package.json"), []byte(`{"type":"module"}`), 0644); err != nil {
+				t.Fatal(err)
+			}
+			extDir := filepath.Join(project, ".skillshare", "extensions", tc.name)
+			if err := os.CopyFS(extDir, os.DirFS(filepath.Join(root, "extensions", tc.name))); err != nil {
+				t.Fatal(err)
+			}
+			spec, err := LoadExtensionSpec(extDir, tc.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			src := filepath.Join(project, "reviewer.md")
+			if err := os.WriteFile(src, []byte("---\ndescription: Review code\n---\nUse $ARGUMENTS\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := runExtension(spec, src, map[string]string{"SS_REL_PATH": "reviewer.md"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(out), tc.want) {
+				t.Fatalf("output = %q, want %q", out, tc.want)
+			}
+		})
+	}
+}
+
 func runBundledCodexAgentExtension(t *testing.T, input string) (string, error) {
 	t.Helper()
 	return runBundledExtension(t, "codex-agents", input)
