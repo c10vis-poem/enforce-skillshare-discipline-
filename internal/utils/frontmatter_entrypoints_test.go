@@ -332,3 +332,36 @@ func TestFrontmatterEntryPoints_PathReadersKeepOnlyTheBlock(t *testing.T) {
 		})
 	}
 }
+
+// ParseSkillName and ParseFrontmatterField stop at the line they look for, so a large
+// frontmatter block after it, closed or not, costs them no memory.
+func TestFrontmatterEntryPoints_KeyReadersStopAtTheKey(t *testing.T) {
+	filler := bytes.Repeat([]byte("k: v\n"), 1<<19)
+	tests := []struct {
+		name    string
+		content []byte
+	}{
+		{"closed block", append(append([]byte("---\nname: a\n"), filler...), "---\nbody\n"...)},
+		{"unclosed block", append([]byte("---\nname: a\n"), filler...)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, path := writeSkill(t, tt.content)
+
+			var before, after runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&before)
+			name, err := ParseSkillName(dir)
+			field := ParseFrontmatterField(path, "name")
+			runtime.ReadMemStats(&after)
+
+			if err != nil || name != "a" || field != "a" {
+				t.Fatalf("got %q, %v, %q; want %q from each", name, err, field, "a")
+			}
+			if got := after.TotalAlloc - before.TotalAlloc; got > 1<<20 {
+				t.Errorf("the readers allocated %d bytes, want under 1 MiB", got)
+			}
+		})
+	}
+}

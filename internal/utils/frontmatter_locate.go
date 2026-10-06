@@ -64,6 +64,41 @@ func (b frontmatterBlock) withoutLastNewline() []byte {
 	return b.raw
 }
 
+// lineKind is where one line sits relative to the frontmatter block.
+type lineKind int
+
+const (
+	lineBefore  lineKind = iota // before the opening delimiter
+	lineNoBlock                 // the policy rules out a block: stop
+	lineOpen                    // the opening delimiter
+	lineInside                  // a line of the block
+	lineClose                   // the closing delimiter
+)
+
+// blockWalk applies a policy's line rule to one line after another. It is the single
+// place that decides which line opens and which closes the block.
+type blockWalk struct {
+	p    frontmatterPolicy
+	open bool
+}
+
+// next classifies line, given without its "\n".
+func (w *blockWalk) next(line []byte) lineKind {
+	isDelim := w.p.delim(line)
+	switch {
+	case w.open && isDelim:
+		return lineClose
+	case w.open:
+		return lineInside
+	case isDelim:
+		w.open = true
+		return lineOpen
+	case w.p.firstLine:
+		return lineNoBlock
+	}
+	return lineBefore
+}
+
 // locateFrontmatter finds the frontmatter block under the given policy. It walks the
 // lines only as far as the closing delimiter and allocates nothing, so a large body
 // costs no memory. Whether an unclosed block counts is the caller's decision.
@@ -75,16 +110,16 @@ func locateFrontmatter(content []byte, p frontmatterPolicy) frontmatterBlock {
 		return frontmatterBlock{}
 	}
 
+	w := blockWalk{p: p}
 	start, pos := -1, 0
 	for line := range bytes.Lines(content) {
 		next := pos + len(line)
-		isDelim := p.delim(bytes.TrimSuffix(line, []byte("\n")))
-		switch {
-		case start >= 0 && isDelim:
+		switch w.next(bytes.TrimSuffix(line, []byte("\n"))) {
+		case lineClose:
 			return frontmatterBlock{open: true, closed: true, raw: content[start:pos], body: content[next:]}
-		case isDelim:
+		case lineOpen:
 			start = next
-		case start < 0 && p.firstLine:
+		case lineNoBlock:
 			return frontmatterBlock{}
 		}
 		pos = next
@@ -95,32 +130,46 @@ func locateFrontmatter(content []byte, p frontmatterPolicy) frontmatterBlock {
 	return frontmatterBlock{open: true, raw: content[start:]}
 }
 
-// readHead reads a file for the readers that take a path, all of which use lenientBlock.
-// It keeps the lines from the opening delimiter to the closing one and nothing else, so
-// neither the body nor a file without frontmatter costs memory; an unclosed block is kept
-// to the end of the file. The lines come from a default bufio.Scanner, see scanLines; a
-// failed read ends them early. Only a failed open is an error.
-func readHead(path string) ([]byte, error) {
+// scanLenientBlock calls fn with each line of a file's lenientBlock, without the
+// delimiters, until the block ends or fn returns false. It is how the readers that take a
+// path read: line by line through a default bufio.Scanner (see scanLines), keeping
+// nothing, so they can stop at the key they want. A failed read ends the lines early;
+// only a failed open is an error. The line passed to fn is only valid during the call.
+func scanLenientBlock(path string, fn func(line []byte) bool) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 
-	var head bytes.Buffer
+	w := blockWalk{p: lenientBlock}
 	scanner := bufio.NewScanner(f)
-	for delims := 0; delims < 2 && scanner.Scan(); {
-		if lenientBlock.delim(scanner.Bytes()) {
-			delims++
-		} else if delims == 0 {
-			continue
+	for scanner.Scan() {
+		switch w.next(scanner.Bytes()) {
+		case lineClose, lineNoBlock:
+			return nil
+		case lineInside:
+			if !fn(scanner.Bytes()) {
+				return nil
+			}
 		}
-		if head.Len() > 0 {
-			head.WriteByte('\n')
-		}
-		head.Write(scanner.Bytes())
 	}
-	return head.Bytes(), nil
+	return nil
+}
+
+// readLenientBlock returns the lines of a file's lenientBlock joined with "\n", which is
+// the YAML the list and fields readers have always decoded.
+func readLenientBlock(path string) ([]byte, error) {
+	var raw bytes.Buffer
+	n := 0
+	err := scanLenientBlock(path, func(line []byte) bool {
+		if n++; n > 1 {
+			raw.WriteByte('\n')
+		}
+		raw.Write(line)
+		return true
+	})
+	return raw.Bytes(), err
 }
 
 // scanLines returns data as a default bufio.Scanner delivers it: the lines joined with

@@ -13,26 +13,20 @@ import (
 
 // ParseSkillName reads the SKILL.md and extracts the "name" from frontmatter.
 func ParseSkillName(skillPath string) (string, error) {
-	data, err := readHead(filepath.Join(skillPath, "SKILL.md"))
+	name := ""
+	err := scanLenientBlock(filepath.Join(skillPath, "SKILL.md"), func(raw []byte) bool {
+		line := strings.TrimSpace(string(raw))
+		if !strings.HasPrefix(line, "name:") {
+			return true
+		}
+		// Extract value: "name: my-skill" -> "my-skill", without quotes
+		name = strings.Trim(strings.TrimSpace(strings.SplitN(line, ":", 2)[1]), `"'`)
+		return false
+	})
 	if err != nil {
 		return "", err
 	}
-
-	for raw := range bytes.Lines(locateFrontmatter(data, lenientBlock).raw) {
-		line := strings.TrimSpace(string(raw))
-		if strings.HasPrefix(line, "name:") {
-			// Extract value: "name: my-skill" -> "my-skill"
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				name := strings.TrimSpace(parts[1])
-				// Remove quotes if present
-				name = strings.Trim(name, `"'`)
-				return name, nil
-			}
-		}
-	}
-
-	return "", nil // Name not found
+	return name, nil
 }
 
 // isYAMLBlockIndicator returns true for YAML block scalar indicators (>, >-, >+, |, |-, |+).
@@ -66,17 +60,23 @@ func resolveField(fm map[string]any, field string) any {
 // Supports both inline [a, b] and block (- a\n- b) formats.
 // Returns nil when the field is absent or the file cannot be read.
 func ParseFrontmatterList(filePath, field string) []string {
-	data, err := readHead(filePath)
+	raw, err := readLenientBlock(filePath)
 	if err != nil {
 		return nil
 	}
-	return ParseFrontmatterListFromBytes(data, field)
+	return stringList(decodeFrontmatter(raw), field)
 }
 
 // ParseFrontmatterListFromBytes parses a YAML list field from pre-read content.
 // Same as ParseFrontmatterList but avoids re-reading the file.
 func ParseFrontmatterListFromBytes(content []byte, field string) []string {
-	list, _ := resolveField(lenientFrontmatterMap(content), field).([]any)
+	raw := locateFrontmatter(content, lenientBlock).withoutLastNewline()
+	return stringList(decodeFrontmatter(raw), field)
+}
+
+// stringList returns the string items of a list field, resolved by resolveField.
+func stringList(fm map[string]any, field string) []string {
+	list, _ := resolveField(fm, field).([]any)
 	var result []string
 	for _, item := range list {
 		if s, ok := item.(string); ok {
@@ -86,11 +86,11 @@ func ParseFrontmatterListFromBytes(content []byte, field string) []string {
 	return result
 }
 
-// lenientFrontmatterMap decodes the block the lenient readers see. It is nil when there
-// is no block or the block is not a YAML mapping.
-func lenientFrontmatterMap(content []byte) map[string]any {
+// decodeFrontmatter decodes the block a lenient reader found. It is nil when the block
+// is empty or not a YAML mapping.
+func decodeFrontmatter(raw []byte) map[string]any {
 	var fm map[string]any
-	if err := yaml.Unmarshal(locateFrontmatter(content, lenientBlock).withoutLastNewline(), &fm); err != nil {
+	if err := yaml.Unmarshal(raw, &fm); err != nil {
 		return nil
 	}
 	return fm
@@ -130,11 +130,11 @@ func ParseFrontmatterFields(filePath string, fields []string) map[string]string 
 		return result
 	}
 
-	data, err := readHead(filePath)
+	raw, err := readLenientBlock(filePath)
 	if err != nil {
 		return result
 	}
-	fm := lenientFrontmatterMap(data)
+	fm := decodeFrontmatter(raw)
 
 	for _, field := range fields {
 		val, ok := fm[field]
@@ -178,39 +178,34 @@ func ReadSkillBody(filePath string) string {
 // ParseFrontmatterField reads a SKILL.md file and extracts the value of a given frontmatter field.
 // It supports both inline values and YAML block scalars (>, >-, |, |-).
 func ParseFrontmatterField(filePath, field string) string {
-	data, err := readHead(filePath)
+	prefix := field + ":"
+	val := ""
+	var blockParts []string // set once val is a block scalar indicator
+	err := scanLenientBlock(filePath, func(raw []byte) bool {
+		if blockParts != nil {
+			// The block scalar continues while lines are indented
+			if len(raw) > 0 && (raw[0] == ' ' || raw[0] == '\t') {
+				blockParts = append(blockParts, strings.TrimSpace(string(raw)))
+				return true
+			}
+			return false
+		}
+		line := strings.TrimSpace(string(raw))
+		if !strings.HasPrefix(line, prefix) {
+			return true
+		}
+		val = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		if isYAMLBlockIndicator(val) {
+			blockParts = []string{}
+			return true
+		}
+		return false
+	})
 	if err != nil {
 		return ""
 	}
-
-	lines := strings.Split(string(locateFrontmatter(data, lenientBlock).raw), "\n")
-	prefix := field + ":"
-
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, prefix) {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				val := strings.TrimSpace(parts[1])
-				// Handle YAML block scalar indicators — read indented continuation lines
-				if isYAMLBlockIndicator(val) {
-					var blockParts []string
-					for _, next := range lines[i+1:] {
-						// Block continues while lines are indented
-						if len(next) > 0 && (next[0] == ' ' || next[0] == '\t') {
-							blockParts = append(blockParts, strings.TrimSpace(next))
-						} else {
-							break
-						}
-					}
-					return strings.Join(blockParts, " ")
-				}
-				val = strings.Trim(val, `"'`)
-				return val
-			}
-		}
+	if blockParts != nil {
+		return strings.Join(blockParts, " ")
 	}
-
-	return ""
+	return strings.Trim(val, `"'`)
 }
