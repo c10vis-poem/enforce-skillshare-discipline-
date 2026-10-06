@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"skillshare/internal/config"
+	"skillshare/internal/projectdir"
 	ssync "skillshare/internal/sync"
 )
 
@@ -67,8 +68,8 @@ func (r *projectResource) config() *config.ResourceTargetConfig {
 // hasOwnProjectConfig reports a folder that project mode manages too. Sync never
 // overwrites what it does not own there, so the dashboard says so up front.
 func hasOwnProjectConfig(root string) bool {
-	_, err := os.Stat(filepath.Join(root, ".skillshare", "config.yaml"))
-	return err == nil
+	_, ok := projectdir.Find(root)
+	return ok
 }
 
 func (s *Server) requireGlobalProjects(next http.HandlerFunc) http.HandlerFunc {

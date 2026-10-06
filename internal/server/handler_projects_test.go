@@ -30,6 +30,26 @@ func addProject(t *testing.T, s *Server, root string) {
 	}
 }
 
+func TestListProjects_DetectsVisibleProjectConfig(t *testing.T) {
+	s, src := newTestServer(t)
+	root := filepath.Join(filepath.Dir(src), "app")
+	addProject(t, s, root)
+	if err := os.MkdirAll(filepath.Join(root, "skillshare"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "skillshare", "config.yaml"), []byte("targets:\n  - claude\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var listed struct {
+		Projects []projectItem `json:"projects"`
+	}
+	json.Unmarshal(projectRequest(t, s, http.MethodGet, "/api/projects", "").Body.Bytes(), &listed)
+	if len(listed.Projects) != 1 || !listed.Projects[0].HasOwnConfig {
+		t.Fatalf("projects %+v, want hasOwnConfig for the visible project dir", listed.Projects)
+	}
+}
+
 func TestSaveProject_AddsTargetsThatOnlyTheProjectScopeLists(t *testing.T) {
 	s, src := newTestServer(t)
 	root := filepath.Join(filepath.Dir(src), "app")
