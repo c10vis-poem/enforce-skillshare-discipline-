@@ -208,13 +208,15 @@ func TestBuild_AcceptsLowercaseUnicodeNames(t *testing.T) {
 	writeFile(t, filepath.Join(src, "café/SKILL.md"), skillMD("café"))
 	writeFile(t, filepath.Join(src, "Été/SKILL.md"), skillMD("Été"))
 	writeFile(t, filepath.Join(src, "a_b/SKILL.md"), skillMD("a_b"))
+	// The URI leaf is the directory, and it must equal the name exactly, not only after NFKC.
+	writeFile(t, filepath.Join(src, "abc/SKILL.md"), skillMD("ａｂｃ"))
 
 	c, err := (&Builder{Source: src}).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Skills) != 2 || !hasWarning(c, "skipped Été") || !hasWarning(c, "skipped a_b") {
-		t.Errorf("skills=%v warnings=%v, want 技能-審查 and café served, Été and a_b skipped", c.Skills, c.Skipped)
+	if len(c.Skills) != 2 || !hasWarning(c, "skipped Été") || !hasWarning(c, "skipped a_b") || !hasWarning(c, "skipped abc") {
+		t.Errorf("skills=%v warnings=%v, want 技能-審查 and café served, Été, a_b and fullwidth abc skipped", c.Skills, c.Skipped)
 	}
 }
 

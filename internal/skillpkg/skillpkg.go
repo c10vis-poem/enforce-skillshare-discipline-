@@ -167,9 +167,10 @@ func hashAtMost(path string, limit int64) (string, int64, error) {
 
 // ValidateName returns why a SKILL.md name breaks the Agent Skills naming rules
 // (including name == directory name), or "" when it follows them. Like the
-// reference validator, it takes lowercase Unicode letters and digits after NFKC
+// reference validator, it checks lowercase Unicode letters and digits after NFKC
 // normalization and counts the limit in characters.
 func ValidateName(name, dirName string) string {
+	exact := name
 	name = norm.NFKC.String(strings.TrimSpace(name))
 	if name == "" {
 		return "SKILL.md is missing a name"
@@ -188,8 +189,10 @@ func ValidateName(name, dirName string) string {
 	}) {
 		return fmt.Sprintf("SKILL.md name %q must use only lowercase letters, numbers, and hyphens", name)
 	}
-	if name != norm.NFKC.String(dirName) {
-		return fmt.Sprintf("SKILL.md name %q does not match directory name %q", name, dirName)
+	// Exactly, not only after NFKC: the directory is the skill path's last segment,
+	// which the Skills extension requires to equal the name.
+	if exact != dirName {
+		return fmt.Sprintf("SKILL.md name %q does not match directory name %q", exact, dirName)
 	}
 	return ""
 }
