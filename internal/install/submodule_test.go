@@ -87,6 +87,18 @@ func TestInstall_RefusesSubmoduleSubdir(t *testing.T) {
 	}
 }
 
+func TestGitlinkString_HidesURLCredentials(t *testing.T) {
+	for _, raw := range []string{
+		"https://user:s3cret@example.com/org/up.git",
+		"https://s3cret@example.com/org/up.git?token=s3cret",
+	} {
+		got := gitlink{Path: "vendor/up", Commit: "abc", URL: raw}.String()
+		if strings.Contains(got, "s3cret") || !strings.Contains(got, "https://example.com/org/up.git") {
+			t.Errorf("String() = %q, want the URL without credentials", got)
+		}
+	}
+}
+
 func TestDiscoverFromGit_WarnsSkippedSubmodule(t *testing.T) {
 	hubURL, upURL := newHubWithSubmodule(t)
 

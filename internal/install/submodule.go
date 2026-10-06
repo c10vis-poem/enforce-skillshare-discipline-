@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 )
@@ -18,9 +19,21 @@ type gitlink struct {
 func (l gitlink) String() string {
 	s := fmt.Sprintf("'%s' (pinned at %s", l.Path, shortHash(l.Commit))
 	if l.URL != "" {
-		s += " from " + l.URL
+		s += " from " + displayURL(l.URL)
 	}
 	return s + ")"
+}
+
+// displayURL drops userinfo, query and fragment from a .gitmodules URL, which
+// may carry a token, before it reaches terminal output or an API error.
+// url.Redacted is not enough: a token is often the username alone.
+func displayURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw // scp-style or relative URL: no userinfo to strip
+	}
+	u.User, u.RawQuery, u.Fragment = nil, "", ""
+	return u.String()
 }
 
 // repoGitlinks lists the submodules recorded in HEAD of repoPath. extraEnv
