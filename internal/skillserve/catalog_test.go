@@ -194,6 +194,24 @@ func TestHashFile_StopsPastTheSizeLimit(t *testing.T) {
 	}
 }
 
+// The Agent Skills reference validator takes lowercase Unicode letters and digits,
+// after NFKC normalization, and counts the 64-character limit in characters.
+func TestBuild_AcceptsLowercaseUnicodeNames(t *testing.T) {
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "技能-審查/SKILL.md"), skillMD("技能-審查"))
+	writeFile(t, filepath.Join(src, "café/SKILL.md"), skillMD("café"))
+	writeFile(t, filepath.Join(src, "Été/SKILL.md"), skillMD("Été"))
+	writeFile(t, filepath.Join(src, "a_b/SKILL.md"), skillMD("a_b"))
+
+	c, err := (&Builder{Source: src}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Skills) != 2 || !hasWarning(c, "skipped Été") || !hasWarning(c, "skipped a_b") {
+		t.Errorf("skills=%v warnings=%v, want 技能-審查 and café served, Été and a_b skipped", c.Skills, c.Skipped)
+	}
+}
+
 func TestBuild_SkipsSkillOverFileLimit(t *testing.T) {
 	src := t.TempDir()
 	writeFile(t, filepath.Join(src, "big/SKILL.md"), skillMD("big"))

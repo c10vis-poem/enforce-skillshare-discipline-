@@ -5,10 +5,14 @@ package skillpkg
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/utils"
@@ -42,8 +46,7 @@ type Package struct {
 func Load(dir string) (*Package, error) {
 	dirName := filepath.Base(filepath.Clean(dir)) // a followed link's name, not its target's
 	dir = utils.ResolveSymlink(dir)
-	// Lstat first: a linked SKILL.md would be missing from the manifest, which lists no
-	// links, and an oversized one is skipped without reading it into memory.
+	// A linked SKILL.md would be missing from the manifest, which lists no links.
 	info, err := os.Lstat(filepath.Join(dir, "SKILL.md"))
 	if err != nil {
 		return nil, err
@@ -51,10 +54,8 @@ func Load(dir string) (*Package, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("SKILL.md is not a regular file")
 	}
-	if info.Size() > MaxBytes {
-		return nil, fmt.Errorf("SKILL.md is over %d MiB", MaxBytes>>20)
-	}
-	content, err := os.ReadFile(filepath.Join(dir, "SKILL.md"))
+	// The read itself is bounded: the file can grow after the Lstat.
+	content, err := readAtMost(filepath.Join(dir, "SKILL.md"), MaxBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +118,33 @@ func Load(dir string) (*Package, error) {
 	return p, nil
 }
 
+// readAtMost reads the file, failing once it holds more than limit bytes.
+func readAtMost(path string, limit int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("SKILL.md is over %d MiB", limit>>20)
+	}
+	return data, nil
+}
+
 // ValidateName returns why a SKILL.md name breaks the Agent Skills naming rules
-// (including name == directory name), or "" when it follows them.
+// (including name == directory name), or "" when it follows them. Like the
+// reference validator, it takes lowercase Unicode letters and digits after NFKC
+// normalization and counts the limit in characters.
 func ValidateName(name, dirName string) string {
+	name = norm.NFKC.String(strings.TrimSpace(name))
 	if name == "" {
 		return "SKILL.md is missing a name"
 	}
-	if len(name) > 64 {
+	if utf8.RuneCountInString(name) > 64 {
 		return fmt.Sprintf("SKILL.md name %q is longer than 64 characters", name)
 	}
 	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, "-") {
@@ -132,13 +153,12 @@ func ValidateName(name, dirName string) string {
 	if strings.Contains(name, "--") {
 		return fmt.Sprintf("SKILL.md name %q cannot contain consecutive hyphens", name)
 	}
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			continue
-		}
+	if name != strings.ToLower(name) || strings.ContainsFunc(name, func(r rune) bool {
+		return r != '-' && !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
 		return fmt.Sprintf("SKILL.md name %q must use only lowercase letters, numbers, and hyphens", name)
 	}
-	if name != dirName {
+	if name != norm.NFKC.String(dirName) {
 		return fmt.Sprintf("SKILL.md name %q does not match directory name %q", name, dirName)
 	}
 	return ""
