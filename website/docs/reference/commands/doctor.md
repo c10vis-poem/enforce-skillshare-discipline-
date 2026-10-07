@@ -166,7 +166,7 @@ When the targets sharing a path have different `include` or `exclude` filters, e
 
 Resolution: start by removing the scanning target (`codex` above). Its runtime already reads the shared directory, and no other tool is affected. Preview with `skillshare target remove codex --dry-run`. Removing the writer (`universal`) instead also hides those skills from every other tool that reads `~/.agents/skills`. Keep both targets only if the scanning target carries skills the writer filters out, and accept the duplicate listings in the runtime picker.
 
-OpenCode reads `~/.claude/skills` and `~/.agents/skills` first and its own folder last, keeping one skill per name, so a skill synced to both loads once. For `opencode`, the check only warns about skills it loads from another target's folder although `targets:` or include/exclude keep them out of OpenCode, and names them:
+OpenCode keeps one skill per name across `~/.claude/skills`, `~/.agents/skills`, and its own folder, so a skill synced from the source to both folders loads once. For `opencode`, the check only warns about skills it loads from another target's folder although sync leaves them out of OpenCode's own folder (through `targets:`, include/exclude, or a `target_naming: standard` skip), and names them:
 
 ```text
 ! opencode loads 1 skill kept out of it, from: claude

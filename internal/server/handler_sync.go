@@ -384,7 +384,7 @@ func (s *Server) syncResources(start time.Time, dryRun, force bool, kind, projec
 	s.writeOpsLog("sync", status, start, logArgs, "")
 
 	conflicts, overlap := folderConflicts(s.cfg.Targets, s.IsProjectMode(),
-		ssync.HarmlessOverlap(s.cfg.Targets, globalMode, s.cfg.EffectiveSkillsSource(), allSkills))
+		ssync.HarmlessOverlap(s.cfg.Targets, globalMode, allSkills))
 	return &syncOutcome{results: results, warnings: warnings, failed: failed, folderConflicts: conflicts, pathOverlap: overlap, skills: allSkills, ignoreStats: ignoreStats}, 0, nil
 }
 

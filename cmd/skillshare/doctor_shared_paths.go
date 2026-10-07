@@ -48,7 +48,7 @@ var scanOffHints = map[string]string{
 }
 
 func leakedSkillsSuggestion(scanner string) string {
-	s := fmt.Sprintf("These skills are kept from %s by `targets:` or include/exclude, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
+	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
 	if hint := scanOffHints[scanner]; hint != "" {
 		s += ", or where " + scanner + " runs, " + hint
 	}
@@ -126,8 +126,8 @@ func checkSharedTargetPaths(cfg *config.Config, result *doctorResult, isProject 
 // target writes to. Catches overlaps that checkSharedTargetPaths misses:
 // different primary paths but converging runtime discovery (e.g. Codex's
 // ~/.codex/skills primary plus its ~/.agents/skills also_scans means it sees
-// the universal target's content too). For a runtime that prefers its own copy
-// of a same-named skill, only the skills its filters leave out count.
+// the universal target's content too). For a runtime that keeps one skill per
+// name, only the skills sync leaves out of its own folder count.
 func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProject bool, discovered []sync.DiscoveredSkill) {
 	primaryByName := make(map[string]string, len(cfg.Targets))
 	for name, target := range cfg.Targets {
@@ -175,7 +175,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				if w == scanner {
 					continue
 				}
-				l, ok := sync.LeakedSkills(scanner, w, cfg.Targets, cfg.Mode, cfg.EffectiveSkillsSource(), discovered)
+				l, ok := sync.LeakedSkills(scanner, w, cfg.Targets, cfg.Mode, discovered)
 				if ok && len(l) == 0 {
 					continue
 				}

@@ -170,7 +170,7 @@ Doctor 会在两类重复 skill 风险到达运行时选择器之前将其标记
 
 解决方法：先移除负责扫描的 target（上例中的 `codex`）。它的运行时本来就会读取共享目录，而且不会影响其他工具。可用 `skillshare target remove codex --dry-run` 预览。如果改为移除写入方（`universal`），其他读取 `~/.agents/skills` 的工具也会看不到这些 skill。只有当扫描端 target 带有被写入方过滤掉的 skill 时才同时保留两者，并接受运行时选择器中出现重复列表。
 
-OpenCode 会先读 `~/.claude/skills` 和 `~/.agents/skills`，最后才读自己的文件夹，同名的 skill 只保留一个，所以同步到两边的 skill 只会加载一次。对 `opencode`，这项检查只在它从其他 target 的文件夹加载了被 `targets:` 或 include/exclude 排除在 OpenCode 之外的 skill 时才警告，并列出这些 skill：
+OpenCode 在 `~/.claude/skills`、`~/.agents/skills` 和自己的文件夹之间，同名的 skill 只保留一个，所以从 source 同步到两边的 skill 只会加载一次。对 `opencode`，这项检查只在它从其他 target 的文件夹加载了 sync 没放进 OpenCode 文件夹的 skill 时才警告（原因可能是 `targets:`、include/exclude，或 `target_naming: standard` 跳过了它），并列出这些 skill：
 
 ```text
 ! opencode loads 1 skill kept out of it, from: claude

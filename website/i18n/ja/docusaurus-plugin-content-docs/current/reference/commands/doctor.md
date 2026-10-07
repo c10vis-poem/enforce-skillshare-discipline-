@@ -166,7 +166,7 @@ Doctor は、ランタイムのピッカーに到達する前に、Skill 重複�
 
 解決方法: まずスキャンする側の Target（上の例では `codex`）を削除してください。そのランタイムは共有ディレクトリをすでに読み込んでおり、他のツールには影響しません。`skillshare target remove codex --dry-run` でプレビューできます。代わりに書き込み元（`universal`）を削除すると、`~/.agents/skills` を読み込む他のツールからもそれらの skill が見えなくなります。スキャンする側の Target が、書き込み元でフィルタされている skill を持つ場合に限り両方を残し、ランタイムのピッカーでの重複表示を受け入れてください。
 
-OpenCode は `~/.claude/skills` と `~/.agents/skills` を先に読み、自分のフォルダを最後に読みます。同じ名前の skill は 1 つだけ残すため、両方に同期された skill は 1 回だけ読み込まれます。`opencode` については、`targets:` や include/exclude で OpenCode から外した skill を他の target のフォルダから読み込む場合にだけ警告し、その skill を表示します：
+OpenCode は `~/.claude/skills`、`~/.agents/skills`、自分のフォルダの間で同じ名前の skill を 1 つだけ残すため、source から両方に同期された skill は 1 回だけ読み込まれます。`opencode` については、sync が OpenCode のフォルダに入れなかった skill（`targets:`、include/exclude、または `target_naming: standard` によるスキップ）を他の target のフォルダから読み込む場合にだけ警告し、その skill を表示します：
 
 ```text
 ! opencode loads 1 skill kept out of it, from: claude

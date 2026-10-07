@@ -166,7 +166,7 @@ Doctor는 런타임 피커에 도달하기 전에 두 가지 종류의 중복 sk
 
 해결 방법: 먼저 스캔하는 쪽 target(위 예시의 `codex`)을 제거하십시오. 해당 런타임은 이미 공유 디렉터리를 읽고 있으며, 다른 도구에는 영향을 주지 않습니다. `skillshare target remove codex --dry-run`으로 미리 확인할 수 있습니다. 대신 writer(`universal`)를 제거하면 `~/.agents/skills`를 읽는 다른 도구에서도 해당 skill이 보이지 않게 됩니다. 스캔하는 쪽 target에 writer가 필터링한 skill이 있는 경우에만 둘 다 유지하고, 런타임 피커에 중복 항목이 나타나는 것을 감수하십시오.
 
-OpenCode는 `~/.claude/skills`와 `~/.agents/skills`를 먼저 읽고 자신의 폴더를 마지막에 읽으며, 이름이 같은 skill은 하나만 남깁니다. 따라서 양쪽에 동기화된 skill은 한 번만 로드됩니다. `opencode`의 경우, `targets:`나 include/exclude로 OpenCode에서 제외한 skill을 다른 target의 폴더에서 로드할 때만 경고하고 해당 skill을 표시합니다:
+OpenCode는 `~/.claude/skills`, `~/.agents/skills`, 자신의 폴더 사이에서 이름이 같은 skill을 하나만 남깁니다. 따라서 source에서 양쪽에 동기화된 skill은 한 번만 로드됩니다. `opencode`의 경우, sync가 OpenCode 폴더에 넣지 않은 skill(`targets:`, include/exclude, 또는 `target_naming: standard`로 건너뛴 경우)을 다른 target의 폴더에서 로드할 때만 경고하고 해당 skill을 표시합니다:
 
 ```text
 ! opencode loads 1 skill kept out of it, from: claude
