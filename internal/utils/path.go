@@ -79,7 +79,9 @@ func ConfigWritePath(path string, project bool) (string, error) {
 		return dest, nil
 	}
 	root := resolveExisting(filepath.Dir(filepath.Dir(path)))
-	if !PathHasPrefix(dest, root+string(filepath.Separator)) {
+	// A project at a volume root (/ or C:\) already ends with the separator.
+	sep := string(filepath.Separator)
+	if !PathHasPrefix(dest, strings.TrimSuffix(root, sep)+sep) {
 		return "", fmt.Errorf("%s links outside the project to %s; replace the link with a regular file", path, dest)
 	}
 	return dest, nil

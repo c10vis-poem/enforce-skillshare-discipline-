@@ -113,6 +113,12 @@ func TestConfigWritePath(t *testing.T) {
 			t.Fatalf("expected refusal, got %v", err)
 		}
 	})
+	t.Run("project at the volume root is allowed", func(t *testing.T) {
+		p := filepath.Join(string(filepath.Separator), ".skillshare-volume-root-test", "config.yaml")
+		if _, err := ConfigWritePath(p, true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 	t.Run("new project config is allowed", func(t *testing.T) {
 		p := filepath.Join(root, "new", ".skillshare", "config.yaml")
 		if _, err := ConfigWritePath(p, true); err != nil {
