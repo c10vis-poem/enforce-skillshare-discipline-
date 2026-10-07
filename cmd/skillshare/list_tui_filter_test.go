@@ -133,14 +133,28 @@ func TestParseFilterQuery_EmptyValueIgnored(t *testing.T) {
 }
 
 func TestSkillGroup_TrackedNested(t *testing.T) {
-	e := skillEntry{RelPath: "_team-repo/security/audit", RepoName: "team/repo"}
+	e := skillEntry{RelPath: "_team-repo/security/audit", RepoName: "_team-repo"}
 	if got := skillGroup(e); got != "security" {
 		t.Fatalf("skillGroup() = %q, want %q", got, "security")
 	}
 }
 
+func TestSkillGroup_TrackedInstalledInto(t *testing.T) {
+	e := skillEntry{RelPath: "org/_team-repo/security/audit", RepoName: "org/_team-repo"}
+	if got := skillGroup(e); got != "security" {
+		t.Fatalf("skillGroup() = %q, want %q", got, "security")
+	}
+}
+
+func TestSkillGroup_TrackedInstalledIntoRootSkill(t *testing.T) {
+	e := skillEntry{RelPath: "org/_team-repo", RepoName: "org/_team-repo"}
+	if got := skillGroup(e); got != "" {
+		t.Fatalf("skillGroup() = %q, want empty for the repo's root skill", got)
+	}
+}
+
 func TestSkillGroup_TrackedRoot(t *testing.T) {
-	e := skillEntry{RelPath: "_team-repo/my-skill", RepoName: "team/repo"}
+	e := skillEntry{RelPath: "_team-repo/my-skill", RepoName: "_team-repo"}
 	if got := skillGroup(e); got != "" {
 		t.Fatalf("skillGroup() = %q, want empty for tracked root-level", got)
 	}
@@ -254,7 +268,7 @@ func TestMatchSkillItem_ANDLogic(t *testing.T) {
 	item := skillItem{entry: skillEntry{
 		Name:     "audit",
 		RelPath:  "_team-repo/security/audit",
-		RepoName: "team/repo",
+		RepoName: "_team-repo",
 	}}
 
 	// All conditions match

@@ -36,6 +36,8 @@ export interface Skill {
   linkName?: string;
   linkTarget?: string;
   isInRepo: boolean;
+  /** Tracked repo root relative to the source (`_team`, or `org/_team` when installed with --into). */
+  repoPath?: string;
   targets?: string[];
   installedAt?: string;
   source?: string;

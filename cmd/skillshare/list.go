@@ -295,13 +295,8 @@ func buildSkillEntries(discovered []sync.DiscoveredSkill) []skillEntry {
 			Kind:     "skill",
 			IsNested: d.IsInRepo || utils.HasNestedSeparator(d.FlatName),
 			RelPath:  d.RelPath,
+			RepoName: d.RepoRelPath,
 			Disabled: d.Disabled,
-		}
-		if d.IsInRepo {
-			parts := strings.SplitN(d.RelPath, "/", 2)
-			if len(parts) > 0 {
-				skills[i].RepoName = parts[0]
-			}
 		}
 
 		// Enrich from centralized metadata store
@@ -574,7 +569,7 @@ func displayTrackedRepos(trackedRepos []string, discovered []sync.DiscoveredSkil
 func countRepoSkills(repoName string, discovered []sync.DiscoveredSkill) int {
 	count := 0
 	for _, d := range discovered {
-		if d.IsInRepo && strings.HasPrefix(d.RelPath, repoName+"/") {
+		if d.RepoRelPath == repoName {
 			count++
 		}
 	}

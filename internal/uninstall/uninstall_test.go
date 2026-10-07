@@ -196,6 +196,27 @@ func TestRun_RefusesLinkedSkillRoot(t *testing.T) {
 	}
 }
 
+func TestRun_RefusesItemsInsideTrackedRepoEvenWhenForced(t *testing.T) {
+	f := newFixture(t)
+	f.repo(t, "_team")
+	skill := f.skill(t, "_team/foo")
+	sub := f.skill(t, "_team/vendor/_lib")
+	runGit(t, sub.Path, "init", "-q") // e.g. a submodule checkout
+	sub.Repo = true
+	f.opts.Force = true
+	items := []Item{skill, sub}
+
+	preflight, run := Preflight(items, f.opts), Run(items, f.opts).Results
+	for i := range items {
+		if !errors.Is(preflight[i], ErrInsideRepo) || !errors.Is(run[i].Err, ErrInsideRepo) {
+			t.Fatalf("%s: expected ErrInsideRepo, got preflight %v, run %v", items[i].Name, preflight[i], run[i].Err)
+		}
+		if !exists(items[i].Path) {
+			t.Errorf("%s must stay in the repo", items[i].Name)
+		}
+	}
+}
+
 func TestPreflight_ReportsDirtyRepoEvenWhenForced(t *testing.T) {
 	f := newFixture(t)
 	dirty := f.repo(t, "_dirty")

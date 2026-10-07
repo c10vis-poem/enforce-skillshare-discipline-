@@ -174,11 +174,14 @@ skillshare uninstall frontend/hooks -G frontend --force  # hooks 只會被移除
 - 當 skillshare 無法讀取該儲存庫的 git status 時，會以 `failed to check git status` 失敗；批次中的其他項目仍會被移除，`--force` 會略過此檢查
 - 自動從 `.gitignore` 移除該項目
 - 解除安裝時 `_` 前綴為選填
+- 用 `--into` 安裝的 repo 以路徑命名，例如 `devops/_team-skills`
+- tracked repo 裡的 skill 或資料夾不能單獨移除，加上 `--force` 也一樣；指令會以 `inside a tracked repo; uninstall the repo instead` 失敗。位於 followed source link 底下的 skill 仍可逐一移除
 
 ```bash
 skillshare uninstall _team-skills        # 含前綴
 skillshare uninstall team-skills         # 不含前綴（自動偵測）
 skillshare uninstall _team-skills --force # 強制移除，即使有未提交的變更
+skillshare uninstall devops/_team-skills # 用 --into devops 安裝的 repo
 ```
 
 ## 範例

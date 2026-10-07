@@ -67,6 +67,8 @@ Tracked repo는 일반 skill과 구분하기 위해 `_` 접두사가 붙습니�
 └── _team-skills/       # Tracked repo (underscore prefix)
 ```
 
+`--into`로 설치한 tracked repo는 `devops/_team-skills/`처럼 폴더 안에 놓입니다. 그래도 하나의 repo로 취급됩니다. 안에 있는 skill은 그 아래로 묶이고, `status`에서도 집계되며, 업데이트나 제거할 때는 `devops/_team-skills`라는 이름을 사용합니다. 최상위 아래에서는 git clone된 `_` 폴더만 tracked repo로 간주되므로, `devops/_drafts/` 같은 일반 폴더는 그대로 일반 폴더입니다.
+
 ---
 
 ## 중첩 Skill과 자동 평탄화 {#nested-skills--auto-flattening}

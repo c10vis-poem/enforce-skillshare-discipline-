@@ -67,6 +67,8 @@ Tracked repos are prefixed with `_` to distinguish them from regular skills:
 └── _team-skills/       # Tracked repo (underscore prefix)
 ```
 
+A tracked repo installed with `--into` sits inside a folder, such as `devops/_team-skills/`. It is still treated as one repo: its skills are grouped under it, `status` counts them, and you update or uninstall it as `devops/_team-skills`. Below the top level, an `_` folder counts as a tracked repo only when it is a git clone, so a plain folder like `devops/_drafts/` stays a regular folder.
+
 ---
 
 ## Nested Skills & Auto-Flattening {#nested-skills--auto-flattening}

@@ -5,7 +5,7 @@ import { api, ApiError, type Skill } from '../../api/client';
 import { composeSkillMarkdown, parseSkillMarkdown, type Frontmatter } from '../../lib/frontmatter';
 import { highlightLines } from '../../lib/highlight';
 import { parseRemoteURL } from '../../lib/parseRemoteURL';
-import { formatTrackedRepoName } from '../../lib/resourceNames';
+import { folderOf, formatTrackedRepoName } from '../../lib/resourceNames';
 import { useI18n, useT, plural } from '../../i18n';
 import Button from '../Button';
 import ConfirmDialog from '../ConfirmDialog';
@@ -199,7 +199,7 @@ export default function SkillEditor({ resource, docName, initialContent, onBack,
   const bodyLines = useMemo(() => highlightLines(body, 'md'), [body]);
   const gutter = `calc(30px + ${String(bodyLines.length).length}ch)`;
   const repo = resource.isInRepo
-    ? parseRemoteURL(resource.repoUrl)?.ownerRepo ?? formatTrackedRepoName(resource.relPath.split('/')[0])
+    ? parseRemoteURL(resource.repoUrl)?.ownerRepo ?? formatTrackedRepoName(folderOf(resource))
     : '';
 
   return (

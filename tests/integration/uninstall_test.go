@@ -681,6 +681,26 @@ targets: {}
 	result.AssertAnyOutputContains(t, "remaining")
 }
 
+func TestUninstall_SkillInsideTrackedRepoIsRefused(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+
+	repoPath := filepath.Join(sb.SourcePath, "_team")
+	skillPath := filepath.Join(repoPath, "foo")
+	os.MkdirAll(skillPath, 0755)
+	os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# Foo"), 0644)
+	initGitRepo(t, repoPath)
+	sb.WriteConfig(`source: ` + sb.SourcePath + `
+targets: {}
+`)
+
+	result := sb.RunCLI("uninstall", "_team/foo", "--force")
+	result.AssertAnyOutputContains(t, "uninstall the repo instead")
+	if !sb.FileExists(skillPath) {
+		t.Error("a skill inside a tracked repo must stay in the repo's checkout")
+	}
+}
+
 // makeUnreadableTrackedRepo creates a tracked repo whose `git status` fails
 // because its .git directory is empty.
 func makeUnreadableTrackedRepo(t *testing.T, sb *testutil.Sandbox, name string) string {
