@@ -206,7 +206,7 @@ func runUninstallSkills(opts *uninstallOptions, mode *uninstallMode, rawArgs []s
 			targets = append(targets, &uninstallTarget{
 				name:          dir,
 				path:          skillPath,
-				isTrackedRepo: install.IsGitRepo(skillPath),
+				isTrackedRepo: install.IsTrackedCheckout(skillPath),
 			})
 			seen[skillPath] = true
 		}
