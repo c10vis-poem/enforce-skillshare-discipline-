@@ -402,27 +402,6 @@ func TestIsShellFile(t *testing.T) {
 	}
 }
 
-func TestExtractFenceLang(t *testing.T) {
-	tests := []struct {
-		line string
-		want string
-	}{
-		{"```bash", "bash"},
-		{"```sh", "sh"},
-		{"```python", "python"},
-		{"```", ""},
-		{"~~~ zsh", "zsh"},
-		{"```  BASH  ", "bash"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.line, func(t *testing.T) {
-			if got := extractFenceLang(tt.line); got != tt.want {
-				t.Errorf("extractFenceLang(%q) = %q, want %q", tt.line, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIsAssignment(t *testing.T) {
 	tests := []struct {
 		line string

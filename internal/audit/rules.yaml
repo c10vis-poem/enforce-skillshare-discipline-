@@ -67,12 +67,21 @@ rules:
     regex: '[\x{E0001}-\x{E007F}]'
 
   # ── CRITICAL: output suppression directives ──
-  # A skill that hides its actions from the user is a strong malicious signal.
+  # Explicit concealment of actions or instructions is a strong malicious signal.
   - id: prompt-injection-4
     severity: CRITICAL
     pattern: prompt-injection
     message: "Output suppression directive — attempts to hide actions from user"
-    regex: '(?i)(don''t\s+tell\s+the\s+user|do\s+not\s+tell\s+the\s+user|do\s+not\s+(mention|reveal)\s+this\s+(instruction|change|action|to\s+the\s+user)|never\s+(mention|reveal)\s+this\s+instruction|hide\s+this\s+from\s+the\s+user|remove\s+(this\s+)?from\s+(chat|conversation)\s+history)'
+    regex: '(?i)((don''t|do\s+not)\s+tell\s+the\s+user\s+(about\s+)?(this|the)\s+(instruction|change|action)\b|do\s+not\s+(mention|reveal)\s+this\s+(instruction|change|action|to\s+the\s+user)|never\s+(mention|reveal)\s+this\s+instruction|hide\s+this\s+from\s+the\s+user|remove\s+(this\s+)?from\s+(chat|conversation)\s+history)'
+
+  # A generic disclosure restriction may be advice or concealment. Keep it
+  # visible without treating an ambiguous prefix as confirmed malicious intent.
+  - id: prompt-injection-5
+    severity: HIGH
+    pattern: prompt-injection
+    message: "Possible output suppression — review disclosure restriction"
+    regex: '(?i)(don''t|do\s+not)\s+tell\s+the\s+user'
+    exclude: '(?i)(don''t|do\s+not)\s+tell\s+the\s+user\s+(about\s+)?(this|the)\s+(instruction|change|action)\b'
 
   # ── HIGH: hidden unicode (zero-width characters) ──
   - id: hidden-unicode-0

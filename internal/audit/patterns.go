@@ -94,12 +94,13 @@ func SeverityRank(sev string) int {
 
 // rule defines a single compiled scanning pattern.
 type rule struct {
-	ID       string
-	Severity string
-	Pattern  string // rule name
-	Message  string
-	Regex    *regexp.Regexp
-	Exclude  *regexp.Regexp // if non-nil, suppress match when this also matches
+	ID                 string
+	Severity           string
+	Pattern            string // rule name
+	Message            string
+	Regex              *regexp.Regexp
+	Exclude            *regexp.Regexp // if non-nil, suppress match when this also matches
+	severityOverridden bool
 	// prefilter is a conservative literal that must appear in a candidate line
 	// before running the full regex. Empty means no fast prefilter is available.
 	prefilter     string
@@ -108,17 +109,32 @@ type rule struct {
 
 // yamlRule is the YAML deserialization type for a single rule.
 type yamlRule struct {
-	ID       string `yaml:"id"`
-	Severity string `yaml:"severity"`
-	Pattern  string `yaml:"pattern"`
-	Message  string `yaml:"message"`
-	Regex    string `yaml:"regex"`
-	Exclude  string `yaml:"exclude,omitempty"`
-	Enabled  *bool  `yaml:"enabled,omitempty"` // nil = true; false = disable
+	ID                 string `yaml:"id"`
+	Severity           string `yaml:"severity"`
+	Pattern            string `yaml:"pattern"`
+	Message            string `yaml:"message"`
+	Regex              string `yaml:"regex"`
+	Exclude            string `yaml:"exclude,omitempty"`
+	Enabled            *bool  `yaml:"enabled,omitempty"` // nil = true; false = disable
+	severityOverridden bool   `yaml:"-"`
 }
 
 type rulesFile struct {
 	Rules []yamlRule `yaml:"rules"`
+}
+
+func (r rule) matchesLine(line string) bool {
+	if !r.Regex.MatchString(line) {
+		return false
+	}
+	if r.Exclude == nil || !r.Exclude.MatchString(line) {
+		return true
+	}
+	if r.ID == "prompt-injection-5" {
+		// Exclude explicit-concealment phrases, not separate generic directives.
+		return r.Regex.MatchString(r.Exclude.ReplaceAllString(line, " "))
+	}
+	return false
 }
 
 //go:embed rules.yaml
@@ -262,11 +278,12 @@ func compileRules(yr []yamlRule) ([]rule, error) {
 		}
 
 		r := rule{
-			ID:       y.ID,
-			Severity: sev,
-			Pattern:  y.Pattern,
-			Message:  y.Message,
-			Regex:    re,
+			ID:                 y.ID,
+			Severity:           sev,
+			Pattern:            y.Pattern,
+			Message:            y.Message,
+			Regex:              re,
+			severityOverridden: y.severityOverridden,
 		}
 		r.prefilter, r.prefilterFold = deriveRulePrefilter(y.Regex, re)
 		if y.Exclude != "" {
@@ -315,6 +332,7 @@ func mergeYAMLRules(base, overlay []yamlRule) []yamlRule {
 	// Separate overlay into pattern-level and id-level entries.
 	var patternOverlays, idOverlays []yamlRule
 	for _, o := range overlay {
+		o.severityOverridden = o.severityOverridden || o.Severity != ""
 		if isPatternLevel(o) {
 			patternOverlays = append(patternOverlays, o)
 		} else {
@@ -341,6 +359,7 @@ func mergeYAMLRules(base, overlay []yamlRule) []yamlRule {
 			}
 			if po.Severity != "" {
 				result[i].Severity = po.Severity
+				result[i].severityOverridden = true
 			}
 		}
 	}
@@ -364,6 +383,7 @@ func mergeYAMLRules(base, overlay []yamlRule) []yamlRule {
 				}
 				if o.Severity != "" {
 					result[pos].Severity = o.Severity
+					result[pos].severityOverridden = true
 				}
 			}
 		} else {
