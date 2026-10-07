@@ -43,25 +43,16 @@ func crossTargetDiscoverySuggestion(scanner string, writers []string, isProject 
 		scanner, scanner, strings.Join(writers, ", "), scanner, targetRemoveDryRunCommand(isProject), strings.Join(writers, ", "))
 }
 
-// scanOffHint names the most specific environment variable that makes the
-// runtime skip every one of paths, or "" when none does.
-func scanOffHint(scanner string, paths []string, isProject bool) string {
-	if len(paths) == 0 {
-		return ""
-	}
+// leakedSkillsSuggestion also names the most specific environment variable
+// that makes the runtime skip every one of paths, when one does.
+func leakedSkillsSuggestion(scanner string, paths []string, isProject bool) string {
+	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
 	disabledBy := config.AlsoScansDisabledBy(scanner, isProject)
 	for _, v := range disabledBy[paths[0]] {
 		if !slices.ContainsFunc(paths[1:], func(p string) bool { return !slices.Contains(disabledBy[p], v) }) {
-			return "set " + v + "=1"
+			s += ", or where " + scanner + " runs, set " + v + "=1"
+			break
 		}
-	}
-	return ""
-}
-
-func leakedSkillsSuggestion(scanner string, paths []string, isProject bool) string {
-	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
-	if hint := scanOffHint(scanner, paths, isProject); hint != "" {
-		s += ", or where " + scanner + " runs, " + hint
 	}
 	return s + "."
 }
@@ -178,8 +169,8 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 		scanner     string
 		scannerPath string
 		paths       []pathOverlap
-		// known means leaked lists every skill the scanner should not load.
-		known bool
+		// unknown means leaked may miss skills the scanner should not load.
+		unknown bool
 	}
 	overlapsByScanner := make(map[string]*scannerOverlap)
 
@@ -195,7 +186,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				continue
 			}
 			var others, leaked []string
-			known := true
+			unknown := false
 			for _, w := range writers {
 				if w == scanner {
 					continue
@@ -204,7 +195,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				if ok && len(l) == 0 {
 					continue
 				}
-				known = known && ok
+				unknown = unknown || !ok
 				others = append(others, w)
 				leaked = append(leaked, l...)
 			}
@@ -212,13 +203,13 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				continue
 			}
 			sort.Strings(others)
-			sort.Strings(leaked)
+			slices.Sort(leaked)
 			so, exists := overlapsByScanner[scanner]
 			if !exists {
-				so = &scannerOverlap{scanner: scanner, scannerPath: primaryByName[scanner], known: true}
+				so = &scannerOverlap{scanner: scanner, scannerPath: primaryByName[scanner]}
 				overlapsByScanner[scanner] = so
 			}
-			so.known = so.known && known
+			so.unknown = so.unknown || unknown
 			so.paths = append(so.paths, pathOverlap{sharedPath: resolved, writers: others, leaked: slices.Compact(leaked)})
 		}
 	}
@@ -241,48 +232,35 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 		so := overlapsByScanner[name]
 		sort.Slice(so.paths, func(i, j int) bool { return so.paths[i].sharedPath < so.paths[j].sharedPath })
 
-		// Union of all writers for the summary line.
-		writerSet := map[string]struct{}{}
+		// Union of writers, leaked skills and paths for the summary line.
+		var writers, leaked, paths []string
 		for _, p := range so.paths {
-			for _, w := range p.writers {
-				writerSet[w] = struct{}{}
-			}
+			writers = append(writers, p.writers...)
+			leaked = append(leaked, p.leaked...)
+			paths = append(paths, p.sharedPath)
 		}
-		writers := make([]string, 0, len(writerSet))
-		for w := range writerSet {
-			writers = append(writers, w)
-		}
-		sort.Strings(writers)
+		slices.Sort(writers)
+		writers = slices.Compact(writers)
+		slices.Sort(leaked)
+		leaked = slices.Compact(leaked)
 
-		if so.known {
-			leakedSet := map[string]struct{}{}
-			var leakPaths []string
-			for _, p := range so.paths {
-				for _, s := range p.leaked {
-					leakedSet[s] = struct{}{}
-				}
-				leakPaths = append(leakPaths, p.sharedPath)
-			}
-			ui.Warning("%s loads %s kept out of it, from: %s", so.scanner, plural(len(leakedSet), "skill"), strings.Join(writers, ", "))
-			for _, p := range so.paths {
-				ui.Note(fmt.Sprintf("%s ← %s: %s", shortenPath(p.sharedPath), strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
-				details = append(details, fmt.Sprintf("%s (%s) also scans %s ← %s and loads skills its filters leave out: %s",
-					so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
-			}
-			suggestion := leakedSkillsSuggestion(so.scanner, leakPaths, isProject)
-			ui.Note("suggestion: " + suggestion)
-			suggestions = append(suggestions, suggestion)
-			result.addWarning()
-			continue
-		}
-
-		ui.Warning("%s will see content from: %s", so.scanner, strings.Join(writers, ", "))
-		for _, p := range so.paths {
-			ui.Note(fmt.Sprintf("%s ← %s", shortenPath(p.sharedPath), strings.Join(p.writers, ", ")))
-			details = append(details, fmt.Sprintf("%s (%s) also scans %s ← %s",
-				so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", ")))
-		}
+		header := fmt.Sprintf("%s will see content from: %s", so.scanner, strings.Join(writers, ", "))
 		suggestion := crossTargetDiscoverySuggestion(so.scanner, writers, isProject)
+		if !so.unknown {
+			header = fmt.Sprintf("%s loads %s kept out of it, from: %s", so.scanner, plural(len(leaked), "skill"), strings.Join(writers, ", "))
+			suggestion = leakedSkillsSuggestion(so.scanner, paths, isProject)
+		}
+		ui.Warning("%s", header)
+		for _, p := range so.paths {
+			note := fmt.Sprintf("%s ← %s", shortenPath(p.sharedPath), strings.Join(p.writers, ", "))
+			detail := fmt.Sprintf("%s (%s) also scans %s ← %s", so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "))
+			if !so.unknown {
+				note += ": " + strings.Join(p.leaked, ", ")
+				detail += " and loads skills its filters leave out: " + strings.Join(p.leaked, ", ")
+			}
+			ui.Note(note)
+			details = append(details, detail)
+		}
 		ui.Note("suggestion: " + suggestion)
 		suggestions = append(suggestions, suggestion)
 		result.addWarning()

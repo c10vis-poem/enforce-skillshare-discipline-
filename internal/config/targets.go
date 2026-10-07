@@ -69,11 +69,14 @@ type targetSpec struct {
 	Detect string `yaml:"detect,omitempty"`
 	// ConfigDir is the directory the Agent keeps its files in, where the Agent can be told to
 	// use another one (CLAUDE_CONFIG_DIR). A target may then be such another directory.
-	ConfigDir    string             `yaml:"config_dir,omitempty"`
-	Skills       targetPathPair     `yaml:"skills"`
-	Agents       targetPathPair     `yaml:"agents,omitempty"`
-	AlsoScans    targetAlsoScans    `yaml:"also_scans,omitempty"`
-	Instructions targetInstructions `yaml:"instructions,omitempty"`
+	ConfigDir string          `yaml:"config_dir,omitempty"`
+	Skills    targetPathPair  `yaml:"skills"`
+	Agents    targetPathPair  `yaml:"agents,omitempty"`
+	AlsoScans targetAlsoScans `yaml:"also_scans,omitempty"`
+	// OneSkillPerName marks a runtime that loads a single skill per name across
+	// its own folder and the folders it also scans.
+	OneSkillPerName bool               `yaml:"one_skill_per_name,omitempty"`
+	Instructions    targetInstructions `yaml:"instructions,omitempty"`
 	// Files are plain files the tool reads besides its instruction file,
 	// relative to its file root (see TargetFileRoot).
 	Files   []string `yaml:"files,omitempty"`
@@ -349,6 +352,21 @@ func AlsoScansProject(name string) []string {
 		return paths
 	}
 	return nil
+}
+
+// LoadsOneSkillPerName reports whether a target's runtime loads a single skill
+// per name across its own folder and the folders it also scans.
+func LoadsOneSkillPerName(name string) bool {
+	specs, err := loadTargetSpecs()
+	if err != nil {
+		return false
+	}
+	for _, spec := range specs {
+		if spec.Name == name {
+			return spec.OneSkillPerName
+		}
+	}
+	return false
 }
 
 // ScanOff is an also_scans path a target's runtime skips because EnvVar is set.

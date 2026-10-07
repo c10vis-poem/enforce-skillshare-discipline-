@@ -454,6 +454,8 @@ targets:
         "~/.agents/skills": [OPENCODE_DISABLE_EXTERNAL_SKILLS]
         ".claude/skills": [OPENCODE_DISABLE_CLAUDE_CODE_SKILLS, OPENCODE_DISABLE_CLAUDE_CODE, OPENCODE_DISABLE_EXTERNAL_SKILLS]
         ".agents/skills": [OPENCODE_DISABLE_EXTERNAL_SKILLS]
+    # Loads one skill per name across all those folders (which copy wins is not fixed).
+    one_skill_per_name: true
     instructions:
       global: "~/.config/opencode/AGENTS.md"
       project: "AGENTS.md"

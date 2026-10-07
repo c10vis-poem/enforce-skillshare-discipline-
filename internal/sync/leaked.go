@@ -1,25 +1,22 @@
 package sync
 
 import (
+	"cmp"
 	"sort"
 
 	"skillshare/internal/config"
 )
 
-// sameNameLoadsOnce lists targets whose runtime keeps one skill per name across
-// its own folder and the folders it also scans. Which copy wins is not fixed
-// (OpenCode loads them concurrently: packages/opencode/src/skill/index.ts in
-// anomalyco/opencode), but a source skill synced to both folders has the same
-// content either way, so it loads once as intended.
-var sameNameLoadsOnce = map[string]bool{"opencode": true}
-
 // LeakedSkills returns the source skills scanner's runtime loads from writer's
-// folder although sync leaves them out of scanner's own folder. known is false
-// when that cannot be told (the runtime's rule for same-named skills is
-// unknown, a filter is invalid, or nothing was discovered); every skill in
-// writer's folder may then reach scanner.
+// folder although sync leaves them out of scanner's own folder. It needs a
+// runtime that loads one skill per name (config.LoadsOneSkillPerName): which
+// copy wins is not fixed (OpenCode loads them concurrently), but a source skill
+// synced to both folders has the same content either way. known is false when
+// that cannot be told (the runtime's rule for same-named skills is unknown, a
+// filter is invalid, or nothing was discovered); every skill in writer's folder
+// may then reach scanner.
 func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig, defaultMode string, discovered []DiscoveredSkill) (leaked []string, known bool) {
-	if !sameNameLoadsOnce[scanner] || discovered == nil {
+	if !config.LoadsOneSkillPerName(scanner) || discovered == nil {
 		return nil, false
 	}
 	// A symlink-mode folder is the source itself, .skillignore'd skills that
@@ -68,11 +65,7 @@ func syncedSkills(name string, target config.TargetConfig, defaultMode string, d
 }
 
 func isSymlinkMode(target config.TargetConfig, defaultMode string) bool {
-	mode := target.SkillsConfig().Mode
-	if mode == "" {
-		mode = defaultMode
-	}
-	return mode == "symlink"
+	return cmp.Or(target.SkillsConfig().Mode, defaultMode) == "symlink"
 }
 
 // HarmlessOverlap returns a check for config.DetectPathOverlap: scanner reading
