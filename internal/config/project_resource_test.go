@@ -261,7 +261,8 @@ func TestProjectTarget_MixedFormat_MergesIntoSkills(t *testing.T) {
 
 func TestLoadProject_LegacyTargetMigrationKeepsSymlinkedConfig(t *testing.T) {
 	root := t.TempDir()
-	shared := filepath.Join(t.TempDir(), "project.yaml")
+	shared := filepath.Join(root, "shared", "project.yaml")
+	os.MkdirAll(filepath.Dir(shared), 0755)
 	os.WriteFile(shared, []byte("targets:\n  - name: claude\n    path: .claude/skills\n"), 0644)
 	link := filepath.Join(root, ".skillshare", "config.yaml")
 	os.MkdirAll(filepath.Dir(link), 0755)
@@ -277,5 +278,22 @@ func TestLoadProject_LegacyTargetMigrationKeepsSymlinkedConfig(t *testing.T) {
 	data, _ := os.ReadFile(shared)
 	if !strings.Contains(string(data), "skills:") {
 		t.Fatalf("migration not written to the symlink target:\n%s", data)
+	}
+}
+
+func TestProjectConfigSave_RefusesALinkOutOfTheProject(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "elsewhere.yaml")
+	os.WriteFile(outside, []byte("keep: me\n"), 0644)
+	link := filepath.Join(root, ".skillshare", "config.yaml")
+	os.MkdirAll(filepath.Dir(link), 0755)
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := (&ProjectConfig{}).Save(root); err == nil || !strings.Contains(err.Error(), "outside the project") {
+		t.Fatalf("expected refusal, got %v", err)
+	}
+	if data, _ := os.ReadFile(outside); string(data) != "keep: me\n" {
+		t.Fatalf("file outside the project was written:\n%s", data)
 	}
 }

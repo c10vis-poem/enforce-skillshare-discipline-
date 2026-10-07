@@ -175,14 +175,10 @@ func (s *Service) save(d *document) error {
 	if err != nil {
 		return err
 	}
-	// Dotfile managers often symlink config.yaml; write its target so the link survives,
-	// including a link whose target does not exist yet.
-	path := utils.ResolveSymlink(s.ConfigPath)
-	if target, err := os.Readlink(path); err == nil {
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
-		}
-		path = target
+	// Dotfile managers often symlink config.yaml; write its target so the link survives.
+	path, err := utils.ConfigWritePath(s.ConfigPath, s.ProjectRoot != "")
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err

@@ -246,7 +246,7 @@ func TestRecovery_InterruptedBeforeWriteKeepsOwnership(t *testing.T) {
 	m := Mutation{Name: "guard", Entry: entry(t, claudeEntry)}
 	source, replace, adopt, err := e.service.draft(m)
 	must(t, err)
-	must(t, source.save())
+	must(t, source.save(false))
 	p, err := e.service.previewSource(source, replace, adopt)
 	must(t, err)
 	f := p.files[0]

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,6 +28,33 @@ func ResolveSymlink(path string) string {
 		return resolved
 	}
 	return path
+}
+
+// ConfigWritePath returns the file a save of the config at path writes: the target
+// of a symlink, so the link survives, including a link whose target does not exist
+// yet. A project config (<root>/.skillshare/config.yaml) must resolve inside its
+// project, so a cloned repository cannot point its config at a file elsewhere.
+func ConfigWritePath(path string, project bool) (string, error) {
+	dest, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		dest = path
+		if target, err := os.Readlink(path); err == nil {
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(filepath.Dir(path), target)
+			}
+			dest = target
+		}
+		// The file does not exist yet; resolve its directory to compare like for like.
+		dest = filepath.Join(ResolveSymlink(filepath.Dir(dest)), filepath.Base(dest))
+	}
+	if !project {
+		return dest, nil
+	}
+	root := ResolveSymlink(filepath.Dir(filepath.Dir(path)))
+	if !PathHasPrefix(dest, root+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s links outside the project to %s; replace the link with a regular file", path, dest)
+	}
+	return dest, nil
 }
 
 func PathHasPrefix(path, prefix string) bool {
