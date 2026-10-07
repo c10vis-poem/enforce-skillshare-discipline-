@@ -11,74 +11,39 @@ All notable changes to skillshare are documented here. For the full commit histo
 
 ## [0.25.1] - 2026-10-07
 
-
-* **release:** request 0.25.1 ([cd812f3](https://github.com/runkids/skillshare/commit/cd812f3c8f5846ec6560e1ae631dfd45d25560a0))
-
-
 ### New Features
 
-* **doctor:** honor OpenCode switches that turn off external skills ([8606dc4](https://github.com/runkids/skillshare/commit/8606dc4940faf44fd369de26cecd35353f5c9f45)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **extras:** prepend and append modes for single-file extras ([3ad4b68](https://github.com/runkids/skillshare/commit/3ad4b689625b653e9daeca61eb3d21305c67f3be))
-* **extras:** prepend and append modes for single-file extras ([05ff8c6](https://github.com/runkids/skillshare/commit/05ff8c675a59ae1cee1a98a641da0ff23ba587f0)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **instructions:** offer prepend and append for shared files in the dashboard ([e8145fb](https://github.com/runkids/skillshare/commit/e8145fb6cf34f2db96b5a782ba6f50cb15110f6b)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **instructions:** open a target's file from its row on the AGENTS.md tab ([443e590](https://github.com/runkids/skillshare/commit/443e590d29023a848b074df7571d0d8a9055eb9a)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **instructions:** tint managed blocks in the target file dialog ([1de30fb](https://github.com/runkids/skillshare/commit/1de30fbc38a121632ea12a3c392669f6cc148fa0)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **ui:** let the dashboard force a refused tracked-repo uninstall ([2e9f14d](https://github.com/runkids/skillshare/commit/2e9f14da49128b71b7060e71836cd00f690df352)), closes [#442](https://github.com/runkids/skillshare/issues/442)
+#### One shared instruction file, and your own, in the same file
 
+- **`prepend` and `append` modes for single-file extras** — tools without `@import`, such as Codex, Gemini CLI and Cursor, could only take a shared instruction file as a symlink or copy, which replaced the tool's own file. `prepend` and `append` write the shared file's content into the target file as a managed block at the top or end and leave the rest of the file alone. When the source changes, the next sync replaces the block in place. A block edited by hand is not overwritten: `extras list` shows the target as `modified` until you copy the edit back to the source or reapply the block. Refs: #436.
+  ```bash
+  skillshare extras init team-agents --file AGENTS.md --source ~/dotfiles/team \
+    --target ~/.codex --mode append
+  skillshare sync extras
+  ```
+- **The AGENTS.md tab offers `prepend` and `append`** — the mode picker lists them with `import` as the modes that keep the tool's own file. Each target row's path opens the file it writes, with skillshare's blocks tinted, a hand-edited block in the warning colour with **Collect** and **Reapply**, and a link to the target page for editing.
+
+#### Doctor
+
+- **`doctor` honors OpenCode's switches for external skills** — OpenCode also reads `~/.claude/skills` and `~/.agents/skills`, so `doctor` warned about every overlap and the warning could not be silenced. OpenCode loads one skill per name, so a skill synced to both folders is fine: `doctor` now warns only about skills OpenCode loads from another target's folder that are missing from its own, including ones you keep there by hand, and names them. When `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS`, `OPENCODE_DISABLE_CLAUDE_CODE` or `OPENCODE_DISABLE_EXTERNAL_SKILLS` is set where skillshare runs, `doctor`, `sync` and the dashboard treat that folder as skipped. Refs: #458.
+  ```
+  ! opencode loads 1 skill missing from its own folder, from: claude
+  ```
+
+#### Dashboard
+
+- **Uninstall a tracked repo with uncommitted changes from the dashboard** — the dashboard refused such a repo, or one whose git status could not be read, with no way past it. It now says why and asks again, then moves the repo to the trash as it is, like `uninstall --force`.
 
 ### Bug Fixes
 
-* **check:** run a sequential resolution on the caller's goroutine ([9a34f40](https://github.com/runkids/skillshare/commit/9a34f40b6f9effe420d9d70df0d3844ef6f2a103)), closes [#444](https://github.com/runkids/skillshare/issues/444)
-* **config:** allow project configs at a volume root ([f5a5e92](https://github.com/runkids/skillshare/commit/f5a5e920c8572bcd87bd26ad089ace050f5ff727))
-* **config:** refuse project config writes that leave the project ([fc2ce7d](https://github.com/runkids/skillshare/commit/fc2ce7d861de6a54329fa979e447ed48b75d8cb6))
-* **config:** refuse project config writes that leave the project ([f4c77d5](https://github.com/runkids/skillshare/commit/f4c77d53c324917a81e345f32d9e6da806245d1d))
-* **config:** resolve the whole path before checking project containment ([1f277af](https://github.com/runkids/skillshare/commit/1f277af1180cb998ca700de1407d03450a6cb7bc))
-* **config:** write the project migration through a fresh temp file ([11c2821](https://github.com/runkids/skillshare/commit/11c28213504921a8c537c1eeacab42123339e1af))
-* **dashboard:** detect a visible project directory ([627eecd](https://github.com/runkids/skillshare/commit/627eecd5e7330bc99bb96ef42fa2400637dc0da0)), closes [#437](https://github.com/runkids/skillshare/issues/437)
-* **doctor:** compare resolved skills when judging OpenCode overlap ([834f88e](https://github.com/runkids/skillshare/commit/834f88efb994436041cca86a3b00bb1f2c206d6f)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **doctor:** count only folders with SKILL.md as hand-kept skills ([920b185](https://github.com/runkids/skillshare/commit/920b18510a44c88952d0d293d42538171acf432f)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **doctor:** count skills kept by hand in another target's folder ([3ec60a3](https://github.com/runkids/skillshare/commit/3ec60a37327a5a6b6d9c421a9705f9f144f48dc2)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **doctor:** keep the overlap warning for symlink-mode writers ([03cde2b](https://github.com/runkids/skillshare/commit/03cde2b0987d630c2e09d25dcef462dfecab4770)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **doctor:** suggest the OpenCode switch that covers the leaking folder ([211efa0](https://github.com/runkids/skillshare/commit/211efa0ee6edbdd285f383b431b463ad62de113b)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **doctor:** warn about OpenCode overlap only when skills leak ([3b8d495](https://github.com/runkids/skillshare/commit/3b8d49515325efd2bdbb56571092bc91fa268b80))
-* **doctor:** warn about OpenCode overlap only when skills leak ([d055f9c](https://github.com/runkids/skillshare/commit/d055f9c22a256db0203bdbf067d81f64a682ef59)), closes [#458](https://github.com/runkids/skillshare/issues/458)
-* **extras:** drop the old representation when a target enters or leaves a block mode ([c88b7ff](https://github.com/runkids/skillshare/commit/c88b7ff341de6039044755b2aef2104ba717954d)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **extras:** guard block targets against source links, open fences and sibling reordering ([15dc6f4](https://github.com/runkids/skillshare/commit/15dc6f47e3649770748f71a8586cd05d93504291)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **extras:** keep block edits and placement straight across mode changes ([899b52a](https://github.com/runkids/skillshare/commit/899b52a78e96380967569f2ac7b0fc87a93daa16)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **extras:** read written blocks back and keep user lines in block-created files ([ede7f29](https://github.com/runkids/skillshare/commit/ede7f29aeac5b596b4227dea01f357f4269d0064)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **extras:** refuse damaged blocks and plan block defaults without the leaving files ([876e165](https://github.com/runkids/skillshare/commit/876e165f25af952566e795c4b38ffb22514a58c8)), closes [#436](https://github.com/runkids/skillshare/issues/436)
-* **install:** escape submodule diagnostics and match ancestors by filesystem identity ([6607b82](https://github.com/runkids/skillshare/commit/6607b82e2ba06c713a612134ca36b585f692efb5))
-* **install:** fail closed when submodules cannot be listed and warn on tracked updates ([b1b5bcc](https://github.com/runkids/skillshare/commit/b1b5bcc3755e32acb1dab6a50370d8cc3406e017))
-* **install:** hide credentials in submodule URLs shown to the user ([e4b72cb](https://github.com/runkids/skillshare/commit/e4b72cb554f497b07ce2baeac32ed669e474c441))
-* **install:** keep scripts executable on content API downloads ([7b3d84e](https://github.com/runkids/skillshare/commit/7b3d84e7b890917dd53f76d4e8bf7698b199b52b)), closes [#439](https://github.com/runkids/skillshare/issues/439)
-* **install:** match submodule paths case-insensitively and warn on search installs ([f190025](https://github.com/runkids/skillshare/commit/f1900251d376d5aee6da0ab87a59249c36034817))
-* **install:** refuse git submodule paths instead of installing empty dirs ([0429a80](https://github.com/runkids/skillshare/commit/0429a801bb9ebd9f3b16ccbfa4c575e84c5c04df))
-* **install:** refuse git submodule paths instead of installing empty dirs ([b7265d6](https://github.com/runkids/skillshare/commit/b7265d649606158a67ae75fc3a3d12add32a5f0a)), closes [#433](https://github.com/runkids/skillshare/issues/433)
-* **install:** refuse tracked submodule paths and fold case only where the filesystem does ([39a6241](https://github.com/runkids/skillshare/commit/39a6241b33cc7bcc0cffdd4044a51c8b2ec4cbba))
-* **install:** strip secrets from any submodule URL and show warnings in the dashboard ([cdac248](https://github.com/runkids/skillshare/commit/cdac248e96f17fb4deb33259e3783205cf5f589d))
-* **install:** strip submodule URL userinfo before query and fragment ([79bb106](https://github.com/runkids/skillshare/commit/79bb10658aaccfaa26be72fea49fbf7986ae98d6))
-* **install:** warn about submodules on direct whole-repo installs ([0a48408](https://github.com/runkids/skillshare/commit/0a484083e56d2f20a6851b7c600ed615fb4d2df5))
-* **install:** warn about submodules on tracked updates ([f2f6636](https://github.com/runkids/skillshare/commit/f2f663689bfd6c2c85a8da658b2b4dc503b95e6e)), closes [#433](https://github.com/runkids/skillshare/issues/433)
-* **mcp:** keep project MCP source writes inside the project ([0b02409](https://github.com/runkids/skillshare/commit/0b0240904a5ad215b9197f3d7c001666c0c1daba))
-* **mcp:** keep project MCP source writes inside the project ([cc2d07d](https://github.com/runkids/skillshare/commit/cc2d07d7dbf7b0c827e0bd68df25a1e39415db91))
-* **mcp:** treat skillshare/config.yaml as a project config too ([2ec925b](https://github.com/runkids/skillshare/commit/2ec925b880d083aa3856c7fae3df95ff9bba92cb))
-* **plugin:** expand every folded tilde form and keep dangling config links ([f1c7c5d](https://github.com/runkids/skillshare/commit/f1c7c5d1848bea08fcd009016fc8702fa99324a9)), closes [#460](https://github.com/runkids/skillshare/issues/460)
-* **plugin:** keep symlinked config.yaml and normalize plugin sources ([658e40a](https://github.com/runkids/skillshare/commit/658e40a07b5dd13e79729a3bdc8c3ed0eccf652b))
-* **plugin:** keep symlinked config.yaml and normalize plugin sources ([49b43b2](https://github.com/runkids/skillshare/commit/49b43b228caf5a7df2fe041721a6abf48c5c70e6)), closes [#460](https://github.com/runkids/skillshare/issues/460) [#461](https://github.com/runkids/skillshare/issues/461)
-* **schema:** list every config key the structs accept ([b2dc1ed](https://github.com/runkids/skillshare/commit/b2dc1ed6c94715b556b11909c544237c0234bbb0)), closes [#438](https://github.com/runkids/skillshare/issues/438)
-* **server:** guard the dashboard raw config save in project mode ([080bb3e](https://github.com/runkids/skillshare/commit/080bb3e5e4e665e7e776aa0f9233b8da62841657))
-* **sync:** isolate extension modules and condense diagnostics ([2ef704a](https://github.com/runkids/skillshare/commit/2ef704a77bdf11c50be42a7e35d7c0156a51a775))
-* **sync:** support ESM projects and condense failure diagnostics ([808fe51](https://github.com/runkids/skillshare/commit/808fe51aaa9559753d12855b73a0573434b5a1bc))
-* **ui:** keep the floating action bar on one line ([ec17ab7](https://github.com/runkids/skillshare/commit/ec17ab71e3e0a1af23aa62c4b4f7044ad3030870))
-* **uninstall:** keep a grouped skill's legacy metadata key on review ([764ca7f](https://github.com/runkids/skillshare/commit/764ca7f9c047a6c330f5921ac262d44b0b5b77d7)), closes [#442](https://github.com/runkids/skillshare/issues/442)
-* **update:** keep the tracked-repository wording and log metadata errors ([277b283](https://github.com/runkids/skillshare/commit/277b28316ee32d41bb0dbdc9c51622645b085b1d)), closes [#443](https://github.com/runkids/skillshare/issues/443)
-* **utils:** stream ParseSkillName and ParseFrontmatterField to their key ([279be8a](https://github.com/runkids/skillshare/commit/279be8aba678945d620a8514ac913b9ff622068e)), closes [#449](https://github.com/runkids/skillshare/issues/449)
-* visible project detection, schema coverage, exec bit on API downloads ([9775ba5](https://github.com/runkids/skillshare/commit/9775ba57e2301ce85a3b9f08d8437162eb340a8c))
-
-
-### Performance
-
-* **utils:** keep only the frontmatter block when reading by path ([90f161f](https://github.com/runkids/skillshare/commit/90f161fef006ec0fc9f748002d48df31f8398bce)), closes [#449](https://github.com/runkids/skillshare/issues/449)
+- **Installing a git submodule path is refused instead of leaving an empty folder** — skillshare does not fetch submodules, so installing one reported success with nothing in it, a path inside one failed with a misleading "does not exist", and whole-repo installs dropped its skills silently. The error now names the submodule, its pinned commit and its upstream URL, and `install`, `--track` and `update` warn about each submodule they skip. Credentials in a submodule URL are never shown. Refs: #433.
+- **Scripts stay executable when a skill is downloaded through the content API** — when sparse checkout was not available, the GitHub, Gitea and CNB fallbacks wrote every file without the exec bit. A file that starts with `#!` is now executable. Refs: #439.
+- **Plugin changes keep a symlinked `config.yaml`** — `plugin add` and `plugin update` replaced a `config.yaml` linked from a dotfiles folder with a regular file, so the shared config never got the change, and they ignored `preserve_tilde_on_save`. A plugin source spelled with `~` also made `plugin update` fail with "snapshot ownership conflict". Refs: #460, #461.
+- **A project's config can no longer be pointed outside the project** — a cloned project could link `.skillshare/config.yaml`, or its `sources.mcp` file, to any file you can write, and the next save, plugin, hook or MCP change, or the dashboard's config editor, would rewrite it. These writes now refuse a destination outside the project and name the link. A global config still writes through its link.
+- **The dashboard recognizes a project made with `init -p --visible`** — it looked only for `.skillshare/config.yaml`, so a project in `skillshare/` was reported as having no config and the MCP page missed its override conflict. Refs: #437.
+- **The config schemas accept every valid key** — editors flagged `plugins`, `cnb_hosts`, `gitea_hosts`, `extras_source`, `log` and a skill's `kind` as unknown. Refs: #438.
+- **Codex and Gemini agent conversion works inside ESM projects** — in a project whose `package.json` sets `"type": "module"`, the bundled Codex and Gemini extensions failed with `require is not defined`. The dashboard's Sync page now shows a short cause for a failure, with the full output expandable and copyable.
+- **The floating action bar stays on one line** — on the Pi and Oh My Pi pending-changes bars, wide content wrapped and overflowed the bar.
 
 ## [0.25.0] - 2026-10-06
 
