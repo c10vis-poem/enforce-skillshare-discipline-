@@ -91,13 +91,13 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 		repoName := name
 		if !strings.HasPrefix(repoName, "_") {
 			prefixed := filepath.Join(sourcePath, "_"+name)
-			if install.IsGitRepo(prefixed) {
+			if install.IsTrackedCheckout(prefixed) {
 				repoName = "_" + name
 			}
 		}
 		repoPath := filepath.Join(sourcePath, repoName)
 
-		if install.IsGitRepo(repoPath) {
+		if install.IsTrackedCheckout(repoPath) {
 			if !seen[repoPath] {
 				seen[repoPath] = true
 				targets = append(targets, updateTarget{name: repoName, path: repoPath, isRepo: true})
@@ -204,12 +204,10 @@ func updateAllProjectSkills(uc *updateContext, walk sourcewalk.Options) (*update
 		}
 
 		// Tracked repo (_-prefixed)
-		if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
-			if install.IsGitRepo(path) {
-				rel, _ := filepath.Rel(walkRoot, path)
-				targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
-				return filepath.SkipDir
-			}
+		if info.IsDir() && install.IsTrackedCheckout(path) {
+			rel, _ := filepath.Rel(walkRoot, path)
+			targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
+			return filepath.SkipDir
 		}
 
 		// Regular skill with metadata

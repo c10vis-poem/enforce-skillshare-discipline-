@@ -123,8 +123,8 @@ func resolveGroupUpdatable(group, sourceDir string, walks ...sourcewalk.Options)
 			return nil
 		}
 
-		// Tracked repo (has .git)
-		if install.IsGitRepo(path) {
+		// Tracked repo (_-prefixed checkout)
+		if install.IsTrackedCheckout(path) {
 			matches = append(matches, updateTarget{name: rel, path: logicalPath, isRepo: true})
 			return filepath.SkipDir
 		}
@@ -153,7 +153,7 @@ func isGroupDir(name, sourceDir string, store *install.MetadataStore) bool {
 		return false
 	}
 	// Not a tracked repo
-	if install.IsGitRepo(path) {
+	if install.IsTrackedCheckout(path) {
 		return false
 	}
 	// Not a skill with metadata

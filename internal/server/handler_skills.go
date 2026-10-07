@@ -556,7 +556,7 @@ func (s *Server) resolveTrackedRepo(input string, walks ...sourcewalk.Options) (
 		if relErr != nil || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 			continue
 		}
-		if install.IsGitRepo(repoPath) {
+		if install.IsTrackedCheckout(repoPath) {
 			return candidate, repoPath, nil
 		}
 	}
