@@ -181,7 +181,8 @@ func batchResolutions(mutations []Mutation) []Resolution {
 	return resolutions
 }
 
-func (s *Source) save() error {
+// save writes the changed sections. project is set for a project config.
+func (s *Source) save(project bool) error {
 	if err := s.CheckUnchanged(); err != nil {
 		return err
 	}
@@ -190,7 +191,7 @@ func (s *Source) save() error {
 		if err := put(&s.doc, "servers", s.Servers); err != nil {
 			return err
 		}
-		if err := writeYAML(s.Path, &s.doc, mapping(&s.doc)); err != nil {
+		if err := writeYAML(s.Path, false, &s.doc, mapping(&s.doc)); err != nil {
 			return err
 		}
 	}
@@ -234,7 +235,7 @@ func (s *Source) save() error {
 		}
 	}
 	inlineOrphanAliases(doc)
-	return writeYAML(s.ConfigPath, doc, mcp)
+	return writeYAML(s.ConfigPath, project, doc, mcp)
 }
 
 // NeedsMigration reports settings 0.23.0 retired that loading converted in memory only.
@@ -249,8 +250,8 @@ type MigratedFile struct {
 
 // saveMigration writes back what loading converted from settings 0.23.0 retired, and
 // nothing else: the documents already hold the converted fields. backup, when set, keeps
-// each file's current content first.
-func (s *Source) saveMigration(backup func(path string) (string, error)) ([]MigratedFile, error) {
+// each file's current content first. project is set for a project config.
+func (s *Source) saveMigration(backup func(path string) (string, error), project bool) ([]MigratedFile, error) {
 	var saved []MigratedFile
 	if !s.NeedsMigration() {
 		return nil, nil
@@ -258,7 +259,7 @@ func (s *Source) saveMigration(backup func(path string) (string, error)) ([]Migr
 	if err := s.CheckUnchanged(); err != nil {
 		return nil, err
 	}
-	write := func(path string, doc, section *yaml.Node) error {
+	write := func(path string, project bool, doc, section *yaml.Node) error {
 		file := MigratedFile{Path: path}
 		if backup != nil {
 			var err error
@@ -266,20 +267,20 @@ func (s *Source) saveMigration(backup func(path string) (string, error)) ([]Migr
 				return err
 			}
 		}
-		if err := writeYAML(path, doc, section); err != nil {
+		if err := writeYAML(path, project, doc, section); err != nil {
 			return err
 		}
 		saved = append(saved, file)
 		return nil
 	}
 	if s.migrateExternal {
-		if err := write(s.Path, &s.doc, mapping(&s.doc)); err != nil {
+		if err := write(s.Path, false, &s.doc, mapping(&s.doc)); err != nil {
 			return saved, err
 		}
 	}
 	if s.migrateConfig {
 		inlineOrphanAliases(&s.configDoc)
-		if err := write(s.ConfigPath, &s.configDoc, field(&s.configDoc, "mcp")); err != nil {
+		if err := write(s.ConfigPath, project, &s.configDoc, field(&s.configDoc, "mcp")); err != nil {
 			return saved, err
 		}
 	}
@@ -306,16 +307,17 @@ func drop(node *yaml.Node, key string) {
 }
 
 // writeYAML saves doc to path. Empty mappings are encoded in flow style, so the generated
-// section is expanded first to stay readable in the editor.
-func writeYAML(path string, doc, section *yaml.Node) error {
+// section is expanded first to stay readable in the editor. project is set for a
+// project config, which must stay inside the project.
+func writeYAML(path string, project bool, doc, section *yaml.Node) error {
 	blockCollections(section)
 	data, err := utils.MarshalYAML(doc)
 	if err != nil {
 		return err
 	}
 	// Dotfile managers often symlink config.yaml; write its target so the link survives.
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
+	if path, err = utils.ConfigWritePath(path, project); err != nil {
+		return err
 	}
 	_, _, mode, err := safeRead(path)
 	if err != nil {
@@ -409,7 +411,7 @@ func (s *Service) MutateBatch(mutations []Mutation, revision string, sync bool) 
 		changed = changed || m.Server != nil || m.Remove || m.Settings != nil
 	}
 	if changed {
-		if err := source.save(); err != nil {
+		if err := source.save(s.ProjectRoot != ""); err != nil {
 			return nil, err
 		}
 	}

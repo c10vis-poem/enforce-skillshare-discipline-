@@ -19,7 +19,7 @@ func TestSourceSaveBlockFormatting(t *testing.T) {
 			t.Fatal(err)
 		}
 		source.Servers, source.serversChanged = map[string]Server{"docs": {URL: "https://example.com/mcp"}}, true
-		if err := source.save(); err != nil {
+		if err := source.save(false); err != nil {
 			t.Fatal(err)
 		}
 		data, err := os.ReadFile(path)

@@ -286,7 +286,7 @@ func TestRecovery_InterruptedWriteRecordsOwnership(t *testing.T) {
 	must(t, err)
 	source, replace, adopt, err := e.service.draft(m)
 	must(t, err)
-	must(t, source.save())
+	must(t, source.save(false))
 	p, err = e.service.previewSource(source, replace, adopt)
 	must(t, err)
 	// Simulate a crash after the native write and before the ledger update.
