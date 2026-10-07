@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.25.2](https://github.com/runkids/skillshare/compare/v0.25.1...v0.25.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* **audit:** distinguish SDK examples from prompt injection ([aee75b6](https://github.com/runkids/skillshare/commit/aee75b69d646e109992d4647b2fb6b0d502918b2))
+* **audit:** preserve exclusions for custom disclosure rules ([2922026](https://github.com/runkids/skillshare/commit/2922026264365e5d16f907e5bdc7fbce92564f1d))
+* **audit:** preserve shell flows across Markdown boundaries ([e55ec29](https://github.com/runkids/skillshare/commit/e55ec290b7c1df604ad98829be34d88ad884d35d))
+* **audit:** reduce false positives in Markdown examples ([87d1924](https://github.com/runkids/skillshare/commit/87d1924bbed413334876faf475335b6c37c82dfa))
+* **config:** preserve grouped legacy tracked metadata ([79e080c](https://github.com/runkids/skillshare/commit/79e080cb13b65358c06f8d74f3069b22daa57d27))
+* **config:** reconcile tracked checkouts by exact metadata key ([acd8e7e](https://github.com/runkids/skillshare/commit/acd8e7e9bc7faad9cfa4ff705e5b1369e8bf770b))
+* **config:** reconcile tracked checkouts by exact metadata key ([27ad93f](https://github.com/runkids/skillshare/commit/27ad93fae1efbfca0d7e06a206e5e3df603a8bf9))
+* keep git folders inside a tracked repo out of repo uninstall ([f9ed436](https://github.com/runkids/skillshare/commit/f9ed43611d9ed9b362b1d1b47044584478b731cb))
+* **server:** report tracked repo source for nested skills ([9191451](https://github.com/runkids/skillshare/commit/91914517a0fe554d12f09b0e752cda0bc3ff4624))
+* **server:** report tracked repo source for nested skills ([8b350ed](https://github.com/runkids/skillshare/commit/8b350ed6d0fa9bf9dfff2c384c6915dd87bbdf57)), closes [#467](https://github.com/runkids/skillshare/issues/467)
+* **server:** update tracked repos as repos from the dashboard ([111b0ce](https://github.com/runkids/skillshare/commit/111b0ce441cff0d8c53eb38f185f8f8ce801cc13))
+* **server:** update tracked repos as repos from the dashboard ([72f2e31](https://github.com/runkids/skillshare/commit/72f2e31664b8cbad9679be9c5f84c65786ba0457)), closes [#473](https://github.com/runkids/skillshare/issues/473)
+* treat tracked repos installed with --into as repos ([d617fc2](https://github.com/runkids/skillshare/commit/d617fc22a6f5cea8ccfb9e82481d232e45e7535e))
+* treat tracked repos installed with --into as repos ([4dd62d4](https://github.com/runkids/skillshare/commit/4dd62d4ce51167910c9601b6353046e0802945e9)), closes [#470](https://github.com/runkids/skillshare/issues/470)
+* **ui:** give a repo-root skill its tracked repo row in the tree ([371561e](https://github.com/runkids/skillshare/commit/371561ef9f67ce48f209b06985326c1d947cd473))
+* **ui:** label Pi packages as packages in the Pi Extensions tab ([9234861](https://github.com/runkids/skillshare/commit/9234861fadaeb619e3b68f865a27dcbf6d29fc1d))
+* **uninstall:** refuse removing part of a tracked repo's checkout ([504713b](https://github.com/runkids/skillshare/commit/504713b065b45156d0164e05db75a78a09b8fd87))
+* **uninstall:** resolve tracked repo shorthand under --into ([ee41cf0](https://github.com/runkids/skillshare/commit/ee41cf05d10a17b04e2e03955c699983bf4f5bbe))
+* **uninstall:** resolve tracked repo shorthand under --into ([335dabd](https://github.com/runkids/skillshare/commit/335dabd54d79dcad8fde1f4d98c0052540435368))
+* **update:** accept the org/team shorthand for --into repos in every entry point ([6eb7554](https://github.com/runkids/skillshare/commit/6eb75547bf190d8eca91f44be805392de0fb1c1e))
+* **update:** accept the org/team shorthand for --into repos in every entry point ([84ed67b](https://github.com/runkids/skillshare/commit/84ed67b13dcdd5aa593b1b384ec50b37f10eba2e))
+* **update:** clean the name before the single-update skill lookup ([8bf43f2](https://github.com/runkids/skillshare/commit/8bf43f2480b5269195a55cece2b870b0cb07beed))
+* **update:** keep --into repo metadata refresh on its own entry ([84688b6](https://github.com/runkids/skillshare/commit/84688b6e37c8a1148da13b39f6d5478b4e28cb30))
+* **update:** keep an existing skill ahead of the nested shorthand ([414d193](https://github.com/runkids/skillshare/commit/414d193114a5a47a844f51eac945bdc3a3bef7ca))
+* **update:** repair tracked repo entries rewritten as regular installs ([51d0a1e](https://github.com/runkids/skillshare/commit/51d0a1e5e9001d3cdb74a5e1b170c162a4c65006))
+* **update:** share the tracked checkout rule and tighten the repair ([3479c42](https://github.com/runkids/skillshare/commit/3479c42420f1c9f75f6a1d95a8d4a9fe09eb39eb))
+* **update:** use the tracked checkout rule in every update and reconcile path ([c1fe1b3](https://github.com/runkids/skillshare/commit/c1fe1b39a80cad71bce482427faea74c542a0b9f))
+* **update:** use the tracked checkout rule in every update and reconcile path ([0be5164](https://github.com/runkids/skillshare/commit/0be5164159f9499cad4f8e75e5b285086235f6cc)), closes [#476](https://github.com/runkids/skillshare/issues/476)
+* use the --into repo path in skill counts, list groups and the tree ([d15d9d7](https://github.com/runkids/skillshare/commit/d15d9d794cfab188214d347ea0aee0af45beef27))
+
 ## [0.25.1] - 2026-10-07
 
 ### New Features
