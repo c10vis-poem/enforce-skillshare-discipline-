@@ -146,6 +146,13 @@ func TestSkillGroup_TrackedInstalledInto(t *testing.T) {
 	}
 }
 
+func TestSkillGroup_TrackedInstalledIntoRootSkill(t *testing.T) {
+	e := skillEntry{RelPath: "org/_team-repo", RepoName: "org/_team-repo"}
+	if got := skillGroup(e); got != "" {
+		t.Fatalf("skillGroup() = %q, want empty for the repo's root skill", got)
+	}
+}
+
 func TestSkillGroup_TrackedRoot(t *testing.T) {
 	e := skillEntry{RelPath: "_team-repo/my-skill", RepoName: "_team-repo"}
 	if got := skillGroup(e); got != "" {

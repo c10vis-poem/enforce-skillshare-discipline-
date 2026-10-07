@@ -235,6 +235,19 @@ func TestHandleBatchUninstall_RepoInstalledInto(t *testing.T) {
 	}
 }
 
+func TestHandleBatchUninstall_GitDirInsideTrackedRepoIsKept(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "_team")
+	addTrackedRepo(t, src, "_team/vendor/_lib") // e.g. a submodule checkout
+	_, res := postBatchUninstall(t, s, true, "_team/vendor/_lib")
+	if len(res) != 1 || res[0].Success {
+		t.Fatalf("expected the request to be refused: %+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(src, "_team", "vendor", "_lib", ".git")); err != nil {
+		t.Fatalf("folder inside a tracked repo was removed: %v", err)
+	}
+}
+
 func TestHandleBatchUninstall_NestedRepoBehindUnfollowedLinkIsKept(t *testing.T) {
 	s, src := newTestServer(t)
 	outside := t.TempDir()
