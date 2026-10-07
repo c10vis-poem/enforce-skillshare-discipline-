@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gofrs/flock"
+	"skillshare/internal/projectdir"
 )
 
 // Service is scoped to one Skillshare config; StateDir is shared across scopes
@@ -33,10 +34,12 @@ type Service struct {
 	account string
 }
 
-// configProjectRoot returns the project whose own config ConfigPath is, so saves stay
-// inside it. A global config scoped to a project in mcp.projects returns "".
+// configProjectRoot returns the project whose own config ConfigPath is (in .skillshare/
+// or skillshare/), so saves stay inside it. A global config scoped to a project in
+// mcp.projects returns "".
 func (s *Service) configProjectRoot() string {
-	if s.ProjectRoot != "" && filepath.Clean(s.ConfigPath) == filepath.Join(s.ProjectRoot, ".skillshare", "config.yaml") {
+	dir := filepath.Dir(filepath.Clean(s.ConfigPath))
+	if s.ProjectRoot != "" && projectdir.IsName(filepath.Base(dir)) && filepath.Dir(dir) == filepath.Clean(s.ProjectRoot) {
 		return s.ProjectRoot
 	}
 	return ""

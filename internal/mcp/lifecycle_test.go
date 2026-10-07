@@ -41,17 +41,18 @@ func TestExternalMutationLeavesConfigUntouched(t *testing.T) {
 // mutation must not rewrite one outside the project.
 func TestProjectExternalMutationStaysInsideProject(t *testing.T) {
 	for _, tc := range []struct {
-		name, source string
-		refused      bool
+		name, dir, source string
+		refused           bool
 	}{
-		{"outside the project", "../../outside.yaml", true},
-		{"next to config.yaml", "./mcp.yaml", false},
-		{"at the project root", "../mcp.yaml", false},
+		{"outside the project", ".skillshare", "../../outside.yaml", true},
+		{"outside the project, visible config folder", "skillshare", "../../outside.yaml", true},
+		{"next to config.yaml", ".skillshare", "./mcp.yaml", false},
+		{"at the project root", ".skillshare", "../mcp.yaml", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			global := testService(t)
 			root := filepath.Join(global.Home, "project")
-			configPath := filepath.Join(root, ".skillshare", "config.yaml")
+			configPath := filepath.Join(root, tc.dir, "config.yaml")
 			if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 				t.Fatal(err)
 			}
