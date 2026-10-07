@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	"skillshare/internal/utils"
@@ -80,7 +81,10 @@ func decodeDocument(raw []byte, accounts map[string]string) (*document, error) {
 		if !namePattern.MatchString(name) {
 			return nil, fmt.Errorf("invalid plugin package name %q", name)
 		}
+		p.Source = canonicalSource(p.Source)
 		for target, b := range p.Bindings {
+			b.Source = canonicalSource(b.Source)
+			p.Bindings[target] = b
 			agent, account := accounts[target]
 			if !account && !slices.Contains(Targets, target) {
 				return nil, fmt.Errorf("invalid plugin binding for %s", name)
@@ -95,8 +99,44 @@ func decodeDocument(raw []byte, accounts map[string]string) (*document, error) {
 				return nil, fmt.Errorf("invalid plugin binding for %s", name)
 			}
 		}
+		d.packages[name] = p
 	}
 	return d, nil
+}
+
+// canonicalSource spells a local source the way add records it, so ~/plug and
+// /home/me/plug name the same snapshot and owner. It expands every form
+// utils.FoldHomePathWith writes: ~, ~/..., and ~\... on Windows.
+func canonicalSource(source string) string {
+	if source == "~" || strings.HasPrefix(source, "~/") || strings.HasPrefix(source, "~"+string(filepath.Separator)) {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, source[1:])
+		}
+	}
+	if filepath.IsAbs(source) {
+		return filepath.Clean(source)
+	}
+	return source
+}
+
+// foldSources returns packages with local sources under home written as ~/...
+func foldSources(packages map[string]Package) map[string]Package {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return packages
+	}
+	out := make(map[string]Package, len(packages))
+	for name, p := range packages {
+		p.Source = utils.FoldHomePathWith(p.Source, home)
+		bindings := make(map[string]Binding, len(p.Bindings))
+		for target, b := range p.Bindings {
+			b.Source = utils.FoldHomePathWith(b.Source, home)
+			bindings[target] = b
+		}
+		p.Bindings = bindings
+		out[name] = p
+	}
+	return out
 }
 
 func (s *Service) save(d *document) error {
@@ -107,10 +147,17 @@ func (s *Service) save(d *document) error {
 	if !bytes.Equal(current, d.raw) {
 		return fmt.Errorf("configuration changed; preview again")
 	}
+	packages := d.packages
+	var opts struct {
+		PreserveTilde bool `yaml:"preserve_tilde_on_save"`
+	}
+	if d.node.Decode(&opts) == nil && opts.PreserveTilde {
+		packages = foldSources(packages)
+	}
 	var n yaml.Node
 	if err := n.Encode(struct {
 		Packages map[string]Package `yaml:"packages"`
-	}{d.packages}); err != nil {
+	}{packages}); err != nil {
 		return err
 	}
 	root := d.node.Content[0]
@@ -128,16 +175,25 @@ func (s *Service) save(d *document) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.ConfigPath), 0755); err != nil {
+	// Dotfile managers often symlink config.yaml; write its target so the link survives,
+	// including a link whose target does not exist yet.
+	path := utils.ResolveSymlink(s.ConfigPath)
+	if target, err := os.Readlink(path); err == nil {
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		path = target
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(s.ConfigPath), ".plugins-*")
+	f, err := os.CreateTemp(filepath.Dir(path), ".plugins-*")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(f.Name())
 	mode := os.FileMode(0600)
-	if info, err := os.Stat(s.ConfigPath); err == nil {
+	if info, err := os.Stat(path); err == nil {
 		mode = info.Mode().Perm()
 	}
 	if err = f.Chmod(mode); err == nil {
@@ -153,7 +209,7 @@ func (s *Service) save(d *document) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if err = os.Rename(f.Name(), s.ConfigPath); err == nil {
+	if err = os.Rename(f.Name(), path); err == nil {
 		d.raw = data
 	}
 	return err

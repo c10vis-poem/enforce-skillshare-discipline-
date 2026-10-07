@@ -552,6 +552,45 @@ func TestUpdateRegistersAMissingManagedMarketplaceAgain(t *testing.T) {
 	}
 }
 
+// homeFixture places the fixture under HOME so its source can be spelled ~/plug.
+func homeFixture(t *testing.T) string {
+	t.Helper()
+	source := filepath.Join(os.Getenv("HOME"), "plug")
+	if err := os.CopyFS(source, os.DirFS(fixture(t))); err != nil {
+		t.Fatal(err)
+	}
+	return source
+}
+
+func TestSavingPluginsWritesThroughASymlinkedConfig(t *testing.T) {
+	agents := &fakeAgents{version: "1.0.0"}
+	s := agents.service(t)
+	shared := filepath.Join(os.Getenv("HOME"), "dotfiles", "skillshare.yaml")
+	writeFile(t, filepath.Dir(shared), "skillshare.yaml", "preserve_tilde_on_save: true\n")
+	if err := os.Symlink(shared, s.ConfigPath); err != nil {
+		t.Fatal(err)
+	}
+	applyPluginRequest(t, s, Request{Action: "add", Source: homeFixture(t), Targets: []string{"claude"}})
+	if info, err := os.Lstat(s.ConfigPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.yaml is no longer a symlink: %v", err)
+	}
+	data, _ := os.ReadFile(shared)
+	if !strings.Contains(string(data), "source: ~/plug") || strings.Contains(string(data), os.Getenv("HOME")) {
+		t.Fatalf("shared config not updated with a ~ source:\n%s", data)
+	}
+}
+
+func TestUpdateAcceptsASourceSpelledWithTilde(t *testing.T) {
+	agents := &fakeAgents{version: "1.0.0"}
+	s := agents.service(t)
+	source := homeFixture(t)
+	applyPluginRequest(t, s, Request{Action: "add", Source: source, Targets: []string{"claude"}})
+	data, _ := os.ReadFile(s.ConfigPath)
+	writeFile(t, filepath.Dir(s.ConfigPath), "config.yaml", strings.ReplaceAll(string(data), source, "~/plug"))
+	bumpDemo(t, source, agents)
+	applyPluginRequest(t, s, Request{Action: "update", Name: "demo", Targets: []string{"claude"}})
+}
+
 func TestRecordedSourceDoesNotBlockAnotherDistribution(t *testing.T) {
 	s, _, _ := fakeClaude(t)
 	r := Request{Action: "add", Source: fixture(t), Plugin: "demo"}
@@ -759,5 +798,29 @@ func TestSkippedUpdateStaysPending(t *testing.T) {
 	applyPluginRequest(t, s, Request{Action: "sync"})
 	if cfg, _ = s.load(); cfg.packages["demo"].Bindings["codex"].Pending != "update" {
 		t.Fatalf("pending cleared: %+v", cfg.packages["demo"].Bindings["codex"])
+	}
+}
+
+func TestCanonicalSourceExpandsBareTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if got := canonicalSource("~"); got != home {
+		t.Fatalf("canonicalSource(~) = %q, want %q", got, home)
+	}
+}
+
+func TestSavingPluginsCreatesTheTargetOfADanglingSymlink(t *testing.T) {
+	agents := &fakeAgents{version: "1.0.0"}
+	s := agents.service(t)
+	shared := filepath.Join(os.Getenv("HOME"), "dotfiles", "skillshare.yaml")
+	if err := os.Symlink(shared, s.ConfigPath); err != nil {
+		t.Fatal(err)
+	}
+	applyPluginRequest(t, s, Request{Action: "add", Source: fixture(t), Targets: []string{"claude"}})
+	if info, err := os.Lstat(s.ConfigPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.yaml is no longer a symlink: %v", err)
+	}
+	if data, err := os.ReadFile(shared); err != nil || !strings.Contains(string(data), "plugins:") {
+		t.Fatalf("symlink target not written: %v\n%s", err, data)
 	}
 }

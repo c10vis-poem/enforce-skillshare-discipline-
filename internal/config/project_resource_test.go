@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -255,5 +256,26 @@ func TestProjectTarget_MixedFormat_MergesIntoSkills(t *testing.T) {
 	// Flat fields should be cleared
 	if entry.Path != "" {
 		t.Fatalf("flat path should be empty, got %q", entry.Path)
+	}
+}
+
+func TestLoadProject_LegacyTargetMigrationKeepsSymlinkedConfig(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(t.TempDir(), "project.yaml")
+	os.WriteFile(shared, []byte("targets:\n  - name: claude\n    path: .claude/skills\n"), 0644)
+	link := filepath.Join(root, ".skillshare", "config.yaml")
+	os.MkdirAll(filepath.Dir(link), 0755)
+	if err := os.Symlink(shared, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadProject(root); err != nil {
+		t.Fatalf("LoadProject: %v", err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.yaml is no longer a symlink: %v", err)
+	}
+	data, _ := os.ReadFile(shared)
+	if !strings.Contains(string(data), "skills:") {
+		t.Fatalf("migration not written to the symlink target:\n%s", data)
 	}
 }
