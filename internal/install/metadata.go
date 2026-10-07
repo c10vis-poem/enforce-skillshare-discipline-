@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -425,19 +426,31 @@ func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string, 
 	return true, nil
 }
 
-// RefreshTrackedRootSkillMetadata refreshes hashes for a tracked root-skill
-// repo and reports whether it saved a change. A repo without a root SKILL.md
-// has no hashes to refresh, so the store is not even loaded for it.
-func RefreshTrackedRootSkillMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) (bool, error) {
-	if _, err := os.Stat(filepath.Join(repoPath, "SKILL.md")); os.IsNotExist(err) {
-		return false, nil
-	}
+// RefreshTrackedRepoMetadata refreshes a tracked repo's metadata entry and
+// reports whether it saved a change. It restores an entry that the old
+// dashboard update rewrote as a regular install (#473), but only for a
+// tracked checkout, and refreshes root-skill hashes.
+func RefreshTrackedRepoMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) (bool, error) {
+	relPath = filepath.ToSlash(relPath)
 	store, err := LoadMetadataWithMigration(sourceDir, "")
 	if err != nil {
 		return false, err
 	}
-	changed, err := store.RefreshTrackedRootSkillHashes(filepath.ToSlash(relPath), repoPath, follow...)
-	if err != nil || !changed {
+	// Only the repo's own entry: GetByPath's basename fallback can return a
+	// top-level item that shares the basename of an --into repo.
+	entry := store.GetByPath(relPath)
+	if entry == nil || (store.Get(relPath) == nil && entry.Group != path.Dir(relPath)) {
+		return false, nil
+	}
+	// Reconcile may already have set tracked again, leaving the other fields.
+	repaired := false
+	if (!entry.Tracked || entry.Type != "" || entry.RepoURL != "") && IsTrackedCheckout(repoPath) {
+		// Keep only what install --track and reconcile record.
+		*entry = MetadataEntry{Source: entry.Source, Kind: entry.Kind, Tracked: true, Group: entry.Group, Branch: entry.Branch}
+		repaired = true
+	}
+	changed, err := store.RefreshTrackedRootSkillHashes(relPath, repoPath, follow...)
+	if err != nil || !(changed || repaired) {
 		return false, err
 	}
 	return true, store.Save(sourceDir)
