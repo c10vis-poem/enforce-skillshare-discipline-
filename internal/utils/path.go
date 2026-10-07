@@ -53,6 +53,16 @@ func resolveExisting(path string) string {
 // yet. A project config (<root>/.skillshare/config.yaml) must resolve inside its
 // project, so a cloned repository cannot point its config at a file elsewhere.
 func ConfigWritePath(path string, project bool) (string, error) {
+	root := ""
+	if project {
+		root = filepath.Dir(filepath.Dir(path))
+	}
+	return ProjectWritePath(path, root)
+}
+
+// ProjectWritePath is ConfigWritePath for any file a project config saves, such as
+// an external source it names: with root set, the file must resolve inside root.
+func ProjectWritePath(path, root string) (string, error) {
 	dest, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		// The file does not exist yet. Follow every link to the file a write would
@@ -75,14 +85,17 @@ func ConfigWritePath(path string, project bool) (string, error) {
 		// above it that leaves the project.
 		dest = resolveExisting(dest)
 	}
-	if !project {
+	if root == "" {
 		return dest, nil
 	}
-	root := resolveExisting(filepath.Dir(filepath.Dir(path)))
+	root = resolveExisting(root)
 	// A project at a volume root (/ or C:\) already ends with the separator.
 	sep := string(filepath.Separator)
 	if !PathHasPrefix(dest, strings.TrimSuffix(root, sep)+sep) {
-		return "", fmt.Errorf("%s links outside the project to %s; replace the link with a regular file", path, dest)
+		if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("%s links outside the project to %s; replace the link with a regular file", path, dest)
+		}
+		return "", fmt.Errorf("%s is outside the project %s", path, root)
 	}
 	return dest, nil
 }

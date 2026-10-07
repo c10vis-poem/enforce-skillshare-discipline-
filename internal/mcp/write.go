@@ -32,7 +32,7 @@ func (s *Service) migrate(result *Result) error {
 		return nil
 	}
 	legacy := len(source.Notices)
-	saved, err := source.saveMigration(s.BackupSource, s.ProjectRoot != "")
+	saved, err := source.saveMigration(s.BackupSource, s.configProjectRoot())
 	result.Migrated = saved
 	if err != nil {
 		return fmt.Errorf("MCP files applied, but saving %s without the settings 0.23.0 retired failed: %w", source.ConfigPath, err)

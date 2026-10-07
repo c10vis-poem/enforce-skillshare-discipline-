@@ -33,6 +33,15 @@ type Service struct {
 	account string
 }
 
+// configProjectRoot returns the project whose own config ConfigPath is, so saves stay
+// inside it. A global config scoped to a project in mcp.projects returns "".
+func (s *Service) configProjectRoot() string {
+	if s.ProjectRoot != "" && filepath.Clean(s.ConfigPath) == filepath.Join(s.ProjectRoot, ".skillshare", "config.yaml") {
+		return s.ProjectRoot
+	}
+	return ""
+}
+
 func (s *Service) nativePath(target string) (string, error) {
 	if !validTarget(target) {
 		return "", fmt.Errorf("unsupported MCP target %q", target)
