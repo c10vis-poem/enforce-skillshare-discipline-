@@ -174,11 +174,14 @@ tracked repositories（`_` で始まるフォルダ）の場合:
 - skillshare がリポジトリの git status を読み取れない場合は `failed to check git status` で失敗します。バッチ内の他の項目は引き続き削除され、`--force` を使うとこのチェックをスキップします
 - `.gitignore` からエントリを自動的に削除します
 - uninstall 時に `_` prefix は省略可能です
+- `--into` でインストールしたリポジトリは `devops/_team-skills` のようにパスで指定します
+- 追跡リポジトリ内の Skill やフォルダは、`--force` を付けても単独では削除できず、`inside a tracked repo; uninstall the repo instead` で失敗します。followed source link 配下の Skill は 1 つずつ削除できます
 
 ```bash
 skillshare uninstall _team-skills        # prefix 付き
 skillshare uninstall team-skills         # prefix なし（自動検出）
 skillshare uninstall _team-skills --force # 未コミットの変更があっても強制削除
+skillshare uninstall devops/_team-skills # --into devops でインストールしたリポジトリ
 ```
 
 ## 例
