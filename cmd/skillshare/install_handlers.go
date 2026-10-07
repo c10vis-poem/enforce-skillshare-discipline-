@@ -165,11 +165,9 @@ func handleGitInstall(source *install.Source, cfg *config.Config, opts install.I
 		ui.StepContinue("Into", opts.Into)
 	}
 
-	// Show subdir-specific warnings (e.g. GitHub API fallback notices)
-	if source.HasSubdir() {
-		for _, w := range discovery.Warnings {
-			ui.Warning("%s", w)
-		}
+	// Show discovery warnings (API fallback notices, skipped submodules)
+	for _, w := range discovery.Warnings {
+		ui.Warning("%s", w)
 	}
 
 	// Cross-path duplicate detection: block if same repo is already installed

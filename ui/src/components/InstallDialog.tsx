@@ -283,7 +283,12 @@ export default function InstallDialog({ kind, initialTab, initialSource, onClose
   const forceInstall = (b: Blocked) =>
     withBusy('force', () => ('skills' in b.retry ? runBatch({ ...b.retry, force: true }) : runSingle({ ...b.retry, force: true })));
 
+  const toastWarnings = (d: DiscoverResult) => {
+    for (const w of d.warnings ?? []) toast(w, 'warning');
+  };
+
   const applyDiscovery = (from: string, d: DiscoverResult) => {
+    toastWarnings(d);
     const skills = d.skills.map((s) => ({ ...s, kind: 'skill' as const }));
     const agents = (d.agents ?? []).map((a) => ({ name: a.name, path: a.path, kind: 'agent' as const }));
     const show = (items: DiscoveredSkill[]) => {
@@ -345,8 +350,10 @@ export default function InstallDialog({ kind, initialTab, initialSource, onClose
       const d = await api.discover(r.source);
       const matched = r.skill ? d.skills.filter((s) => s.name === r.skill) : [];
       if (matched.length > 0) {
+        toastWarnings(d);
         await runBatch({ source: r.source, skills: matched });
       } else if (d.skills.length === 1 && !d.agents?.length) {
+        toastWarnings(d);
         await runBatch({ source: r.source, skills: d.skills });
       } else {
         setTrack(false);
