@@ -102,6 +102,7 @@ func (s *Server) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		"needsSelection": len(discovery.Skills) > 1 || len(discovery.Agents) > 0,
 		"skills":         skills,
 		"agents":         agents,
+		"warnings":       discovery.Warnings,
 	})
 }
 

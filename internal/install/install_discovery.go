@@ -62,6 +62,7 @@ func discoverFromGitWithProgressImpl(source *Source, onProgress ProgressCallback
 		Agents:     agents,
 		Source:     source,
 		CommitHash: commitHash,
+		Warnings:   SubmoduleWarnings(repoPath, source.authEnv()),
 	}, nil
 }
 
@@ -347,6 +348,10 @@ func discoverFromGitSubdirWithProgressImpl(source *Source, onProgress ProgressCa
 	// Works for GitHub and non-GitHub hosts.
 	if gitSupportsSparseCheckout() {
 		if err := sparseCloneSubdir(source.CloneURL, source.Subdir, repoPath, source.ref(), source.authEnv(), onProgress); err == nil {
+			if err := submoduleError(repoPath, source.Subdir, source.authEnv()); err != nil {
+				cleanupTempRepo(tempDir)
+				return nil, err
+			}
 			subdirPath = filepath.Join(repoPath, source.Subdir)
 			if info, statErr := os.Stat(subdirPath); statErr == nil && info.IsDir() {
 				source.recordCommit(repoPath)
@@ -471,6 +476,10 @@ func discoverFromGitSubdirWithProgressImpl(source *Source, onProgress ProgressCa
 	if err := cloneRepoForSource(source, repoPath, source.Branch, true, onProgress); err != nil {
 		cleanupTempRepo(tempDir)
 		return nil, fmt.Errorf("failed to clone repository: %w", err)
+	}
+	if err := submoduleError(repoPath, source.Subdir, source.authEnv()); err != nil {
+		cleanupTempRepo(tempDir)
+		return nil, err
 	}
 
 	resolved, err := resolveSubdir(repoPath, source.Subdir)
