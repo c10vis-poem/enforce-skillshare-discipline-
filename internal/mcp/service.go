@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gofrs/flock"
+	"skillshare/internal/projectdir"
 )
 
 // Service is scoped to one Skillshare config; StateDir is shared across scopes
@@ -31,6 +32,17 @@ type Service struct {
 	accounts map[string]Account
 	// account is the one this Service was scoped to, empty when it is the Agent's own.
 	account string
+}
+
+// configProjectRoot returns the project whose own config ConfigPath is (in .skillshare/
+// or skillshare/), so saves stay inside it. A global config scoped to a project in
+// mcp.projects returns "".
+func (s *Service) configProjectRoot() string {
+	dir := filepath.Dir(filepath.Clean(s.ConfigPath))
+	if s.ProjectRoot != "" && projectdir.IsName(filepath.Base(dir)) && filepath.Dir(dir) == filepath.Clean(s.ProjectRoot) {
+		return s.ProjectRoot
+	}
+	return ""
 }
 
 func (s *Service) nativePath(target string) (string, error) {

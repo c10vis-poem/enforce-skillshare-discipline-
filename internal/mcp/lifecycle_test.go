@@ -37,6 +37,84 @@ func TestExternalMutationLeavesConfigUntouched(t *testing.T) {
 	}
 }
 
+// A cloned project config can name any YAML file as its MCP source; a project
+// mutation must not rewrite one outside the project.
+func TestProjectExternalMutationStaysInsideProject(t *testing.T) {
+	for _, tc := range []struct {
+		name, dir, source string
+		refused           bool
+	}{
+		{"outside the project", ".skillshare", "../../outside.yaml", true},
+		{"outside the project, visible config folder", "skillshare", "../../outside.yaml", true},
+		{"next to config.yaml", ".skillshare", "./mcp.yaml", false},
+		{"at the project root", ".skillshare", "../mcp.yaml", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			global := testService(t)
+			root := filepath.Join(global.Home, "project")
+			configPath := filepath.Join(root, tc.dir, "config.yaml")
+			if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(configPath, []byte("sources:\n  mcp: "+tc.source+"\nmcp:\n  targets: [claude]\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			external := filepath.Join(filepath.Dir(configPath), tc.source)
+			if err := os.WriteFile(external, []byte("servers: {}\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			s := &Service{ConfigPath: configPath, ProjectRoot: root, Home: global.Home, StateDir: global.StateDir, Platform: "linux"}
+			m := Mutation{Name: "docs", Server: &Server{URL: "https://example.com/mcp"}}
+			p, err := s.PreviewMutation(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = s.Mutate(m, p.Revision, true)
+			data, _ := os.ReadFile(external)
+			if tc.refused {
+				if err == nil || !strings.Contains(err.Error(), "outside the project") {
+					t.Fatalf("expected refusal, got %v", err)
+				}
+				if string(data) != "servers: {}\n" {
+					t.Fatalf("rewrote %s outside the project:\n%s", external, data)
+				}
+				return
+			}
+			if err != nil || !strings.Contains(string(data), "docs") {
+				t.Fatalf("external source not saved: %v\n%s", err, data)
+			}
+		})
+	}
+}
+
+// A global config acting for a project in mcp.projects is still a global config:
+// a dotfile link to it keeps working.
+func TestProjectScopedGlobalConfigWritesThroughLink(t *testing.T) {
+	s := testService(t)
+	// Outside the test's TempDir tree, as ~/dotfiles is outside ~/.config.
+	dotfiles, err := os.MkdirTemp("", "dotfiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dotfiles) })
+	dotfile := filepath.Join(dotfiles, "config.yaml")
+	if err := os.WriteFile(dotfile, []byte("mcp: {targets: [omp], servers: {}}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(s.ConfigPath)
+	if err := os.Symlink(dotfile, s.ConfigPath); err != nil {
+		t.Fatal(err)
+	}
+	s.ProjectRoot = filepath.Join(s.Home, "project")
+	server := Server{Disabled: true, Targets: []string{"omp"}}
+	if _, err := s.Mutate(Mutation{Name: "docs", Server: &server}, "", true); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(dotfile); !strings.Contains(string(data), "docs") {
+		t.Fatalf("dotfile not updated:\n%s", data)
+	}
+}
+
 func TestImportSaveOnlyAdoptsBaselineAndDetectsDrift(t *testing.T) {
 	s := testService(t)
 	path := filepath.Join(s.Home, ".claude.json")
