@@ -24,12 +24,44 @@ type targetPathPair struct {
 // official documentation. Used by `skillshare doctor` to warn about
 // cross-target discovery overlap (e.g. Codex's runtime scans ~/.agents/skills
 // even though its primary skillshare path is ~/.codex/skills).
+//
+// In targets.yaml it is a list with one entry per scanned folder, so a
+// folder's global and project paths and its env switches are written once.
 type targetAlsoScans struct {
-	Global  []string `yaml:"global,omitempty"`
-	Project []string `yaml:"project,omitempty"`
+	Global  []string
+	Project []string
 	// DisabledByEnv maps an also_scans path to the environment variables that
-	// make the runtime skip it, most specific first.
-	DisabledByEnv map[string][]string `yaml:"disabled_by_env,omitempty"`
+	// make the runtime skip it.
+	DisabledByEnv map[string][]string
+}
+
+type alsoScansEntry struct {
+	Global  string `yaml:"global"`
+	Project string `yaml:"project"`
+	// OffWhenEnv lists the environment variables that make the runtime skip
+	// this folder, most specific first (doctor suggests the first that applies).
+	OffWhenEnv []string `yaml:"off_when_env"`
+}
+
+func (a *targetAlsoScans) UnmarshalYAML(node *yaml.Node) error {
+	var entries []alsoScansEntry
+	if err := node.Decode(&entries); err != nil {
+		return err
+	}
+	a.DisabledByEnv = make(map[string][]string)
+	for _, e := range entries {
+		if e.Global != "" {
+			a.Global = append(a.Global, e.Global)
+		}
+		if e.Project != "" {
+			a.Project = append(a.Project, e.Project)
+		}
+		if len(e.OffWhenEnv) > 0 {
+			a.DisabledByEnv[e.Global] = e.OffWhenEnv
+			a.DisabledByEnv[e.Project] = e.OffWhenEnv
+		}
+	}
+	return nil
 }
 
 // targetInstructions is the instruction file (CLAUDE.md, AGENTS.md, ...) a

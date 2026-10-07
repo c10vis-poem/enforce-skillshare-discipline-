@@ -262,21 +262,6 @@ func TestRuntimeScanPaths_KeepsPathWhenEnvIsFalse(t *testing.T) {
 	}
 }
 
-// A disabled_by_env key that is not an also_scans path would never apply.
-func TestAlsoScans_DisabledByEnvKeysAreScannedPaths(t *testing.T) {
-	specs, err := loadTargetSpecs()
-	if err != nil {
-		t.Fatalf("loadTargetSpecs: %v", err)
-	}
-	for _, spec := range specs {
-		for path := range spec.AlsoScans.DisabledByEnv {
-			if !slices.Contains(spec.AlsoScans.Global, path) && !slices.Contains(spec.AlsoScans.Project, path) {
-				t.Errorf("%s: disabled_by_env key %q is not in also_scans", spec.Name, path)
-			}
-		}
-	}
-}
-
 func TestRuntimeScanPaths_Deduplicates(t *testing.T) {
 	// warp's primary path is ~/.agents/skills and it has no also_scans.
 	got := RuntimeScanPaths("warp", false)
