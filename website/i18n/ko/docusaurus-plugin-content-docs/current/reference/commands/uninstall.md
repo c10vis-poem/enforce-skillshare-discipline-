@@ -175,6 +175,7 @@ tracked repository(`_`로 시작하는 폴더)의 경우:
 - `.gitignore`에서 항목을 자동으로 제거합니다
 - uninstall 시 `_` 접두사는 선택 사항입니다
 - `--into`로 설치한 repo는 `devops/_team-skills`처럼 경로로 지정합니다
+- `--into` repo도 마지막 `_`를 생략할 수 있습니다. `devops/team-skills`는 `devops/_team-skills`로 해석됩니다. 입력한 경로에 skill이나 폴더가 있으면 그것을 우선하므로 repo를 제거하려면 `_`가 포함된 경로를 사용하세요. 짧은 이름이 여러 항목과 일치하면 실패하며 전체 경로가 필요합니다.
 - tracked repo 안의 skill이나 폴더는 `--force`를 붙여도 따로 제거할 수 없으며, `inside a tracked repo; uninstall the repo instead`로 실패합니다. followed source link 아래의 skill은 하나씩 제거할 수 있습니다
 
 ```bash
@@ -182,6 +183,7 @@ skillshare uninstall _team-skills        # With prefix
 skillshare uninstall team-skills         # Without prefix (auto-detected)
 skillshare uninstall _team-skills --force # Force remove with uncommitted changes
 skillshare uninstall devops/_team-skills # Repo installed with --into devops
+skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
 ```
 
 ## 예시

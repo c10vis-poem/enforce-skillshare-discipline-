@@ -175,6 +175,7 @@ skillshare uninstall frontend/hooks -G frontend --force  # hooks 只會被移除
 - 自動從 `.gitignore` 移除該項目
 - 解除安裝時 `_` 前綴為選填
 - 用 `--into` 安裝的 repo 以路徑命名，例如 `devops/_team-skills`
+- `--into` repo 最後一段的 `_` 也可以省略：`devops/team-skills` 會解析為 `devops/_team-skills`。輸入路徑上既有的 skill 或資料夾優先；要移除 repo，請使用含 `_` 的完整路徑。短名稱匹配多個項目時會失敗，必須指定完整路徑。
 - tracked repo 裡的 skill 或資料夾不能單獨移除，加上 `--force` 也一樣；指令會以 `inside a tracked repo; uninstall the repo instead` 失敗。位於 followed source link 底下的 skill 仍可逐一移除
 
 ```bash
@@ -182,6 +183,7 @@ skillshare uninstall _team-skills        # 含前綴
 skillshare uninstall team-skills         # 不含前綴（自動偵測）
 skillshare uninstall _team-skills --force # 強制移除，即使有未提交的變更
 skillshare uninstall devops/_team-skills # 用 --into devops 安裝的 repo
+skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
 ```
 
 ## 範例
