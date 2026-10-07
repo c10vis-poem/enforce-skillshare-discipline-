@@ -88,7 +88,7 @@ type TrackedRepoResult struct {
 	Overridden      bool     // blocking findings were let through by Force or Confirm
 	Recorded        int      // findings newly recorded as accepted
 	RecordErr       error    // recording accepted findings failed; the update stays applied
-	MetadataChanged bool     // root-skill hashes were rewritten under SourceDir
+	MetadataChanged bool     // the repo's entry under SourceDir was rewritten
 	MetadataErr     error    // refreshing metadata failed; the update stays applied
 	Warnings        []string // git submodules the pulled checkout leaves empty
 }
@@ -189,5 +189,5 @@ func refreshMetadata(repoPath string, opts TrackedRepoOptions) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return install.RefreshTrackedRootSkillMetadata(opts.SourceDir, filepath.ToSlash(rel), repoPath, opts.Follow)
+	return install.RefreshTrackedRepoMetadata(opts.SourceDir, filepath.ToSlash(rel), repoPath, opts.Follow)
 }
