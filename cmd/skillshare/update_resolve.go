@@ -26,10 +26,8 @@ func resolveByBasename(sourceDir, name string, walks ...sourcewalk.Options) (upd
 
 	// Search tracked repos
 	repos, _ := install.GetTrackedRepos(sourceDir, walks...)
-	for _, r := range repos {
-		if r == name || filepath.Base(r) == "_"+name || filepath.Base(r) == name {
-			matches = append(matches, updateTarget{name: r, path: filepath.Join(sourceDir, r), isRepo: true})
-		}
+	for _, r := range install.MatchTrackedRepos(repos, name) {
+		matches = append(matches, updateTarget{name: r, path: filepath.Join(sourceDir, r), isRepo: true})
 	}
 
 	// Search updatable skills

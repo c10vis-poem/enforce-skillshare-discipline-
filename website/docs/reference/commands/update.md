@@ -408,7 +408,7 @@ skillshare update --all -p --skip-audit  # Skip security audit gate
 | **Local-path install** | Re-copy from the recorded path | Listed in `.metadata.json` with `type: local` |
 | **Local skill** | Skipped | Not listed in `.metadata.json` |
 
-The `_` prefix is optional — `skillshare update team-skills -p` auto-detects `_team-skills`.
+The `_` prefix is optional, on the last path segment too — `skillshare update team-skills -p` auto-detects `_team-skills`, and `skillshare update devops/team-skills` finds a repo installed with `--into devops` at `devops/_team-skills`.
 
 ### Lockfile
 

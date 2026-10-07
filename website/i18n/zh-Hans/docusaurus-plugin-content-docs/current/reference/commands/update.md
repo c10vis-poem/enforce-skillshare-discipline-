@@ -408,7 +408,7 @@ skillshare update --all -p --skip-audit  # Skip security audit gate
 | **Local-path install** | Re-copy from the recorded path | Listed in `.metadata.json` with `type: local` |
 | **Local skill** | Skipped | Not listed in `.metadata.json` |
 
-`_` 前缀是可选的——`skillshare update team-skills -p` 会自动检测为 `_team-skills`。
+`_` 前缀是可选的，路径的最后一段也一样——`skillshare update team-skills -p` 会自动检测为 `_team-skills`，`skillshare update devops/team-skills` 会找到以 `--into devops` 安装的 `devops/_team-skills`。
 
 ### 锁定文件
 
