@@ -173,6 +173,8 @@ OpenCode keeps one skill per name across `~/.claude/skills`, `~/.agents/skills`,
   ~/.claude/skills ← claude: claude-only
 ```
 
+When a writer such as `claude` uses symlink mode and `opencode` does not, its folder is the source itself, so the check cannot tell which skills OpenCode receives there and shows the general warning.
+
 Resolution: allow those skills for `opencode`, or set `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` (or `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`, which also skips `.agents/skills`) where OpenCode runs. skillshare only sees its own environment: when the variable is also set where you run skillshare, `doctor`, `sync`, and the dashboard treat that folder as skipped, and `doctor` notes it:
 
 ```text

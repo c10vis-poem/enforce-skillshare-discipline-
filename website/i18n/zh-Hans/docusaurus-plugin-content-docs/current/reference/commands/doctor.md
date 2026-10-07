@@ -177,6 +177,8 @@ OpenCode 在 `~/.claude/skills`、`~/.agents/skills` 和自己的文件夹之间
   ~/.claude/skills ← claude: claude-only
 ```
 
+如果写入方（例如 `claude`）使用 symlink mode 而 `opencode` 没有，那个文件夹就是 source 本身，检查无法判断 OpenCode 会从中加载哪些 skill，因此显示一般的警告。
+
 解决方法：让 `opencode` 也能拿到这些 skill，或在运行 OpenCode 的环境设置 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，连 `.agents/skills` 也跳过）。skillshare 只看得到自己的环境：运行 skillshare 的环境也设置了这个变量时，`doctor`、`sync` 和 dashboard 会把该文件夹当成已跳过，`doctor` 也会注明：
 
 ```text

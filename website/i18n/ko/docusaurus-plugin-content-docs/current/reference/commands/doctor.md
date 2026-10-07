@@ -173,6 +173,8 @@ OpenCode는 `~/.claude/skills`, `~/.agents/skills`, 자신의 폴더 사이에�
   ~/.claude/skills ← claude: claude-only
 ```
 
+`claude` 같은 쓰기 쪽이 symlink mode를 쓰고 `opencode`는 쓰지 않으면 그 폴더가 source 자체이므로, OpenCode가 거기서 어떤 skill을 불러오는지 판단할 수 없어 일반 경고를 표시합니다.
+
 해결: 해당 skill을 `opencode`에도 허용하거나, OpenCode를 실행하는 환경에 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`(`.agents/skills`도 건너뛰려면 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`)을 설정합니다. skillshare는 자신의 환경만 볼 수 있습니다. skillshare를 실행하는 환경에도 이 변수를 설정하면 `doctor`, `sync`, dashboard는 해당 폴더를 건너뛴 것으로 처리하고, `doctor`는 이를 표시합니다:
 
 ```text

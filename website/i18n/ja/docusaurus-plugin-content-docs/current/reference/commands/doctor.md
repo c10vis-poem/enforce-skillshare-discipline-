@@ -173,6 +173,8 @@ OpenCode は `~/.claude/skills`、`~/.agents/skills`、自分のフォルダの�
   ~/.claude/skills ← claude: claude-only
 ```
 
+`claude` などの書き込み側が symlink mode で `opencode` がそうでない場合、そのフォルダは source そのものなので、OpenCode がそこからどの skill を読み込むかを判断できず、通常の警告を表示します。
+
 対処：その skill を `opencode` にも許可するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。skillshare が見えるのは自分の環境だけです。skillshare を実行する環境でもこの変数を設定すると、`doctor`、`sync`、dashboard はそのフォルダを読まれないものとして扱い、`doctor` はその旨を表示します：
 
 ```text
