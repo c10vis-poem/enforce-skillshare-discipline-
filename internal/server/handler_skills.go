@@ -113,7 +113,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 			}
 			enrichSkillLink(&item, source, walk, linkTargets)
 
-			if entry := s.skillEntry(d.RelPath); entry != nil {
+			if entry := s.discoveredSkillEntry(d.RelPath, d.IsInRepo); entry != nil {
 				if !entry.InstalledAt.IsZero() {
 					item.InstalledAt = entry.InstalledAt.Format(time.RFC3339)
 				}
@@ -229,7 +229,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 			}
 			enrichSkillLink(&item, source, walk, make(map[string]string))
 
-			if entry := s.skillEntry(d.RelPath); entry != nil {
+			if entry := s.discoveredSkillEntry(d.RelPath, d.IsInRepo); entry != nil {
 				if !entry.InstalledAt.IsZero() {
 					item.InstalledAt = entry.InstalledAt.Format(time.RFC3339)
 				}
