@@ -463,9 +463,11 @@ func LoadProject(projectRoot string) (*ProjectConfig, error) {
 	}
 	if migrated {
 		if mdata, merr := marshalConfig(&cfg, projectSchemaComment); merr == nil {
-			tmpPath := path + ".tmp"
+			// Write a symlinked config's target so the link survives.
+			dest := utils.ResolveSymlink(path)
+			tmpPath := dest + ".tmp"
 			if writeErr := os.WriteFile(tmpPath, mdata, 0644); writeErr == nil {
-				os.Rename(tmpPath, path)
+				os.Rename(tmpPath, dest)
 			}
 		}
 	}

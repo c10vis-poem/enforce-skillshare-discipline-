@@ -693,9 +693,11 @@ func Load() (*Config, error) {
 	// Migrate legacy flat target fields to skills: sub-key (one-time, persisted immediately)
 	if migrateTargetConfigs(cfg.Targets) {
 		if data, err := marshalConfig(&cfg, schemaComment); err == nil {
-			tmpPath := path + ".tmp"
+			// Write a symlinked config's target so the link survives.
+			dest := utils.ResolveSymlink(path)
+			tmpPath := dest + ".tmp"
 			if writeErr := os.WriteFile(tmpPath, data, 0644); writeErr == nil {
-				os.Rename(tmpPath, path)
+				os.Rename(tmpPath, dest)
 			}
 		}
 	}

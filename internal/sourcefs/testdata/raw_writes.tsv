@@ -92,7 +92,7 @@ internal/check/tree_check.go	FetchRemoteTreeHashesForRef	os.MkdirTemp	""	tmp
 internal/check/tree_check.go	FetchRemoteTreeHashesForRef	os.RemoveAll	tmpDir	tmp
 internal/config/config.go	(*Config).Save	os.MkdirAll	dir	config
 internal/config/config.go	(*Config).Save	os.WriteFile	path	config
-internal/config/config.go	Load	os.Rename	tmpPath, path	config
+internal/config/config.go	Load	os.Rename	tmpPath, dest	config
 internal/config/config.go	Load	os.WriteFile	tmpPath	config
 internal/config/config.go	migrateSkillsToRegistry	os.WriteFile	configPath	config
 internal/config/extras_migrate.go	MigrateExtrasDir	os.MkdirAll	filepath.Join(configDir, "extras")	extras
@@ -101,7 +101,7 @@ internal/config/migrate.go	migrateDir	os.MkdirAll	filepath.Dir(newPath)	source-r
 internal/config/migrate.go	migrateDir	os.Rename	oldPath, newPath	source-root
 internal/config/project.go	(*ProjectConfig).SaveIn	os.MkdirAll	dir	config
 internal/config/project.go	(*ProjectConfig).SaveIn	os.WriteFile	path	config
-internal/config/project.go	LoadProject	os.Rename	tmpPath, path	config
+internal/config/project.go	LoadProject	os.Rename	tmpPath, dest	config
 internal/config/project.go	LoadProject	os.WriteFile	tmpPath	config
 internal/config/registry.go	(*Registry).Save	os.MkdirAll	dir	source-unmigrated
 internal/config/registry.go	(*Registry).Save	os.WriteFile	path	source-unmigrated
@@ -250,10 +250,10 @@ internal/plugin/apply.go	(*Service).materialize	os.Rename	temp, expected	plugin
 internal/plugin/apply.go	(*Service).materialize	os.WriteFile	filepath.Join(temp, ".skillshare-digest")	plugin
 internal/plugin/apply.go	(*Service).materialize	os.WriteFile	filepath.Join(temp, ".skillshare-owner")	plugin
 internal/plugin/apply.go	(*Service).materialize	os.WriteFile	p	plugin
-internal/plugin/config.go	(*Service).save	os.CreateTemp	filepath.Dir(s.ConfigPath)	plugin
-internal/plugin/config.go	(*Service).save	os.MkdirAll	filepath.Dir(s.ConfigPath)	plugin
+internal/plugin/config.go	(*Service).save	os.CreateTemp	filepath.Dir(path)	plugin
+internal/plugin/config.go	(*Service).save	os.MkdirAll	filepath.Dir(path)	plugin
 internal/plugin/config.go	(*Service).save	os.Remove	f.Name()	plugin
-internal/plugin/config.go	(*Service).save	os.Rename	f.Name(), s.ConfigPath	plugin
+internal/plugin/config.go	(*Service).save	os.Rename	f.Name(), path	plugin
 internal/plugin/lifecycle.go	(*Service).Apply	os.MkdirAll	filepath.Dir(s.ConfigPath)	plugin
 internal/plugin/lifecycle.go	(*Service).Apply	os.OpenFile	s.ConfigPath + ".plugins.lock"	plugin
 internal/plugin/lifecycle.go	(*Service).Apply	os.Remove	s.ConfigPath + ".plugins.lock"	plugin
