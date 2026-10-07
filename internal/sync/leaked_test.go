@@ -38,22 +38,32 @@ func TestLeakedSkills_NoneWhenScannerGetsEverySkill(t *testing.T) {
 
 func TestLeakedSkills_CountsLocalSkillsInWriterFolder(t *testing.T) {
 	// Merge mode keeps skills the user put in claude's folder; opencode loads
-	// them unless its own folder has the same name.
+	// them unless its own folder has a skill of the same name. Only a folder
+	// with SKILL.md is a skill.
 	targets := leakTargets(t, "opencode")
 	claude, opencode := targets["claude"].Skills.Path, targets["opencode"].Skills.Path
-	for _, dir := range []string{
+	for _, skill := range []string{
 		filepath.Join(claude, "my-local"),
 		filepath.Join(claude, "shared"),
 		filepath.Join(claude, "in-both"),
 		filepath.Join(opencode, "in-both"),
+		filepath.Join(claude, "not-a-skill-there"),
 	} {
+		if err := os.MkdirAll(skill, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skill, "SKILL.md"), []byte("---\nname: x\n---\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, dir := range []string{filepath.Join(claude, "cache"), filepath.Join(opencode, "not-a-skill-there")} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	leaked, known := LeakedSkills("opencode", "claude", targets, "merge", []DiscoveredSkill{{FlatName: "shared"}})
-	if !known || !slices.Equal(leaked, []string{"my-local"}) {
-		t.Errorf("LeakedSkills = %v, %v; want [my-local], true", leaked, known)
+	if !known || !slices.Equal(leaked, []string{"my-local", "not-a-skill-there"}) {
+		t.Errorf("LeakedSkills = %v, %v; want [my-local not-a-skill-there], true", leaked, known)
 	}
 }
 

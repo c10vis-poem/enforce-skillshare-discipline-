@@ -60,10 +60,8 @@ func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig
 		if strings.HasPrefix(name, ".") || managed[name] || ownNames[name] {
 			continue
 		}
-		if info, err := os.Stat(filepath.Join(writerDir, name)); err != nil || !info.IsDir() {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(ownDir, name)); err == nil {
+		// Only a folder with SKILL.md is a skill the runtime loads.
+		if !isFile(filepath.Join(writerDir, name, "SKILL.md")) || isFile(filepath.Join(ownDir, name, "SKILL.md")) {
 			continue
 		}
 		leaked = append(leaked, name)
@@ -88,6 +86,11 @@ func syncedSkills(name string, target config.TargetConfig, defaultMode string, d
 		return nil, err
 	}
 	return res.Skills, nil
+}
+
+func isFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 func isSymlinkMode(target config.TargetConfig, defaultMode string) bool {
