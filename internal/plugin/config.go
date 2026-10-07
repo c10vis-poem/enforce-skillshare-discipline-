@@ -105,11 +105,12 @@ func decodeDocument(raw []byte, accounts map[string]string) (*document, error) {
 }
 
 // canonicalSource spells a local source the way add records it, so ~/plug and
-// /home/me/plug name the same snapshot and owner.
+// /home/me/plug name the same snapshot and owner. It expands every form
+// utils.FoldHomePathWith writes: ~, ~/..., and ~\... on Windows.
 func canonicalSource(source string) string {
-	if strings.HasPrefix(source, "~/") {
+	if source == "~" || strings.HasPrefix(source, "~/") || strings.HasPrefix(source, "~"+string(filepath.Separator)) {
 		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, source[2:])
+			return filepath.Join(home, source[1:])
 		}
 	}
 	if filepath.IsAbs(source) {
@@ -174,8 +175,15 @@ func (s *Service) save(d *document) error {
 	if err != nil {
 		return err
 	}
-	// Dotfile managers often symlink config.yaml; write its target so the link survives.
+	// Dotfile managers often symlink config.yaml; write its target so the link survives,
+	// including a link whose target does not exist yet.
 	path := utils.ResolveSymlink(s.ConfigPath)
+	if target, err := os.Readlink(path); err == nil {
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		path = target
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}

@@ -800,3 +800,27 @@ func TestSkippedUpdateStaysPending(t *testing.T) {
 		t.Fatalf("pending cleared: %+v", cfg.packages["demo"].Bindings["codex"])
 	}
 }
+
+func TestCanonicalSourceExpandsBareTilde(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if got := canonicalSource("~"); got != home {
+		t.Fatalf("canonicalSource(~) = %q, want %q", got, home)
+	}
+}
+
+func TestSavingPluginsCreatesTheTargetOfADanglingSymlink(t *testing.T) {
+	agents := &fakeAgents{version: "1.0.0"}
+	s := agents.service(t)
+	shared := filepath.Join(os.Getenv("HOME"), "dotfiles", "skillshare.yaml")
+	if err := os.Symlink(shared, s.ConfigPath); err != nil {
+		t.Fatal(err)
+	}
+	applyPluginRequest(t, s, Request{Action: "add", Source: fixture(t), Targets: []string{"claude"}})
+	if info, err := os.Lstat(s.ConfigPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.yaml is no longer a symlink: %v", err)
+	}
+	if data, err := os.ReadFile(shared); err != nil || !strings.Contains(string(data), "plugins:") {
+		t.Fatalf("symlink target not written: %v\n%s", err, data)
+	}
+}
