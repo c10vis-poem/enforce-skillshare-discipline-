@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	gosync "sync"
 
 	"skillshare/internal/git"
@@ -14,6 +15,7 @@ import (
 	"skillshare/internal/sourcefs"
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/trash"
+	"skillshare/internal/utils"
 )
 
 // Item is one resolved skill, group directory or tracked repo.
@@ -37,6 +39,9 @@ type Options struct {
 
 // ErrDirty refuses a tracked repo with uncommitted changes.
 var ErrDirty = errors.New("uncommitted changes")
+
+// ErrInsideRepo refuses a skill or folder inside a tracked repo's checkout.
+var ErrInsideRepo = errors.New("inside a tracked repo; uninstall the repo instead")
 
 // StatusError refuses a tracked repo whose git status could not be read.
 type StatusError struct{ Err error }
@@ -66,15 +71,16 @@ type Outcome struct {
 
 // Preflight reports why each item cannot be uninstalled, without changing
 // anything and regardless of Force, so a caller can warn or confirm first.
-// The error is a move-out refusal, ErrDirty or a *StatusError. Move-out comes
-// first: a linked folder is never told to retry with force.
+// The error is a move-out refusal (including ErrInsideRepo), ErrDirty or a
+// *StatusError. Move-out comes first: a linked folder is never told to retry
+// with force.
 func Preflight(items []Item, o Options) []error {
 	errs := make([]error, len(items))
 	const maxDirtyWorkers = 8
 	sem := make(chan struct{}, maxDirtyWorkers)
 	var wg gosync.WaitGroup
 	for i, item := range items {
-		if errs[i] = sourcefs.CheckSkillMoveOut(o.SourceDir, item.Path, o.Follow); errs[i] != nil || !item.Repo {
+		if errs[i] = checkMoveOut(item, o); errs[i] != nil || !item.Repo {
 			continue
 		}
 		wg.Add(1)
@@ -129,8 +135,33 @@ func Run(items []Item, o Options) Outcome {
 	return out
 }
 
-func moveOut(item Item, o Options) error {
+// checkMoveOut refuses an item that may not leave the source: one behind a
+// link the policy does not allow, or one inside a tracked repo's checkout.
+// Force skips neither.
+func checkMoveOut(item Item, o Options) error {
 	if err := sourcefs.CheckSkillMoveOut(o.SourceDir, item.Path, o.Follow); err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(o.SourceDir, item.Path)
+	if err != nil {
+		return nil
+	}
+	// A tracked repo is a _-prefixed git checkout; removing part of it would
+	// leave it dirty for update. A followed source link is the user's own
+	// checkout, whose skills may go one at a time.
+	dir := o.SourceDir
+	parents := strings.Split(filepath.ToSlash(rel), "/")
+	for _, seg := range parents[:len(parents)-1] {
+		dir = filepath.Join(dir, seg)
+		if _, followed := o.Follow.Resolve(dir); utils.IsTrackedRepoDir(seg) && !followed && install.IsGitRepo(dir) {
+			return ErrInsideRepo
+		}
+	}
+	return nil
+}
+
+func moveOut(item Item, o Options) error {
+	if err := checkMoveOut(item, o); err != nil {
 		return err
 	}
 	if item.Repo && !o.Force {

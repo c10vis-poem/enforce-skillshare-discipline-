@@ -340,8 +340,9 @@ func GetUpdatableSkills(sourceDir string) ([]string, error) {
 	return getUpdatableSkillsImpl(sourceDir)
 }
 
-// GetTrackedRepos returns tracked repositories in the source directory. An
-// optional walk policy follows first-level source links; omitted, none are.
+// GetTrackedRepos returns tracked repositories in the source directory as
+// slash paths relative to it (org/_team), on every OS. An optional walk policy
+// follows first-level source links; omitted, none are.
 func GetTrackedRepos(sourceDir string, walk ...sourcewalk.Options) ([]string, error) {
 	var opts sourcewalk.Options
 	if len(walk) > 0 {

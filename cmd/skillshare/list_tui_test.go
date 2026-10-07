@@ -104,8 +104,8 @@ func TestApplyFilter_WithTags(t *testing.T) {
 	items := []skillItem{
 		{entry: skillEntry{Name: "local-skill", RelPath: "local-skill"}},
 		{entry: skillEntry{Name: "react-tips", RelPath: "frontend/react-tips"}},
-		{entry: skillEntry{Name: "audit", RelPath: "_team-repo/security/audit", RepoName: "team/repo"}},
-		{entry: skillEntry{Name: "lint", RelPath: "_team-repo/lint", RepoName: "team/repo"}},
+		{entry: skillEntry{Name: "audit", RelPath: "_team-repo/security/audit", RepoName: "_team-repo"}},
+		{entry: skillEntry{Name: "lint", RelPath: "_team-repo/lint", RepoName: "_team-repo"}},
 		{entry: skillEntry{Name: "remote-a", RelPath: "remote-a", Source: "github.com/foo/bar"}},
 	}
 

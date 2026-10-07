@@ -137,6 +137,51 @@ func TestDiscoverSourceSkills_TrackedRepo(t *testing.T) {
 	}
 }
 
+func TestDiscoverSourceSkills_TrackedRepoInstalledInto(t *testing.T) {
+	src := t.TempDir()
+	// install --track --into org places the clone at org/_repo
+	os.MkdirAll(filepath.Join(src, "org", "_repo", ".git"), 0755)
+	writeSkillMD(t, filepath.Join(src, "org", "_repo", "skills", "vue"), "---\nname: vue\n---\n# Vue")
+
+	skills, err := DiscoverSourceSkills(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skills) != 1 || !skills[0].IsInRepo || skills[0].RepoRelPath != "org/_repo" {
+		t.Fatalf("expected one skill in repo org/_repo, got %+v", skills)
+	}
+}
+
+func TestDiscoverSourceSkills_NestedUnderscoreDirWithoutGitIsNotRepo(t *testing.T) {
+	src := t.TempDir()
+	writeSkillMD(t, filepath.Join(src, "org", "_drafts", "vue"), "---\nname: vue\n---\n# Vue")
+
+	skills, err := DiscoverSourceSkills(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skills) != 1 || skills[0].IsInRepo {
+		t.Fatalf("expected one skill outside any repo, got %+v", skills)
+	}
+}
+
+func TestDiscoverSourceSkills_TrackedRepoInstalledIntoRespectsSkillIgnore(t *testing.T) {
+	src := t.TempDir()
+	repoDir := filepath.Join(src, "org", "_repo")
+	os.MkdirAll(filepath.Join(repoDir, ".git"), 0755)
+	os.WriteFile(filepath.Join(repoDir, ".skillignore"), []byte("drafts\n"), 0644)
+	writeSkillMD(t, filepath.Join(repoDir, "drafts", "wip"), "---\nname: wip\n---\n# WIP")
+	writeSkillMD(t, filepath.Join(repoDir, "vue"), "---\nname: vue\n---\n# Vue")
+
+	skills, err := DiscoverSourceSkills(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skills) != 1 || skills[0].RelPath != "org/_repo/vue" {
+		t.Fatalf("expected only org/_repo/vue, got %+v", skills)
+	}
+}
+
 func TestDiscoverSourceSkills_ParsesTargets(t *testing.T) {
 	src := t.TempDir()
 	content := "---\nname: targeted\ntargets:\n  - claude\n  - cursor\n---\n# Targeted"

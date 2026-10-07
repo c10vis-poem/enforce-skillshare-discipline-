@@ -187,11 +187,14 @@ func skillGroup(e skillEntry) string {
 	}
 
 	if e.RepoName != "" {
-		// Tracked: first segment is repo dir, second is group
-		if len(parts) >= 3 {
-			return parts[1]
+		// Tracked: the group is the first segment below the repo root, which
+		// --into can place deeper than the first segment (org/_team).
+		rest, below := strings.CutPrefix(e.RelPath, e.RepoName+"/")
+		group, _, nested := strings.Cut(rest, "/")
+		if !below || !nested {
+			return ""
 		}
-		return ""
+		return group
 	}
 
 	// Non-tracked: first segment is group

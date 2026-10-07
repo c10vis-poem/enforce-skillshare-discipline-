@@ -30,6 +30,13 @@ describe('groupBySource', () => {
 
     expect(groups.map((g) => [g.key, g.items.length])).toEqual([['_repo-a', 2], ['_repo-b', 1], ['local', 1]]);
   });
+
+  it('groups a repo installed with --into under its full repo path', () => {
+    const repo = { isInRepo: true, type: 'tracked', repoPath: 'org/_repo' };
+    const groups = groupBySource([skill('org/_repo/skills/x', repo), skill('org/_repo/skills/y', repo)]);
+
+    expect(groups.map((g) => [g.key, g.items.length])).toEqual([['org/_repo', 2]]);
+  });
 });
 
 describe('groupByFolder', () => {
