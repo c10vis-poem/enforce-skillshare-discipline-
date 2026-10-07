@@ -183,7 +183,7 @@ skillshare uninstall _team-skills        # 含前綴
 skillshare uninstall team-skills         # 不含前綴（自動偵測）
 skillshare uninstall _team-skills --force # 強制移除，即使有未提交的變更
 skillshare uninstall devops/_team-skills # 用 --into devops 安裝的 repo
-skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
+skillshare uninstall devops/team-skills  # 同一個 repo（除非此路徑已存在）
 ```
 
 ## 範例
@@ -306,6 +306,7 @@ skillshare uninstall team-skills -p                # Tracked repo（_ 前綴為�
 - 從 `.skillshare/skills.lock.json` 移除該 skill 的釘選（若是群組，則移除其下的每個釘選）
 - 對於 tracked repos：檢查未提交的變更，並在無法讀取 git status 時失敗（用 `--force` 可同時覆蓋兩者）
 - `_` 前綴為選填 — 會自動偵測
+- 用 `--into` 安裝的 repo 與 global mode 相同：`devops/team-skills -p` 會解析為 `devops/_team-skills`，tracked repo 裡的 skill 或資料夾不能單獨移除
 
 ```bash
 skillshare uninstall pdf -p

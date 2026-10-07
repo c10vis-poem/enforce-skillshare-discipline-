@@ -183,7 +183,7 @@ skillshare uninstall _team-skills        # prefix 付き
 skillshare uninstall team-skills         # prefix なし（自動検出）
 skillshare uninstall _team-skills --force # 未コミットの変更があっても強制削除
 skillshare uninstall devops/_team-skills # --into devops でインストールしたリポジトリ
-skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
+skillshare uninstall devops/team-skills  # 同じリポジトリ（このパスが既に存在する場合を除く）
 ```
 
 ## 例
@@ -306,6 +306,7 @@ project mode では、uninstall は以下を行います:
 - `.skillshare/skills.lock.json` から skill の固定を削除（グループの場合は、その配下のすべての固定）
 - tracked repos の場合: 未コミットの変更を確認し、git status を読み取れない場合は失敗（どちらも `--force` で上書き可能）
 - `_` prefix は省略可能 — 自動検出される
+- `--into` でインストールしたリポジトリも global mode と同じです。`devops/team-skills -p` は `devops/_team-skills` を指定し、追跡リポジトリ内の Skill やフォルダは単独では削除できません
 
 ```bash
 skillshare uninstall pdf -p

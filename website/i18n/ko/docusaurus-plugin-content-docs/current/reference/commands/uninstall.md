@@ -182,8 +182,8 @@ tracked repository(`_`로 시작하는 폴더)의 경우:
 skillshare uninstall _team-skills        # With prefix
 skillshare uninstall team-skills         # Without prefix (auto-detected)
 skillshare uninstall _team-skills --force # Force remove with uncommitted changes
-skillshare uninstall devops/_team-skills # Repo installed with --into devops
-skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
+skillshare uninstall devops/_team-skills # --into devops로 설치한 repo
+skillshare uninstall devops/team-skills  # 같은 repo (이 경로가 이미 있으면 제외)
 ```
 
 ## 예시
@@ -306,6 +306,7 @@ Project mode에서 uninstall은 다음을 수행합니다.
 - `.skillshare/skills.lock.json`에서 skill의 고정을 제거합니다(group의 경우 그 아래의 모든 고정)
 - tracked repo의 경우: 커밋되지 않은 변경 사항을 확인하고, git status를 읽을 수 없으면 실패합니다(둘 다 재정의하려면 `--force` 사용)
 - `_` 접두사는 선택 사항입니다 — 자동 감지됨
+- `--into`로 설치한 repo도 global mode와 같습니다. `devops/team-skills -p`는 `devops/_team-skills`로 해석되며, tracked repo 안의 skill이나 폴더는 따로 제거할 수 없습니다
 
 ```bash
 skillshare uninstall pdf -p

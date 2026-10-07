@@ -187,8 +187,8 @@ skillshare uninstall frontend/hooks -G frontend --force  # hooks removed once
 skillshare uninstall _team-skills        # With prefix
 skillshare uninstall team-skills         # Without prefix (auto-detected)
 skillshare uninstall _team-skills --force # Force remove with uncommitted changes
-skillshare uninstall devops/_team-skills # Repo installed with --into devops
-skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
+skillshare uninstall devops/_team-skills # 用 --into devops 安装的 repo
+skillshare uninstall devops/team-skills  # 同一个 repo（除非此路径已存在）
 ```
 
 ## 示例
@@ -311,6 +311,7 @@ skillshare uninstall team-skills -p                # Tracked repo (_ prefix opti
 - 从 `.skillshare/skills.lock.json` 中移除该 skill 的固定（对于 group，则移除其下的所有固定）
 - 对于 tracked repos：检查是否有未提交的更改，并在无法读取 git status 时失败（使用 `--force` 可同时覆盖两者）
 - `_` 前缀是可选的——会自动检测
+- 用 `--into` 安装的 repo 与 global mode 相同：`devops/team-skills -p` 会解析为 `devops/_team-skills`，tracked repo 中的 Skill 或文件夹不能单独移除
 
 ```bash
 skillshare uninstall pdf -p

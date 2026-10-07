@@ -403,7 +403,7 @@ skillshare update --all -p --skip-audit  # Skip security audit gate
 
 | Type | Method | Detected by |
 |------|--------|-------------|
-| **Tracked repo** (`_repo`) | `git pull` | Has `.git/` directory |
+| **Tracked repo** (`_repo`) | `git pull` | `_`-prefixed folder with a `.git/` directory |
 | **Remote skill** (with metadata) | Reinstall from source | Listed in `.metadata.json` |
 | **Local-path install** | Re-copy from the recorded path | Listed in `.metadata.json` with `type: local` |
 | **Local skill** | Skipped | Not listed in `.metadata.json` |

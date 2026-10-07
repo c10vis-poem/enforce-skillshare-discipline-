@@ -306,6 +306,7 @@ In project mode, uninstall:
 - Removes the skill's pin from `.skillshare/skills.lock.json` (for a group, every pin under it)
 - For tracked repos: checks for uncommitted changes, and fails when the git status cannot be read (use `--force` to override both)
 - The `_` prefix is optional — auto-detected
+- Repos installed with `--into` work as in global mode: `devops/team-skills -p` resolves to `devops/_team-skills`, and a skill or folder inside a tracked repo cannot be removed on its own
 
 ```bash
 skillshare uninstall pdf -p

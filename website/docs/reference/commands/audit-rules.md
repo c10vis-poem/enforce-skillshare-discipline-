@@ -292,6 +292,7 @@ Source of truth for regex-based rules:
 | `prompt-injection-2` | prompt-injection | HIGH |
 | `prompt-injection-3` | prompt-injection | CRITICAL |
 | `prompt-injection-4` | prompt-injection | CRITICAL |
+| `prompt-injection-5` | prompt-injection | HIGH |
 | `hidden-unicode-1` | invisible-payload | CRITICAL |
 | `data-exfiltration-0` | data-exfiltration | CRITICAL |
 | `data-exfiltration-1` | data-exfiltration | CRITICAL |
