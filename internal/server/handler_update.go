@@ -175,7 +175,9 @@ func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) up
 	if refusal := s.refuseFollowedCheckout(name, skillPath, []*sourcewalk.Follow{walk.Follow}); refusal != nil {
 		return *refusal
 	}
-	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" {
+	// A tracked repo's own entry has a Source too; a reinstall would drop its
+	// tracked state, so checkouts always go to the tracked-repo update.
+	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" && !entry.Tracked && !install.IsGitRepo(skillPath) {
 		return s.updateRegularSkill(name, skillPath, force, skipAudit, walk.Follow)
 	}
 

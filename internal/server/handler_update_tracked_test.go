@@ -212,3 +212,26 @@ func TestTrackedBlockMessage(t *testing.T) {
 		}
 	}
 }
+
+// A tracked repo's own metadata entry has a Source too; updating it by name must
+// pull the checkout, not reinstall it as a regular skill and drop tracked (#473).
+func TestUpdateSingle_TrackedEntryUpdatesAsRepo(t *testing.T) {
+	for _, name := range []string{"_team", "org/_team"} {
+		t.Run(name, func(t *testing.T) {
+			s, src := newTestServer(t)
+			base := t.TempDir()
+			remote := testutil.SetupBareRemoteRepo(t, base)
+			testutil.SeedRemoteBranch(t, base, remote, "main", map[string]string{"child/SKILL.md": trackedCleanSkill})
+			testutil.RunGit(t, "", "clone", remote, filepath.Join(src, name))
+			s.skillsStore.Set(name, &install.MetadataEntry{Source: "file://" + remote, Tracked: true})
+
+			got := s.updateSingleByKind(name, "skill", false, true)
+			if !got.IsRepo || got.Action != "up-to-date" {
+				t.Fatalf("got %+v, want an up-to-date repo update", got)
+			}
+			if entry := s.skillsStore.GetByPath(name); entry == nil || !entry.Tracked {
+				t.Errorf("tracked flag lost: %+v", entry)
+			}
+		})
+	}
+}
