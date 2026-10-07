@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "保留规则",
   "targetDetail.piExtensions.switchLabel": "在 {name} 中加载 {pkg} 的 {path}",
   "targetDetail.piExtensions.managedBy": "由 Skillshare 管理",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "这个包没有扩展。",
   "targetDetail.piExtensions.readOnlyTag": "只读",
   "targetDetail.piExtensions.summary": "{on} / {total} 开启",

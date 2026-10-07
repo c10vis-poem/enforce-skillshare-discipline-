@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "نگه‌داشتن قاعده",
   "targetDetail.piExtensions.switchLabel": "بارگذاری {path} از {pkg} در {name}",
   "targetDetail.piExtensions.managedBy": "مدیریت‌شده توسط Skillshare",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "این بسته هیچ افزونه‌ای ندارد.",
   "targetDetail.piExtensions.readOnlyTag": "فقط‌خواندنی",
   "targetDetail.piExtensions.summary": "{on} / {total} روشن",

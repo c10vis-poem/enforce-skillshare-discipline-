@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, ArrowRight, ChevronDown, CircleCheck, FileDiff, Folder, Info, Lock, Package, Puzzle, RotateCcw, X } from 'lucide-react';
 import { piExtensionsApi } from '../../api/piExtensions';
+import { pluginsApi } from '../../api/plugins';
 import PiPackageIcon from '../PiPackageIcon';
+import { piPackageTest } from '../plugins/pluginsFlow';
 import type { PiExtensionAction, PiExtensionChange, PiExtensionFolder, PiExtensionPackage, PiExtensionRow, PiExtensionsPlan, PiExtensionsView, PiSelection } from '../../api/piExtensions';
 import { queryKeys } from '../../lib/queryKeys';
 import { shortenHome } from '../../lib/paths';
@@ -38,6 +40,9 @@ function ExtensionsView({ name, view, applied, setApplied, t }: { name: string; 
   // Pending choices per package row; nothing is written until the review applies them.
   const [pending, setPending] = useState<Record<string, PiExtensionAction>>({});
   const [reviewing, setReviewing] = useState(false);
+  // Which managed entries are Pi packages rather than plugins, as the Plugins page splits them.
+  const { data: inventory } = useQuery({ queryKey: queryKeys.pluginPackages, queryFn: () => pluginsApi.list(false) });
+  const isPi = piPackageTest(inventory);
   const project = view.scope === 'project';
   // Opens the add dialog with this target ticked; a project's target is not a Plugins page Agent.
   const addPackage = `/plugins?add=${project ? '' : encodeURIComponent(name)}`;
@@ -76,7 +81,7 @@ function ExtensionsView({ name, view, applied, setApplied, t }: { name: string; 
       ) : (
         <div className="flex flex-col gap-4">
           {view.packages.map((p) => (
-            <PackageCard key={`${p.scope}:${p.index}`} pkg={p} name={name} ownsRules={!project || p.scope === 'project'} pending={pending} set={set} t={t} />
+            <PackageCard key={`${p.scope}:${p.index}`} pkg={p} name={name} ownsRules={!project || p.scope === 'project'} plugin={Boolean(p.managedBy) && !isPi(p.managedBy ?? '')} pending={pending} set={set} t={t} />
           ))}
           {view.folders.map((f) => <FolderCard key={`${f.scope ?? ''}:${f.path}`} folder={f} t={t} />)}
         </div>
@@ -150,12 +155,12 @@ function sharedDir(paths: string[]) {
 const isOn = (row: PiExtensionRow, action?: PiExtensionAction) =>
   action === 'default' && row.unruled ? row.unruled === 'loads' : action === 'select' || (action !== 'exclude' && row.selection === 'loads');
 
-/** One package: a summary header, then its extensions as a grid. ownsRules: the rules shown are in the file this view writes, so one can be removed. */
-function PackageCard({ pkg, name, ownsRules, pending, set, t }: { pkg: PiExtensionPackage; name: string; ownsRules: boolean; pending: Record<string, PiExtensionAction>; set: SetAction; t: T }) {
+/** One package: a summary header, then its extensions as a grid. ownsRules: the rules shown are in the file this view writes, so one can be removed. plugin: managed by Skillshare as a plugin, not a Pi package. */
+function PackageCard({ pkg, name, ownsRules, plugin, pending, set, t }: { pkg: PiExtensionPackage; name: string; ownsRules: boolean; plugin: boolean; pending: Record<string, PiExtensionAction>; set: SetAction; t: T }) {
   const [details, setDetails] = useState(false);
   // A plugin Skillshare installs is a local path into its state directory: its name says which one.
-  const title = pkg.managedBy ? `${t('plugins.title')} · ${pkg.managedBy}` : pkg.identity || pkg.source;
-  const Icon = pkg.managedBy ? Package : PiPackageIcon;
+  const title = pkg.managedBy ? `${t(plugin ? 'targetDetail.piExtensions.plugin' : 'targetDetail.piExtensions.package')} · ${pkg.managedBy}` : pkg.identity || pkg.source;
+  const Icon = plugin ? Package : PiPackageIcon;
   const actionOf = (r: PiExtensionRow) => pending[keyOf(pkg.scope, pkg.index, r.path)];
   const on = pkg.rows.filter((r) => isOn(r, actionOf(r))).length;
   const locked = Boolean(pkg.readOnly) || (pkg.rows.length > 0 && pkg.rows.every((r) => !r.editable));
@@ -164,7 +169,7 @@ function PackageCard({ pkg, name, ownsRules, pending, set, t }: { pkg: PiExtensi
   return (
     <section className="ss-list !shadow-none" aria-label={title}>
       <div className="ss-r !min-h-[60px]">
-        <span className={`ss-cat bg-sunken ${pkg.managedBy ? 'text-ink-2' : 'text-ink'}`} title={pkg.managedBy ? t('targetDetail.piExtensions.managedBy') : undefined} aria-hidden><Icon size={26} /></span>
+        <span className={`ss-cat bg-sunken ${plugin ? 'text-ink-2' : 'text-ink'}`} title={pkg.managedBy ? t('targetDetail.piExtensions.managedBy') : undefined} aria-hidden><Icon size={26} /></span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="nm m truncate" title={pkg.source}>{title}</span>
           {(pkg.kind || pkg.version || pkg.shape || pkg.managedBy) && (

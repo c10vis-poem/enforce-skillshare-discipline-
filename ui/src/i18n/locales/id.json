@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "Pertahankan aturan",
   "targetDetail.piExtensions.switchLabel": "Muat {path} dari {pkg} di {name}",
   "targetDetail.piExtensions.managedBy": "Dikelola Skillshare",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "Paket ini tidak memiliki ekstensi.",
   "targetDetail.piExtensions.readOnlyTag": "Hanya baca",
   "targetDetail.piExtensions.summary": "{on} / {total} aktif",

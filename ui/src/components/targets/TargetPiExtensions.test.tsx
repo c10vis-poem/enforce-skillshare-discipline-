@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/client';
 import { piExtensionsApi, type PiExtensionsPlan, type PiExtensionsView } from '../../api/piExtensions';
+import { pluginsApi, type PluginInventory } from '../../api/plugins';
 import { I18nProvider } from '../../i18n';
 import { queryKeys } from '../../lib/queryKeys';
 import TargetPiExtensions from './TargetPiExtensions';
@@ -12,6 +13,11 @@ import TargetPiExtensions from './TargetPiExtensions';
 vi.mock('../../api/piExtensions', async (load) => ({
   ...await load<typeof import('../../api/piExtensions')>(),
   piExtensionsApi: { get: vi.fn(), preview: vi.fn(), apply: vi.fn() },
+}));
+// No inventory: every managed entry is a plugin. A test that needs a Pi package resolves its own.
+vi.mock('../../api/plugins', async (load) => ({
+  ...await load<typeof import('../../api/plugins')>(),
+  pluginsApi: { list: vi.fn(() => Promise.resolve({ packages: {}, targetDefinitions: [], hosts: [] })) },
 }));
 
 const pkg = '/home/me/pkgs/tools';
@@ -108,7 +114,7 @@ describe('Pi target Extensions tab', () => {
   it.each(['local', 'npm'] as const)('labels a managed %s plugin like OMP without changing its selection identity', async (kind) => {
     const user = userEvent.setup();
     show(global({ packages: [{ ...global().packages[0], kind, version: '5.0.0', managedBy: 'superpowers' }] }));
-    const card = await screen.findByRole('region', { name: 'Plugins · superpowers' });
+    const card = await screen.findByRole('region', { name: 'Plugin · superpowers' });
     expect(card.querySelector('.lucide-package')).toBeInTheDocument();
     expect(within(card).getByText('5.0.0')).toBeInTheDocument();
     expect(within(card).queryByText('plugin')).not.toBeInTheDocument();
@@ -123,14 +129,25 @@ describe('Pi target Extensions tab', () => {
     expect(within(card).getAllByRole('switch')).toHaveLength(2);
     expect(screen.getByRole('toolbar')).toHaveTextContent('1 extension change');
     await user.click(within(card).getByRole('button', { name: 'Details' }));
-    expect(within(card).getByRole('region', { name: 'Details of Plugins · superpowers' })).toHaveTextContent(pkg);
+    expect(within(card).getByRole('region', { name: 'Details of Plugin · superpowers' })).toHaveTextContent(pkg);
+  });
+
+  it('labels a managed Pi package as a package with the Pi mark', async () => {
+    vi.mocked(pluginsApi.list).mockResolvedValueOnce({
+      packages: { 'pi-subagents': { bindings: { pi: { id: 'npm:pi-subagents' } } } },
+      targetDefinitions: [{ target: 'pi', npm: true }], hosts: [],
+    } as unknown as PluginInventory);
+    show(global({ packages: [{ ...global().packages[0], kind: 'npm', version: '0.76.1', managedBy: 'pi-subagents' }] }));
+    const card = await screen.findByRole('region', { name: 'Package · pi-subagents' });
+    expect(card.querySelector('.lucide-package')).not.toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Open Plugins' })).toHaveAttribute('href', '/plugins');
   });
 
   it('keeps a managed project plugin\'s native override shape and rule controls', async () => {
     const data = project();
     data.packages = [{ ...data.packages[0], managedBy: 'superpowers' }];
     show(data);
-    const card = await screen.findByRole('region', { name: 'Plugins · superpowers' });
+    const card = await screen.findByRole('region', { name: 'Plugin · superpowers' });
     expect(within(card).getByText('Changes pi (global)')).toBeInTheDocument();
     expect(within(card).getByRole('switch', { name: `Load extensions/a.ts from ${pkg} in acme@pi` })).not.toBeChecked();
     expect(within(card).getByRole('button', { name: 'Remove rule' })).toBeInTheDocument();

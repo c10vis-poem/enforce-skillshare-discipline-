@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "ルールを残す",
   "targetDetail.piExtensions.switchLabel": "{name} で {pkg} の {path} を読み込む",
   "targetDetail.piExtensions.managedBy": "Skillshare で管理",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "このパッケージには拡張機能がありません。",
   "targetDetail.piExtensions.readOnlyTag": "読み取り専用",
   "targetDetail.piExtensions.summary": "{on} / {total} オン",

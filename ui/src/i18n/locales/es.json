@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "Mantener regla",
   "targetDetail.piExtensions.switchLabel": "Cargar {path} de {pkg} en {name}",
   "targetDetail.piExtensions.managedBy": "Gestionado por Skillshare",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "Este paquete no tiene extensiones.",
   "targetDetail.piExtensions.readOnlyTag": "Solo lectura",
   "targetDetail.piExtensions.summary": "{on} / {total} activadas",

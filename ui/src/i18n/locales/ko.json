@@ -2811,6 +2811,8 @@
   "targetDetail.piExtensions.keepRule": "규칙 유지",
   "targetDetail.piExtensions.switchLabel": "{name}에서 {pkg}의 {path} 로드",
   "targetDetail.piExtensions.managedBy": "Skillshare에서 관리",
+  "targetDetail.piExtensions.package": "Package",
+  "targetDetail.piExtensions.plugin": "Plugin",
   "targetDetail.piExtensions.noExtensions": "이 패키지에는 확장 기능이 없습니다.",
   "targetDetail.piExtensions.readOnlyTag": "읽기 전용",
   "targetDetail.piExtensions.summary": "{on} / {total} 켜짐",
