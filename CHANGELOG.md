@@ -2,38 +2,37 @@
 
 ## [0.25.2] - 2026-10-07
 
-
 ### Bug Fixes
 
-* **audit:** distinguish SDK examples from prompt injection ([aee75b6](https://github.com/runkids/skillshare/commit/aee75b69d646e109992d4647b2fb6b0d502918b2))
-* **audit:** preserve exclusions for custom disclosure rules ([2922026](https://github.com/runkids/skillshare/commit/2922026264365e5d16f907e5bdc7fbce92564f1d))
-* **audit:** preserve shell flows across Markdown boundaries ([e55ec29](https://github.com/runkids/skillshare/commit/e55ec290b7c1df604ad98829be34d88ad884d35d))
-* **audit:** reduce false positives in Markdown examples ([87d1924](https://github.com/runkids/skillshare/commit/87d1924bbed413334876faf475335b6c37c82dfa))
-* **config:** preserve grouped legacy tracked metadata ([79e080c](https://github.com/runkids/skillshare/commit/79e080cb13b65358c06f8d74f3069b22daa57d27))
-* **config:** reconcile tracked checkouts by exact metadata key ([acd8e7e](https://github.com/runkids/skillshare/commit/acd8e7e9bc7faad9cfa4ff705e5b1369e8bf770b))
-* **config:** reconcile tracked checkouts by exact metadata key ([27ad93f](https://github.com/runkids/skillshare/commit/27ad93fae1efbfca0d7e06a206e5e3df603a8bf9))
-* keep git folders inside a tracked repo out of repo uninstall ([f9ed436](https://github.com/runkids/skillshare/commit/f9ed43611d9ed9b362b1d1b47044584478b731cb))
-* **server:** report tracked repo source for nested skills ([9191451](https://github.com/runkids/skillshare/commit/91914517a0fe554d12f09b0e752cda0bc3ff4624))
-* **server:** report tracked repo source for nested skills ([8b350ed](https://github.com/runkids/skillshare/commit/8b350ed6d0fa9bf9dfff2c384c6915dd87bbdf57)), closes [#467](https://github.com/runkids/skillshare/issues/467)
-* **server:** update tracked repos as repos from the dashboard ([111b0ce](https://github.com/runkids/skillshare/commit/111b0ce441cff0d8c53eb38f185f8f8ce801cc13))
-* **server:** update tracked repos as repos from the dashboard ([72f2e31](https://github.com/runkids/skillshare/commit/72f2e31664b8cbad9679be9c5f84c65786ba0457)), closes [#473](https://github.com/runkids/skillshare/issues/473)
-* treat tracked repos installed with --into as repos ([d617fc2](https://github.com/runkids/skillshare/commit/d617fc22a6f5cea8ccfb9e82481d232e45e7535e))
-* treat tracked repos installed with --into as repos ([4dd62d4](https://github.com/runkids/skillshare/commit/4dd62d4ce51167910c9601b6353046e0802945e9)), closes [#470](https://github.com/runkids/skillshare/issues/470)
-* **ui:** give a repo-root skill its tracked repo row in the tree ([371561e](https://github.com/runkids/skillshare/commit/371561ef9f67ce48f209b06985326c1d947cd473))
-* **ui:** label Pi packages as packages in the Pi Extensions tab ([9234861](https://github.com/runkids/skillshare/commit/9234861fadaeb619e3b68f865a27dcbf6d29fc1d))
-* **uninstall:** refuse removing part of a tracked repo's checkout ([504713b](https://github.com/runkids/skillshare/commit/504713b065b45156d0164e05db75a78a09b8fd87))
-* **uninstall:** resolve tracked repo shorthand under --into ([ee41cf0](https://github.com/runkids/skillshare/commit/ee41cf05d10a17b04e2e03955c699983bf4f5bbe))
-* **uninstall:** resolve tracked repo shorthand under --into ([335dabd](https://github.com/runkids/skillshare/commit/335dabd54d79dcad8fde1f4d98c0052540435368))
-* **update:** accept the org/team shorthand for --into repos in every entry point ([6eb7554](https://github.com/runkids/skillshare/commit/6eb75547bf190d8eca91f44be805392de0fb1c1e))
-* **update:** accept the org/team shorthand for --into repos in every entry point ([84ed67b](https://github.com/runkids/skillshare/commit/84ed67b13dcdd5aa593b1b384ec50b37f10eba2e))
-* **update:** clean the name before the single-update skill lookup ([8bf43f2](https://github.com/runkids/skillshare/commit/8bf43f2480b5269195a55cece2b870b0cb07beed))
-* **update:** keep --into repo metadata refresh on its own entry ([84688b6](https://github.com/runkids/skillshare/commit/84688b6e37c8a1148da13b39f6d5478b4e28cb30))
-* **update:** keep an existing skill ahead of the nested shorthand ([414d193](https://github.com/runkids/skillshare/commit/414d193114a5a47a844f51eac945bdc3a3bef7ca))
-* **update:** repair tracked repo entries rewritten as regular installs ([51d0a1e](https://github.com/runkids/skillshare/commit/51d0a1e5e9001d3cdb74a5e1b170c162a4c65006))
-* **update:** share the tracked checkout rule and tighten the repair ([3479c42](https://github.com/runkids/skillshare/commit/3479c42420f1c9f75f6a1d95a8d4a9fe09eb39eb))
-* **update:** use the tracked checkout rule in every update and reconcile path ([c1fe1b3](https://github.com/runkids/skillshare/commit/c1fe1b39a80cad71bce482427faea74c542a0b9f))
-* **update:** use the tracked checkout rule in every update and reconcile path ([0be5164](https://github.com/runkids/skillshare/commit/0be5164159f9499cad4f8e75e5b285086235f6cc)), closes [#476](https://github.com/runkids/skillshare/issues/476)
-* use the --into repo path in skill counts, list groups and the tree ([d15d9d7](https://github.com/runkids/skillshare/commit/d15d9d794cfab188214d347ea0aee0af45beef27))
+#### Tracked repositories
+
+- **Tracked repos installed with `--into` are treated as repos** — `install --track --into <dir>` places the checkout at `<dir>/_repo`, but discovery only recognized a repo at the top level. Its skills were listed as ordinary skills, counted outside the repo in `list` and `status`, grouped wrongly in the dashboard tree, and `uninstall <dir>/_repo` could not remove it as a repo. `list`, `status`, `check`, the dashboard and `uninstall` now treat it as the tracked repo it is. Refs: #470.
+  ```bash
+  skillshare install github.com/team/skills --track --into devops
+  skillshare uninstall devops/_skills
+  ```
+- **Updating a tracked repo from the dashboard keeps it tracked** — the Update button reinstalled the repo as a regular skill and dropped its tracked state, after which `skillshare update <repo>` failed with "matches multiple items". The dashboard now pulls the repo like the CLI does. An entry that was already rewritten is repaired on the repo's next update, from the CLI or the dashboard. Refs: #473.
+- **`update` and `uninstall` accept `org/team` for a repo installed with `--into org`** — the shorthand worked only for the dashboard's single update; the batch update, `update`, `update -p` and `uninstall` looked for `_org/team` and failed. Every entry point now resolves `org/team` to `org/_team`. A skill or folder that exists at the typed path still wins, and a name that matches more than one repo is an error rather than a guess.
+  ```bash
+  skillshare update devops/skills
+  skillshare uninstall devops/skills --dry-run
+  ```
+- **Only `_`-prefixed git checkouts are tracked repos** — a plain git checkout in the source, such as a skill cloned by hand, was updated with `git pull` by the dashboard's batch update, `update --group` and `update -p`, and `reconcile` marked it as tracked. It is now handled as a regular skill everywhere. An old entry with `tracked: true` keeps its source and branch; only the flag is cleared on the next reconcile. Refs: #476.
+- **Removing part of a tracked repo is refused** — `uninstall` moved a skill or folder out of a tracked repo's checkout, leaving the repo with deleted files. It now fails with `inside a tracked repo; uninstall the repo instead`, even with `--force`. Skills under a followed source link can still be removed one at a time.
+- **A nested tracked repo no longer takes over a top-level repo's metadata** — when `org/_team` had no metadata entry and a top-level `_team` existed, reconcile moved `_team`'s entry, with its source, to `org/_team`, and the wrong source stayed there. Each repo now keeps its own entry; entries from the older registry format are still recognized. Refs: #478.
+- **The dashboard shows owner/repo for skills inside a tracked repo** — skills in a subfolder of a tracked repo, such as `_skills/skills/engineering/tdd`, had no source, so their cards on the Updates tab showed only `tracked`. Refs: #467.
+- **A skill at the root of a tracked repo appears under its repo in the dashboard tree** — it was listed beside the repo instead of inside it.
+
+#### Dashboard
+
+- **The Pi Extensions tab tells packages from plugins** — every entry Skillshare manages was titled `Plugins · <name>` with a box icon, so a Pi package installed through the Plugins page looked like a plugin. A Pi package now reads `Package · <name>` with Pi's black and white mark, and a plugin reads `Plugin · <name>`.
+
+#### Audit
+
+- **SDK `system:` parameters in Markdown examples no longer block installs** — API examples in skill documentation, such as those in anthropics/skills, were reported as CRITICAL prompt injection, so the default policy blocked their install and update. Recognized SDK parameter shapes are now HIGH: the default policy warns, `--strict` still blocks, and explicit instructions to hide content remain CRITICAL. Refs: #468.
+  - Generic disclosure restrictions now use the HIGH rule `prompt-injection-5`. Existing overrides or accepted findings for `prompt-injection-4` do not carry over to it.
+- **Shell analysis follows commands across Markdown boundaries** — a blank line inside raw HTML or a comment split a shell data flow in two, and a code fence whose info string used a tab was skipped. Both are now analyzed.
+- **Custom disclosure rules keep their exclusions** — replacing a built-in disclosure rule's regex dropped its whole-line exclusions. They are now kept, including when only the severity or `enabled` state is overridden.
 
 ## [0.25.1] - 2026-10-07
 
