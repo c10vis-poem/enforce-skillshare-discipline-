@@ -3,7 +3,6 @@ package server
 import (
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"skillshare/internal/git"
 	"skillshare/internal/install"
@@ -108,7 +107,7 @@ func buildTrackedRepos(sourceDir string, skills []sync.DiscoveredSkill, walk sou
 		// Count skills belonging to this repo
 		skillCount := 0
 		for _, sk := range skills {
-			if sk.IsInRepo && strings.HasPrefix(sk.RelPath, repoName+"/") {
+			if sk.RepoRelPath == repoName {
 				skillCount++
 			}
 		}

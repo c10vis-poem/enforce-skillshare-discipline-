@@ -1,5 +1,5 @@
 import type { Skill, SourceLink } from '../../api/client';
-import { sourceLinkOf } from '../../lib/resourceGrouping';
+import { repoOf, sourceLinkOf } from '../../lib/resourceGrouping';
 
 /* Pure helpers behind the Skills page tree view: folder tree, visible rows, selection. */
 
@@ -16,6 +16,7 @@ export interface FolderNode {
   skills: Skill[];
   count: number;        // skills in this folder and every subfolder
   link?: SourceLink;
+  repo?: boolean;       // tracked repo root: _team, or org/_team when installed with --into
 }
 
 /**
@@ -48,15 +49,16 @@ export function summarize(skills: Skill[]): TargetSummary {
   return { display: shown.length > 3 ? `${shown.length} targets` : shown.join(', '), targets: shown, isUniform };
 }
 
-/** A tracked repo is a top-level folder whose name starts with "_". */
+/** A tracked repo root, as marked by buildTree from its skills' repo paths. */
 export function isRepoRoot(node: FolderNode): boolean {
-  return !node.path.includes('/') && node.name.startsWith('_');
+  return !!node.repo;
 }
 
 export function buildTree(skills: Skill[], links: SourceLink[] = []): FolderNode {
   const root: FolderNode = { name: '', path: '', children: new Map(), skills: [], count: 0 };
   for (const skill of skills) {
     const link = sourceLinkOf(skill);
+    const repo = repoOf(skill);
     const slash = skill.relPath.lastIndexOf('/');
     let node = root;
     const parent = slash > 0 ? skill.relPath.slice(0, slash) : link?.name;
@@ -68,6 +70,7 @@ export function buildTree(skills: Skill[], links: SourceLink[] = []): FolderNode
         }
         node = node.children.get(seg)!;
         if (node.path === link?.name) node.link = link;
+        if (node.path === repo) node.repo = true;
       }
     }
     node.skills.push(skill);
@@ -97,7 +100,9 @@ export function flattenTree(root: FolderNode, collapsed: ReadonlySet<string>, ex
       const names = [child.name];
       // Repo and link roots keep their own row so their tags and actions stay visible.
       while (!repo && !child.link && deepest.skills.length === 0 && deepest.children.size === 1) {
-        deepest = deepest.children.values().next().value!;
+        const next = deepest.children.values().next().value!;
+        if (isRepoRoot(next)) break; // an --into repo (org/_team) keeps its own row too
+        deepest = next;
         names.push(deepest.name);
       }
       const isCollapsed = !expandAll && collapsed.has(deepest.path);
