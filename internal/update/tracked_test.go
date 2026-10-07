@@ -336,3 +336,18 @@ func TestTrackedRepo_RefreshesRootSkillMetadata(t *testing.T) {
 		t.Errorf("root skill hashes were not refreshed: %+v", entry)
 	}
 }
+
+func TestTrackedRepo_WarnsWhenPullAddsSubmodule(t *testing.T) {
+	f := newFixture(t, cleanSkill+"More help.\n")
+	testutil.RunGit(t, f.seed, "update-index", "--add", "--cacheinfo", "160000,"+f.before+",vendor/up")
+	testutil.RunGit(t, f.seed, "commit", "-m", "add submodule")
+	testutil.RunGit(t, f.seed, "push", "origin", "HEAD:main")
+
+	res, err := TrackedRepo(f.repo, f.opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(res.Warnings, "\n"); !strings.Contains(got, `skipped git submodule "vendor/up"`) {
+		t.Fatalf("warnings = %q, want a skipped-submodule warning", got)
+	}
+}

@@ -315,6 +315,7 @@ func installFromGit(source *Source, destPath string, result *InstallResult, opts
 
 	// Check for SKILL.md
 	checkSkillFile(destPath, result)
+	result.Warnings = append(result.Warnings, SubmoduleWarnings(destPath, source.authEnv())...)
 
 	// Security audit
 	if err := auditInstalledSkill(destPath, result, opts); err != nil {
@@ -516,6 +517,9 @@ func installFromGitSubdir(source *Source, destPath string, result *InstallResult
 	if gitSupportsSparseCheckout() {
 		resolved = source.Subdir
 		if err := sparseCloneSubdir(source.CloneURL, resolved, tempRepoPath, source.ref(), source.authEnv(), opts.OnProgress); err == nil {
+			if err := submoduleError(tempRepoPath, resolved, source.authEnv()); err != nil {
+				return nil, err
+			}
 			subdirPath = filepath.Join(tempRepoPath, resolved)
 			if info, statErr := os.Stat(subdirPath); statErr != nil || !info.IsDir() {
 				subdirPath = ""
@@ -588,6 +592,9 @@ func installFromGitSubdir(source *Source, destPath string, result *InstallResult
 		}
 		if err := cloneRepoForSource(source, tempRepoPath, source.Branch, true, opts.OnProgress); err != nil {
 			return nil, fmt.Errorf("failed to clone repository: %w", err)
+		}
+		if err := submoduleError(tempRepoPath, source.Subdir, source.authEnv()); err != nil {
+			return nil, err
 		}
 
 		var err error
