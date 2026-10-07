@@ -62,7 +62,7 @@ func discoverFromGitWithProgressImpl(source *Source, onProgress ProgressCallback
 		Agents:     agents,
 		Source:     source,
 		CommitHash: commitHash,
-		Warnings:   submoduleWarnings(repoPath, source.authEnv()),
+		Warnings:   SubmoduleWarnings(repoPath, source.authEnv()),
 	}, nil
 }
 

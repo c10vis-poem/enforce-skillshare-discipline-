@@ -127,9 +127,9 @@ func sameDir(a, b string) bool {
 	return errA == nil && errB == nil && os.SameFile(ai, bi)
 }
 
-// submoduleWarnings names each submodule whose contents a whole-repo install
+// SubmoduleWarnings names each submodule whose contents a whole-repo install
 // skips. It is best effort: a failed listing only loses the warnings.
-func submoduleWarnings(repoPath string, extraEnv []string) []string {
+func SubmoduleWarnings(repoPath string, extraEnv []string) []string {
 	links, _ := repoGitlinks(repoPath, extraEnv)
 	var warnings []string
 	for _, l := range links {

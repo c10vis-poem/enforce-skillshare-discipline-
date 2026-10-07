@@ -315,7 +315,7 @@ func installFromGit(source *Source, destPath string, result *InstallResult, opts
 
 	// Check for SKILL.md
 	checkSkillFile(destPath, result)
-	result.Warnings = append(result.Warnings, submoduleWarnings(destPath, source.authEnv())...)
+	result.Warnings = append(result.Warnings, SubmoduleWarnings(destPath, source.authEnv())...)
 
 	// Security audit
 	if err := auditInstalledSkill(destPath, result, opts); err != nil {

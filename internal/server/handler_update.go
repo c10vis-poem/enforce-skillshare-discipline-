@@ -358,6 +358,9 @@ func (s *Server) updateTrackedRepo(name, repoPath, sourceDir string, force, skip
 	default:
 		item.Action = "updated"
 		item.Message = fmt.Sprintf("%d commits, %d files changed", len(res.Info.Commits), res.Info.Stats.FilesChanged)
+		for _, w := range res.Warnings {
+			item.Message += "; " + w
+		}
 		if res.Audit != nil {
 			item.AuditRiskScore = res.Audit.RiskScore
 			item.AuditRiskLabel = res.Audit.RiskLabel

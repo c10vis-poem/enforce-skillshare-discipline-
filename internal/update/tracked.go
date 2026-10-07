@@ -84,12 +84,13 @@ type TrackedRepoResult struct {
 	Audit     *audit.Result   // nil when the audit was skipped or could not scan
 	Threshold string          // normalized block threshold of the audit
 
-	AcceptedSkipped int   // findings ignored because they were accepted earlier
-	Overridden      bool  // blocking findings were let through by Force or Confirm
-	Recorded        int   // findings newly recorded as accepted
-	RecordErr       error // recording accepted findings failed; the update stays applied
-	MetadataChanged bool  // root-skill hashes were rewritten under SourceDir
-	MetadataErr     error // refreshing metadata failed; the update stays applied
+	AcceptedSkipped int      // findings ignored because they were accepted earlier
+	Overridden      bool     // blocking findings were let through by Force or Confirm
+	Recorded        int      // findings newly recorded as accepted
+	RecordErr       error    // recording accepted findings failed; the update stays applied
+	MetadataChanged bool     // root-skill hashes were rewritten under SourceDir
+	MetadataErr     error    // refreshing metadata failed; the update stays applied
+	Warnings        []string // git submodules the pulled checkout leaves empty
 }
 
 // TrackedRepo updates one tracked repo: it refuses or discards uncommitted
@@ -134,6 +135,10 @@ func TrackedRepo(repoPath string, opts TrackedRepoOptions) (*TrackedRepoResult, 
 		if err := auditPulled(repoPath, res, opts); err != nil {
 			return res, err
 		}
+	}
+
+	if !info.UpToDate {
+		res.Warnings = install.SubmoduleWarnings(repoPath, git.AuthEnvForRepo(repoPath))
 	}
 
 	if opts.SourceDir != "" {

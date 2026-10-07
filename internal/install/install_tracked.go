@@ -129,7 +129,7 @@ func installTrackedRepoImpl(source *Source, sourceDir string, opts InstallOption
 	for _, skill := range skills {
 		result.Skills = append(result.Skills, skill.Name)
 	}
-	result.Warnings = append(result.Warnings, submoduleWarnings(destPath, source.authEnv())...)
+	result.Warnings = append(result.Warnings, SubmoduleWarnings(destPath, source.authEnv())...)
 
 	// Also discover agents in the tracked repo
 	agents := discoverAgents(destPath, len(skills) > 0)
@@ -208,7 +208,7 @@ func updateTrackedRepo(repoPath string, result *TrackedRepoResult, opts InstallO
 	for _, skill := range skills {
 		result.Skills = append(result.Skills, skill.Name)
 	}
-	result.Warnings = append(result.Warnings, submoduleWarnings(repoPath, nil)...)
+	result.Warnings = append(result.Warnings, SubmoduleWarnings(repoPath, nil)...)
 
 	// Also discover agents in the tracked repo
 	agents := discoverAgents(repoPath, len(skills) > 0)

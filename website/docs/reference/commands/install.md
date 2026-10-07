@@ -199,7 +199,7 @@ When specifying a subdirectory path like `owner/repo/skill-name`, if the exact p
 :::
 
 :::note Git submodules are not fetched
-skillshare does not fetch git submodules. Installing a path that is a submodule, or lies inside one, fails with an error that names the submodule, its pinned commit, and its upstream URL; install from that upstream repository instead, or copy the files into the hub. When you browse a whole repository, `install` and `--track` warn about each submodule they skip.
+skillshare does not fetch git submodules. Installing a path that is a submodule, or lies inside one, fails with an error that names the submodule, its pinned commit, and its upstream URL; install from that upstream repository instead, or copy the files into the hub. When you browse a whole repository, `install`, `--track` and `update` warn about each submodule they skip.
 :::
 
 ## Install from Config (No Arguments) {#install-from-config-no-arguments}
