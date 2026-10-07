@@ -173,7 +173,7 @@ Output suppression은 Markdown 문맥과 별개로 일치한 근거에 따라 �
 
 공통 Markdown parser가 긴 fence와 닫히지 않은 블록을 포함한 코드 블록 범위를 인식합니다. 내용은 계속 static rules로 스캔하며 shell 블록은 command-tier와 dataflow 분석도 받습니다. 코드 블록 안에 있다는 사실은 신뢰의 근거가 아닙니다. HTML 블록과 주석 안의 fenced shell 예제도 같은 shell 분석을 받으며, taint는 각 블록 안으로 제한됩니다. HTML 블록에는 SDK 매개변수의 심각도 하향을 적용하지 않습니다.
 
-**규칙 재정의:** 일반적인 공개 제한은 이제 `prompt-injection-5`를 사용합니다. 기존 `prompt-injection-4` 재정의나 승인 기록은 새 규칙에 적용되지 않습니다. 일반적인 제한도 차단하려면 `prompt-injection-5`를 CRITICAL로 재정의하세요. 공개 제한 규칙의 심각도 재정의는 유지됩니다. Strict에서 검토한 오탐은 [Accepted Findings](../reference/commands/update.md#accepted-findings)를 사용할 수 있습니다. 규칙, 파일 또는 일치한 텍스트가 바뀌면 다시 승인해야 합니다. CRITICAL을 포함한 명시적 글로벌 또는 프로젝트 심각도 재정의가 SDK 매개변수의 심각도 하향보다 우선합니다. 규칙 5는 명시적인 은폐 구문만 제외하고, 같은 줄의 별도 일반 공개 제한은 유지합니다. 규칙 4를 비활성화하거나 낮은 심각도로 변경해도 이 탐지는 유지됩니다.
+**규칙 재정의:** 일반적인 공개 제한은 이제 `prompt-injection-5`를 사용합니다. 기존 `prompt-injection-4` 재정의나 승인 기록은 새 규칙에 적용되지 않습니다. 일반적인 제한도 차단하려면 `prompt-injection-5`를 CRITICAL로 재정의하세요. 공개 제한 규칙의 심각도 재정의는 유지됩니다. Strict에서 검토한 오탐은 [Accepted Findings](../reference/commands/update.md#accepted-findings)를 사용할 수 있습니다. 규칙, 파일 또는 일치한 텍스트가 바뀌면 다시 승인해야 합니다. CRITICAL을 포함한 명시적 글로벌 또는 프로젝트 심각도 재정의가 SDK 매개변수의 심각도 하향보다 우선합니다. 내장 규칙 5는 명시적인 은폐 구문만 제외하고, 같은 줄의 별도 일반 공개 제한은 유지합니다. 규칙 4를 비활성화하거나 낮은 심각도로 변경해도 이 탐지는 유지됩니다. 사용자 정의 정규식으로 완전히 교체한 규칙은 기존의 전체 줄 제외 동작을 유지합니다.
 
 **방어:** 설치 전 항상 skill 파일을 검토하세요. `skillshare audit`을 사용해 알려진 인젝션 패턴을 탐지하세요. 조직 배포의 경우, 숨겨진 주석 인젝션까지 잡아내려면 `audit.block_threshold: HIGH`를 설정하세요.
 

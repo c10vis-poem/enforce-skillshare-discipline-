@@ -66,7 +66,7 @@ Markdown is still scanned, including fenced code blocks. A shared Markdown parse
 
 HIGH findings warn at the default CRITICAL threshold and block at a HIGH threshold (the `strict` profile default). Some malicious wording can also match only the generic HIGH rule; use strict when that ambiguity must block. SDK parameter context is only a syntax heuristic. Credential access, data exfiltration, and other injection rules retain their configured severity.
 
-Explicit global or project severity overrides, including CRITICAL, take precedence over SDK parameter downgrades. Generic disclosure restrictions now use `prompt-injection-5`; overrides for `prompt-injection-4` apply only to explicit concealment. Rule 5 excludes explicit-concealment phrases, not separate generic restrictions on the same line. To make generic restrictions CRITICAL, override `prompt-injection-5`. For reviewed false positives, findings accepted with `--force` remain visible and are remembered for that resource; a different rule, file, or matched text requires acceptance again.
+Explicit global or project severity overrides, including CRITICAL, take precedence over SDK parameter downgrades. Generic disclosure restrictions now use `prompt-injection-5`; overrides for `prompt-injection-4` apply only to explicit concealment. Built-in rule 5 excludes explicit-concealment phrases, not separate generic restrictions on the same line. Full custom regex replacements retain whole-line exclusion semantics. To make generic restrictions CRITICAL, override `prompt-injection-5`. For reviewed false positives, findings accepted with `--force` remain visible and are remembered for that resource; a different rule, file, or matched text requires acceptance again.
 
 ## Config
 

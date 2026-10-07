@@ -173,7 +173,7 @@ Output suppression 按匹配的证据分级，不取决于 Markdown 上下文：
 
 共用 Markdown parser 识别 fenced code block 的边界，包括较长的 fence 与未闭合区块。区块内容仍接受 static rules 扫描，shell 区块也接受 command-tier 与 dataflow 分析。位于代码块内不代表可信。 原始 HTML 块和注释内的 fenced shell 示例也会接受相同的 shell 分析，taint 限定在各代码块内；原始 HTML 块不适用 SDK 参数降级。
 
-**规则覆盖：** 一般披露限制改用 `prompt-injection-5`。既有 `prompt-injection-4` 的覆盖或接受记录不会应用到新规则。将 `prompt-injection-5` 覆盖为 CRITICAL，可保留对一般限制的阻止。披露限制规则的严重级别覆盖会被遵守。Strict 下已审查的误报可使用 [Accepted Findings](../reference/commands/update.md#accepted-findings)；规则、文件或匹配文字改变后，必须重新接受。 显式设置的全局或项目严重级别覆盖，包括 CRITICAL，优先于 SDK 参数降级。 规则 5 仅排除明确隐瞒的短语，同一行中独立的一般披露限制仍会报告，即使规则 4 已停用或降级。
+**规则覆盖：** 一般披露限制改用 `prompt-injection-5`。既有 `prompt-injection-4` 的覆盖或接受记录不会应用到新规则。将 `prompt-injection-5` 覆盖为 CRITICAL，可保留对一般限制的阻止。披露限制规则的严重级别覆盖会被遵守。Strict 下已审查的误报可使用 [Accepted Findings](../reference/commands/update.md#accepted-findings)；规则、文件或匹配文字改变后，必须重新接受。 显式设置的全局或项目严重级别覆盖，包括 CRITICAL，优先于 SDK 参数降级。 内置规则 5 仅排除明确隐瞒的短语，同一行中独立的一般披露限制仍会报告，即使规则 4 已停用或降级。 完整替换为自定义 regex 的规则仍保留整行排除语义。
 
 **防御措施：** 安装前务必审查 skill 文件。使用 `skillshare audit` 检测已知的注入模式。对于组织级部署，设置 `audit.block_threshold: HIGH` 以同时捕获隐藏的注释注入。
 

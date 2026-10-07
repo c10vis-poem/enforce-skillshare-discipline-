@@ -98,3 +98,26 @@ func TestOutputSuppressionMixedRuleOverrides(t *testing.T) {
 		}
 	}
 }
+
+func TestOutputSuppressionCustomRuleExclude(t *testing.T) {
+	rules, err := compileRules(mergeYAMLRules(builtinYAML(), []yamlRule{{
+		ID: "prompt-injection-5", Severity: SeverityHigh, Pattern: "prompt-injection",
+		Regex: `(?i)secret`, Exclude: `(?i)safe`,
+	}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, content := range []string{"safe secret", "secret"} {
+		for _, findings := range [][]Finding{
+			ScanContentWithRules([]byte(content), "example.txt", rules),
+			ScanMarkdownContentWithRules([]byte(content), "README.md", rules),
+		} {
+			if content == "safe secret" && len(findings) != 0 {
+				t.Fatalf("custom exclude must suppress the whole line: %+v", findings)
+			}
+			if content == "secret" && (len(findings) != 1 || findings[0].RuleID != "prompt-injection-5") {
+				t.Fatalf("custom rule must still match without its exclusion: %+v", findings)
+			}
+		}
+	}
+}

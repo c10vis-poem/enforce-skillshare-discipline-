@@ -101,6 +101,7 @@ type rule struct {
 	Regex              *regexp.Regexp
 	Exclude            *regexp.Regexp // if non-nil, suppress match when this also matches
 	severityOverridden bool
+	excludePhrase      bool
 	// prefilter is a conservative literal that must appear in a candidate line
 	// before running the full regex. Empty means no fast prefilter is available.
 	prefilter     string
@@ -117,6 +118,7 @@ type yamlRule struct {
 	Exclude            string `yaml:"exclude,omitempty"`
 	Enabled            *bool  `yaml:"enabled,omitempty"` // nil = true; false = disable
 	severityOverridden bool   `yaml:"-"`
+	excludePhrase      bool   `yaml:"-"`
 }
 
 type rulesFile struct {
@@ -130,7 +132,7 @@ func (r rule) matchesLine(line string) bool {
 	if r.Exclude == nil || !r.Exclude.MatchString(line) {
 		return true
 	}
-	if r.ID == "prompt-injection-5" {
+	if r.excludePhrase {
 		// Exclude explicit-concealment phrases, not separate generic directives.
 		return r.Regex.MatchString(r.Exclude.ReplaceAllString(line, " "))
 	}
@@ -156,12 +158,11 @@ var (
 // loadBuiltinRules parses and compiles the embedded rules.yaml + table-driven credential rules.
 func loadBuiltinRules() ([]rule, error) {
 	builtinOnce.Do(func() {
-		yr, err := parseRulesYAML(defaultRulesData)
+		yr, err := parseBuiltinRulesYAML()
 		if err != nil {
 			builtinRulesErr = fmt.Errorf("builtin rules: %w", err)
 			return
 		}
-		yr = append(yr, credentialYAMLRules()...)
 		builtinRules, builtinRulesErr = compileRules(yr)
 	})
 	return builtinRules, builtinRulesErr
@@ -239,14 +240,24 @@ func RulesWithProject(projectRoot string) ([]rule, error) {
 // Result is cached; returns a copy to prevent mutation of the cache.
 func builtinYAML() []yamlRule {
 	builtinYAMLOnce.Do(func() {
-		var f rulesFile
 		// Already validated in loadBuiltinRules, safe to ignore error
-		yaml.Unmarshal(defaultRulesData, &f) //nolint:errcheck
-		builtinYAMLCache = append(f.Rules, credentialYAMLRules()...)
+		builtinYAMLCache, _ = parseBuiltinRulesYAML()
 	})
 	result := make([]yamlRule, len(builtinYAMLCache))
 	copy(result, builtinYAMLCache)
 	return result
+}
+
+func parseBuiltinRulesYAML() ([]yamlRule, error) {
+	rules, err := parseRulesYAML(defaultRulesData)
+	if err != nil {
+		return nil, err
+	}
+	rules = append(rules, credentialYAMLRules()...)
+	for i := range rules {
+		rules[i].excludePhrase = rules[i].ID == "prompt-injection-5"
+	}
+	return rules, nil
 }
 
 // parseRulesYAML parses YAML bytes into yamlRule slice.
@@ -284,6 +295,7 @@ func compileRules(yr []yamlRule) ([]rule, error) {
 			Message:            y.Message,
 			Regex:              re,
 			severityOverridden: y.severityOverridden,
+			excludePhrase:      y.excludePhrase,
 		}
 		r.prefilter, r.prefilterFold = deriveRulePrefilter(y.Regex, re)
 		if y.Exclude != "" {

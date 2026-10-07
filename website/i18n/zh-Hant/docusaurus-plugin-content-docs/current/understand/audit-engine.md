@@ -173,7 +173,7 @@ Output suppression 依命中的證據分級，不取決於 Markdown 上下文：
 
 共用 Markdown parser 辨識 fenced code block 的邊界，包括較長的 fence 與未閉合區塊。區塊內容仍接受 static rules 掃描，shell 區塊也接受 command-tier 與 dataflow 分析。位於程式碼區塊內不代表可信。 原始 HTML 區塊和註解內的 fenced shell 範例也會接受相同的 shell 分析，taint 限定在各程式碼區塊內；原始 HTML 區塊不適用 SDK 參數降級。
 
-**規則覆寫：** 一般揭露限制改用 `prompt-injection-5`。既有 `prompt-injection-4` 的覆寫或接受紀錄不會套用到新規則。將 `prompt-injection-5` 覆寫為 CRITICAL，可保留對一般限制的封鎖。揭露限制規則的嚴重程度覆寫會被遵守。Strict 下已審查的誤報可使用 [Accepted Findings](../reference/commands/update.md#accepted-findings)；規則、檔案或匹配文字改變後，必須重新接受。 明確設定的全域或專案嚴重程度覆寫，包括 CRITICAL，優先於 SDK 參數降級。 規則 5 僅排除明確隱瞞的片語，同一行中獨立的一般揭露限制仍會回報，即使規則 4 已停用或降級。
+**規則覆寫：** 一般揭露限制改用 `prompt-injection-5`。既有 `prompt-injection-4` 的覆寫或接受紀錄不會套用到新規則。將 `prompt-injection-5` 覆寫為 CRITICAL，可保留對一般限制的封鎖。揭露限制規則的嚴重程度覆寫會被遵守。Strict 下已審查的誤報可使用 [Accepted Findings](../reference/commands/update.md#accepted-findings)；規則、檔案或匹配文字改變後，必須重新接受。 明確設定的全域或專案嚴重程度覆寫，包括 CRITICAL，優先於 SDK 參數降級。 內建規則 5 僅排除明確隱瞞的片語，同一行中獨立的一般揭露限制仍會回報，即使規則 4 已停用或降級。 完整替換為自訂 regex 的規則仍保留整行排除語意。
 
 **防禦方式：** 安裝前務必先審查 skill 檔案。使用 `skillshare audit` 偵測已知的注入模式。對於組織層級的部署，可設定 `audit.block_threshold: HIGH`，一併攔截隱藏在註解中的注入。
 
