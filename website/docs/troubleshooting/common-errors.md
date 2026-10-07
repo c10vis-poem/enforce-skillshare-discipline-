@@ -453,6 +453,12 @@ See [Environment Variables — Git SSL / TLS](/docs/reference/appendix/environme
 
 **Solution:** Check the source path is correct and points to a skill directory.
 
+### `"<path>" is in git submodule "<submodule>" ..., and skillshare does not fetch submodules`
+
+**Cause:** The path you asked for is a git submodule in the repository, or sits inside one. skillshare does not fetch submodules, so the directory would be empty.
+
+**Solution:** Install from the upstream repository named in the error. If you maintain the hub, copy the skill files into it instead of mounting them as a submodule.
+
 ---
 
 ## Update Errors

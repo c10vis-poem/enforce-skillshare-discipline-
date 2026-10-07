@@ -159,6 +159,9 @@ func updateTrackedRepo(uc *updateContext, repoName string) (updateResult, error)
 	if res.MetadataErr != nil {
 		ui.Warning("Failed to refresh metadata for %s: %v", repoName, res.MetadataErr)
 	}
+	for _, w := range res.Warnings {
+		ui.Warning("%s", w)
+	}
 	if res.Status == update.StatusUpToDate {
 		printUpdateRow(ui.MarkOK, repoName, "already up to date", time.Since(startUpdate))
 		return updateResult{skipped: 1}, nil
