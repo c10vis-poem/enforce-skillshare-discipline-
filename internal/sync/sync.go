@@ -23,6 +23,7 @@ type DiscoveredSkill struct {
 	RelPath     string      // Relative path from source: _team/frontend/ui
 	FlatName    string      // Flat name for target: _team__frontend__ui
 	IsInRepo    bool        // Whether this skill is inside a tracked repo (_-prefixed directory)
+	RepoRelPath string      // Tracked repo root relative to source (_team, or org/_team via --into); set when IsInRepo
 	Targets     []string    // From SKILL.md frontmatter; nil = all targets
 	DescChars   int         // Rune count of name + description (populated when collectContext)
 	BodyChars   int         // Rune count of body after frontmatter (populated when collectContext)
@@ -36,17 +37,16 @@ type DiscoveredSkill struct {
 
 // isSkillIgnored checks whether a skill inside a tracked repo should be
 // skipped based on the repo's .skillignore matcher.
-// parts is strings.Split(relPath, "/"), where relPath is relative to source root.
-func isSkillIgnored(parts []string, walkRoot string, ignoreMatchers map[string]*skillignore.Matcher) bool {
-	if len(parts) < 2 {
+// relPath and repoRelPath are slash paths relative to the source root.
+func isSkillIgnored(relPath, repoRelPath, walkRoot string, ignoreMatchers map[string]*skillignore.Matcher) bool {
+	if relPath == repoRelPath {
 		return false
 	}
-	repoAbsPath := filepath.Join(walkRoot, parts[0])
-	m, ok := ignoreMatchers[repoAbsPath]
+	m, ok := ignoreMatchers[filepath.Join(walkRoot, filepath.FromSlash(repoRelPath))]
 	if !ok {
 		return false
 	}
-	return m.Match(strings.Join(parts[1:], "/"), false)
+	return m.Match(strings.TrimPrefix(relPath, repoRelPath+"/"), false)
 }
 
 // walkOptions returns the optional traversal policy passed to a Discover

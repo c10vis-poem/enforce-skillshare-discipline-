@@ -67,6 +67,8 @@ skillshare sync
 └── _team-skills/       # Tracked repo (underscore prefix)
 ```
 
+`--into` でインストールした追跡リポジトリは、`devops/_team-skills/` のようにフォルダの中に置かれます。それでも 1 つのリポジトリとして扱われます。中の Skill はその下にまとめられ、`status` でも数えられ、更新やアンインストールには `devops/_team-skills` という名前を使います。最上位より下では、git clone された `_` フォルダだけが追跡リポジトリとみなされるため、`devops/_drafts/` のような普通のフォルダは通常のフォルダのままです。
+
 ---
 
 ## ネストされた Skill と自動フラット化 {#nested-skills--auto-flattening}

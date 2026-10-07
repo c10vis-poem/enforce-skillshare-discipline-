@@ -225,6 +225,21 @@ func TestHandleUninstallSkill_AmbiguousLinkedBasename(t *testing.T) {
 	}
 }
 
+func TestHandleBatchUninstall_RepoInstalledInto(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "org/_team")
+	addSkill(t, filepath.Join(src, "org", "_team"), "foo")
+	body, err := json.Marshal(batchUninstallRequest{Names: []string{"org/_team"}, Force: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/uninstall/batch", bytes.NewReader(body)))
+	if _, err := os.Stat(filepath.Join(src, "org", "_team")); !os.IsNotExist(err) {
+		t.Fatalf("expected org/_team to be uninstalled, stat err %v: %s", err, rr.Body.String())
+	}
+}
+
 func TestHandleBatchUninstall_RepoBeforeLinkedBasename(t *testing.T) {
 	s, src := newTestServer(t)
 	addTrackedRepo(t, src, "_team")

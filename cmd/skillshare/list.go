@@ -298,10 +298,7 @@ func buildSkillEntries(discovered []sync.DiscoveredSkill) []skillEntry {
 			Disabled: d.Disabled,
 		}
 		if d.IsInRepo {
-			parts := strings.SplitN(d.RelPath, "/", 2)
-			if len(parts) > 0 {
-				skills[i].RepoName = parts[0]
-			}
+			skills[i].RepoName = d.RepoRelPath
 		}
 
 		// Enrich from centralized metadata store

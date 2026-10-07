@@ -7,7 +7,7 @@ import type { CheckResult, LinkedRepo, Skill, UpdateResultItem } from '../api/cl
 import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { clearAuditCache } from '../lib/auditCache';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
-import { formatTrackedRepoName } from '../lib/resourceNames';
+import { folderOf, formatTrackedRepoName } from '../lib/resourceNames';
 import { formatRelativeTime, useI18n, useT } from '../i18n';
 import Button from '../components/Button';
 import { Checkbox } from '../components/Checkbox';
@@ -90,7 +90,7 @@ export function updateUnits(resources: Skill[], kind: Kind, linkedRepos: LinkedR
       units.push({ name: s.relPath, label: s.name, isRepo: false, items: [s], source: s.source });
       continue;
     }
-    const dir = s.relPath.split('/')[0];
+    const dir = folderOf(s);
     let unit = repos.get(dir);
     if (!unit) {
       unit = { name: dir, label: formatTrackedRepoName(dir), isRepo: true, items: [], source: s.repoUrl ?? s.source };
@@ -185,7 +185,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
           ? { status: 'error', message: repo.message, checkedAt }
           : { status: 'up-to-date', message: repo.message, checkedAt };
         for (const item of updatable) {
-          if (!item.isInRepo || item.relPath.split('/')[0] !== repo.name) continue;
+          if (!item.isInRepo || folderOf(item) !== repo.name) continue;
           next.set(item.name, repoStatus);
           pending.delete(item.name);
         }
@@ -258,7 +258,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
         if (!isSuccessfulUpdateAction(result.action)) continue;
         for (const item of updatable) {
           const hit = result.isRepo
-            ? item.isInRepo && item.relPath.split('/')[0] === result.name
+            ? item.isInRepo && folderOf(item) === result.name
             : !item.isInRepo && matchesCheckSkill(item, result.name);
           if (hit) next.set(item.name, { ...status, message: result.message });
         }

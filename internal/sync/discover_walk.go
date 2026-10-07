@@ -139,6 +139,22 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 	var skills []DiscoveredSkill
 	var trackedRepos []string
 	ignoreMatchers := make(map[string]*skillignore.Matcher) // tracked repo abs path → .skillignore matcher
+	repoRoots := make(map[string]bool)                      // slash rel paths of git repos seen so far, e.g. org/_team from --into
+
+	// repoOf returns the tracked repo root containing parts, or "". A _-prefixed
+	// first segment always counts; a deeper one only when the walk saw it as a
+	// git repo, so a plain org/_drafts folder is not mistaken for a repo.
+	repoOf := func(parts []string) string {
+		if utils.IsTrackedRepoDir(parts[0]) {
+			return parts[0]
+		}
+		for i := 1; i < len(parts); i++ {
+			if root := strings.Join(parts[:i+1], "/"); utils.IsTrackedRepoDir(parts[i]) && repoRoots[root] {
+				return root
+			}
+		}
+		return ""
+	}
 
 	walkRoot := utils.ResolveSymlink(sourcePath)
 	rootMatcher := skillignore.ReadMatcher(walkRoot)
@@ -189,9 +205,10 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 		// Collect tracked repos: _-prefixed directories that are git repos
 		if info.IsDir() && info.Name() != "." && utils.IsTrackedRepoDir(info.Name()) {
 			if install.IsGitRepo(path) {
-				if opts.collectTracked {
-					relPath, relErr := filepath.Rel(walkRoot, path)
-					if relErr == nil && relPath != "." {
+				relPath, relErr := filepath.Rel(walkRoot, path)
+				if relErr == nil && relPath != "." {
+					repoRoots[filepath.ToSlash(relPath)] = true
+					if opts.collectTracked {
 						trackedRepos = append(trackedRepos, relPath)
 					}
 				}
@@ -219,12 +236,9 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 			relPath, relErr := filepath.Rel(walkRoot, path)
 			if relErr == nil && relPath != "." {
 				relPath = strings.ReplaceAll(relPath, "\\", "/")
-				parts := strings.Split(relPath, "/")
-				if len(parts) > 1 && utils.IsTrackedRepoDir(parts[0]) {
-					repoAbsPath := filepath.Join(walkRoot, parts[0])
-					if m, ok := ignoreMatchers[repoAbsPath]; ok {
-						repoRelPath := strings.Join(parts[1:], "/")
-						if m.CanSkipDir(repoRelPath) {
+				if repo := repoOf(strings.Split(relPath, "/")); repo != "" && repo != relPath {
+					if m, ok := ignoreMatchers[filepath.Join(walkRoot, filepath.FromSlash(repo))]; ok {
+						if m.CanSkipDir(strings.TrimPrefix(relPath, repo+"/")) {
 							return filepath.SkipDir
 						}
 					}
@@ -246,17 +260,14 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 
 			relPath = strings.ReplaceAll(relPath, "\\", "/")
 
-			isInRepo := false
-			parts := strings.Split(relPath, "/")
-			if len(parts) > 0 && utils.IsTrackedRepoDir(parts[0]) {
-				isInRepo = true
-			}
+			repoRelPath := repoOf(strings.Split(relPath, "/"))
+			isInRepo := repoRelPath != ""
 
 			// Root-level .skillignore fallback (for files in non-skipped dirs),
 			// then the repo-level .skillignore inside tracked repos. With
 			// includeIgnored the skill is kept, flagged Disabled, and measured
 			// like any other so analyze can price it for symlink-mode targets.
-			disabled := rootMatcher.Match(relPath, false) || (isInRepo && isSkillIgnored(parts, walkRoot, ignoreMatchers))
+			disabled := rootMatcher.Match(relPath, false) || (isInRepo && isSkillIgnored(relPath, repoRelPath, walkRoot, ignoreMatchers))
 			if disabled {
 				if opts.collectIgnored {
 					stats.IgnoredSkills = append(stats.IgnoredSkills, relPath)
@@ -308,6 +319,7 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 				RelPath:     relPath,
 				FlatName:    utils.PathToFlatName(relPath),
 				IsInRepo:    isInRepo,
+				RepoRelPath: repoRelPath,
 				Targets:     targets,
 				DescChars:   ctx.DescChars,
 				BodyChars:   ctx.BodyChars,

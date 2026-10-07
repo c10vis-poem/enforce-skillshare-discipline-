@@ -93,6 +93,33 @@ func TestHandleListSkills_NestedTrackedSkillUsesRepoSource(t *testing.T) {
 	}
 }
 
+func TestHandleListSkills_TrackedRepoInstalledIntoReportsRepo(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "org/_team-skills")
+	addSkill(t, src, "org/_team-skills/skills/vue")
+	const remote = "https://github.com/team/skills.git"
+	store := install.NewMetadataStore()
+	store.Set("org/_team-skills", &install.MetadataEntry{Source: remote, Tracked: true})
+	if err := store.Save(src); err != nil {
+		t.Fatalf("save metadata: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources", nil))
+	var resp struct {
+		Resources []struct {
+			Source   string `json:"source"`
+			RepoPath string `json:"repoPath"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode resources: %v: %s", err, rr.Body.String())
+	}
+	if len(resp.Resources) != 1 || resp.Resources[0].Source != remote || resp.Resources[0].RepoPath != "org/_team-skills" {
+		t.Fatalf("expected skill in repo org/_team-skills with source %q, got %+v", remote, resp.Resources)
+	}
+}
+
 func TestHandleListSkills_NestedTrackedSkillIgnoresSameNamedTopLevelSkill(t *testing.T) {
 	s, src := newTestServer(t)
 	addTrackedRepo(t, src, "_team-skills")

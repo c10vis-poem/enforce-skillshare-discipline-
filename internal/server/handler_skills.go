@@ -28,6 +28,7 @@ type skillItem struct {
 	LinkName    string   `json:"linkName,omitempty"`
 	LinkTarget  string   `json:"linkTarget,omitempty"`
 	IsInRepo    bool     `json:"isInRepo"`
+	RepoPath    string   `json:"repoPath,omitempty"`
 	Targets     []string `json:"targets,omitempty"`
 	InstalledAt string   `json:"installedAt,omitempty"`
 	Source      string   `json:"source,omitempty"`
@@ -107,13 +108,14 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				RelPath:    d.RelPath,
 				SourcePath: d.SourcePath,
 				IsInRepo:   d.IsInRepo,
+				RepoPath:   d.RepoRelPath,
 				Targets:    d.Targets,
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
 			enrichSkillLink(&item, source, walk, linkTargets)
 
-			if entry := s.discoveredSkillEntry(d.RelPath, d.IsInRepo); entry != nil {
+			if entry := s.discoveredSkillEntry(d.RelPath, d.RepoRelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {
 					item.InstalledAt = entry.InstalledAt.Format(time.RFC3339)
 				}
@@ -140,6 +142,7 @@ func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
 				RelPath:    d.RelPath,
 				SourcePath: d.SourcePath,
 				IsInRepo:   d.IsInRepo,
+				RepoPath:   d.RepoRelPath,
 				Disabled:   d.Disabled,
 				Targets:    d.Targets,
 			}
@@ -223,13 +226,14 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				RelPath:    d.RelPath,
 				SourcePath: d.SourcePath,
 				IsInRepo:   d.IsInRepo,
+				RepoPath:   d.RepoRelPath,
 				Targets:    d.Targets,
 				Disabled:   d.Disabled,
 				ManualOnly: manualOnly(d.SourcePath),
 			}
 			enrichSkillLink(&item, source, walk, make(map[string]string))
 
-			if entry := s.discoveredSkillEntry(d.RelPath, d.IsInRepo); entry != nil {
+			if entry := s.discoveredSkillEntry(d.RelPath, d.RepoRelPath); entry != nil {
 				if !entry.InstalledAt.IsZero() {
 					item.InstalledAt = entry.InstalledAt.Format(time.RFC3339)
 				}
@@ -299,6 +303,7 @@ func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
 				RelPath:    d.RelPath,
 				SourcePath: d.SourcePath,
 				IsInRepo:   d.IsInRepo,
+				RepoPath:   d.RepoRelPath,
 				Disabled:   d.Disabled,
 				Targets:    d.Targets,
 			}

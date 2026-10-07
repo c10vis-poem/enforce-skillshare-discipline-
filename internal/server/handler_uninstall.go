@@ -186,7 +186,8 @@ func (s *Server) resolveBatchUninstallItem(discovered []sync.DiscoveredSkill, so
 
 	repoPath := filepath.Join(source, name)
 	_, repoFollowed := walk.Follow.Resolve(repoPath)
-	managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
+	// A repo installed with --into is named by its path, e.g. org/_team.
+	managedRepo := strings.HasPrefix(filepath.Base(name), "_") && !repoFollowed && install.IsGitRepo(repoPath)
 	var skill *sync.DiscoveredSkill
 	if !managedRepo {
 		var err error

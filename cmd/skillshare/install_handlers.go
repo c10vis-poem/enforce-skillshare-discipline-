@@ -113,7 +113,8 @@ func handleTrackedRepoInstall(source *install.Source, cfg *config.Config, opts i
 			if result.SkillCount > 0 {
 				next = append(next, "skillshare sync", "link them into your targets")
 			}
-			next = append(next, "skillshare update "+result.RepoName, "update this repo later")
+			// --into places the repo in a folder; update takes the path from the source root.
+			next = append(next, "skillshare update "+filepath.ToSlash(filepath.Join(opts.Into, result.RepoName)), "update this repo later")
 		}
 		ui.Next(next...)
 	}
