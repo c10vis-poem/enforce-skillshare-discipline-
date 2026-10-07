@@ -54,6 +54,15 @@ func TestLeakedSkills_CountsSkillsStandardNamingSkips(t *testing.T) {
 	}
 }
 
+func TestLeakedSkills_UnknownForSymlinkWriter(t *testing.T) {
+	// A symlink-mode folder exposes .skillignore'd skills that discovery omits.
+	targets := leakTargets(t, "opencode")
+	targets["claude"].Skills.Mode = "symlink"
+	if _, known := LeakedSkills("opencode", "claude", targets, "merge", []DiscoveredSkill{{FlatName: "shared"}}); known {
+		t.Error("want known=false for a symlink-mode writer")
+	}
+}
+
 func TestLeakedSkills_UnknownForOtherRuntimes(t *testing.T) {
 	discovered := []DiscoveredSkill{{FlatName: "shared"}}
 	if _, known := LeakedSkills("codex", "claude", leakTargets(t, "codex"), "merge", discovered); known {

@@ -22,6 +22,11 @@ func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig
 	if !sameNameLoadsOnce[scanner] || discovered == nil {
 		return nil, false
 	}
+	// A symlink-mode folder is the source itself, .skillignore'd skills that
+	// discovery leaves out included; only a scanner that links it too sees them all.
+	if isSymlinkMode(targets[writer], defaultMode) && !isSymlinkMode(targets[scanner], defaultMode) {
+		return nil, false
+	}
 	own, err := syncedSkills(scanner, targets[scanner], defaultMode, discovered)
 	if err != nil {
 		return nil, false
@@ -48,15 +53,10 @@ func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig
 // whole source in symlink mode, otherwise what its filters and target_naming
 // let through.
 func syncedSkills(name string, target config.TargetConfig, defaultMode string, discovered []DiscoveredSkill) ([]DiscoveredSkill, error) {
-	sc := target.SkillsConfig()
-	mode := sc.Mode
-	if mode == "" {
-		mode = defaultMode
-	}
-	if mode == "symlink" {
+	if isSymlinkMode(target, defaultMode) {
 		return discovered, nil
 	}
-	res, err := ResolveTargetSkillsForTarget(name, sc, discovered)
+	res, err := ResolveTargetSkillsForTarget(name, target.SkillsConfig(), discovered)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,14 @@ func syncedSkills(name string, target config.TargetConfig, defaultMode string, d
 		skills[i] = r.Skill
 	}
 	return skills, nil
+}
+
+func isSymlinkMode(target config.TargetConfig, defaultMode string) bool {
+	mode := target.SkillsConfig().Mode
+	if mode == "" {
+		mode = defaultMode
+	}
+	return mode == "symlink"
 }
 
 // HarmlessOverlap returns a check for config.DetectPathOverlap: scanner reading
