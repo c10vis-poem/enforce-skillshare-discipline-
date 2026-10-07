@@ -240,15 +240,13 @@ func cmdUpdate(args []string) error {
 			}
 
 			// Tracked repo
-			if info.IsDir() && strings.HasPrefix(info.Name(), "_") {
-				if install.IsGitRepo(path) {
-					rel, _ := filepath.Rel(walkRoot, path)
-					if !seen[rel] {
-						seen[rel] = true
-						targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
-					}
-					return filepath.SkipDir
+			if info.IsDir() && install.IsTrackedCheckout(path) {
+				rel, _ := filepath.Rel(walkRoot, path)
+				if !seen[rel] {
+					seen[rel] = true
+					targets = append(targets, updateTarget{name: rel, path: path, isRepo: true})
 				}
+				return filepath.SkipDir
 			}
 
 			// Regular skill
