@@ -69,3 +69,19 @@ func TestHandleUpdateStream_ExistingSkillBeatsShorthand(t *testing.T) {
 		t.Fatalf("results = %+v, want the org/team skill, not the org/_team repo", results)
 	}
 }
+
+// `org/team/` names the same skill as `org/team`, so the exact-skill lookup
+// must see it before the shorthand can pick org/_team.
+func TestHandleUpdate_TrailingSlashKeepsExistingSkill(t *testing.T) {
+	s, src := newTestServer(t)
+	addSkill(t, src, "org/team")
+	addSkillMeta(t, src, "org/team", "/nonexistent/skill-source")
+	addTrackedRepo(t, src, "org/_team")
+	s.reloadSkillsStore() // pick up the metadata written above
+
+	results := runFollowUpdate(t, s, false, "org/team/")
+
+	if len(results) != 1 || results[0].IsRepo {
+		t.Fatalf("results = %+v, want the org/team skill, not the org/_team repo", results)
+	}
+}
