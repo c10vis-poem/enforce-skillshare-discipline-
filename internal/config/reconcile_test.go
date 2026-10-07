@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"skillshare/internal/install"
+	"skillshare/internal/testutil"
 
 	"gopkg.in/yaml.v3"
 )
@@ -243,5 +244,43 @@ func TestReconcileGlobalSkills_KeepsMetadataOfUnavailableSourceLink(t *testing.T
 		if store.Has("_dev-skills") != follow {
 			t.Errorf("follow=%v: entry kept = %v", follow, store.Has("_dev-skills"))
 		}
+	}
+}
+
+// Only a _-prefixed checkout is a tracked repo; an unprefixed one stays a
+// regular entry, and a tracked flag an older reconcile wrote on it is cleared
+// without dropping the entry (#476).
+func TestReconcileGlobalSkills_TracksOnlyPrefixedCheckouts(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "skills")
+	configPath := filepath.Join(root, "config.yaml")
+	cfgData, _ := yaml.Marshal(&Config{Source: sourceDir})
+	if err := os.WriteFile(configPath, cfgData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SKILLSHARE_CONFIG", configPath)
+
+	remote := testutil.SetupBareRemoteRepo(t, root)
+	testutil.SeedRemoteBranch(t, root, remote, "main", map[string]string{"SKILL.md": "# skill"})
+	for _, name := range []string{"_team", "org/_infra", "solo", "org/side"} {
+		testutil.RunGit(t, "", "clone", remote, filepath.Join(sourceDir, filepath.FromSlash(name)))
+	}
+
+	store := install.NewMetadataStore()
+	store.Set("solo", &install.MetadataEntry{Source: remote, Tracked: true})
+	if err := ReconcileGlobalSkills(&Config{Source: sourceDir}, store); err != nil {
+		t.Fatalf("ReconcileGlobalSkills failed: %v", err)
+	}
+
+	for name, want := range map[string]bool{"_team": true, "org/_infra": true, "solo": false} {
+		entry := store.GetByPath(name)
+		if entry == nil {
+			t.Errorf("%s: entry dropped", name)
+		} else if entry.Tracked != want {
+			t.Errorf("%s: Tracked = %v, want %v", name, entry.Tracked, want)
+		}
+	}
+	if store.Has("org/side") {
+		t.Error("org/side: an unprefixed checkout without an entry must not be registered")
 	}
 }

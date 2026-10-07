@@ -179,3 +179,41 @@ func TestResolveByGlob_SortedByName(t *testing.T) {
 		t.Errorf("results not sorted: %s, %s, %s", matches[0].name, matches[1].name, matches[2].name)
 	}
 }
+
+// An unprefixed git checkout is not a tracked repo: a group walk updates it as
+// the regular skill its metadata describes, beside the _-prefixed repos (#476).
+func TestResolveGroupUpdatable_UnprefixedCheckoutIsRegularSkill(t *testing.T) {
+	src := t.TempDir()
+	setupTrackedRepo(t, src, "org/_team")
+	setupUpdatableSkill(t, src, "org/solo")
+	// A submodule or worktree has a .git file, not a directory.
+	if err := os.WriteFile(filepath.Join(src, "org", "solo", ".git"), []byte("gitdir: ../../elsewhere\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := resolveGroupUpdatable("org", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]updateTarget{}
+	for _, m := range matches {
+		got[filepath.ToSlash(m.name)] = m
+	}
+	if len(got) != 2 || !got["org/_team"].isRepo || got["org/solo"].isRepo || got["org/solo"].meta == nil {
+		t.Fatalf("matches = %+v, want org/_team as repo and org/solo as skill with metadata", matches)
+	}
+}
+
+func TestIsGroupDir_UnprefixedCheckoutIsGroup(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "bundle", ".git"), 0755)
+	setupTrackedRepo(t, src, "_team")
+	store, _ := install.LoadMetadata(src)
+
+	if !isGroupDir("bundle", src, store) {
+		t.Error("an unprefixed checkout is a group, not a tracked repo")
+	}
+	if isGroupDir("_team", src, store) {
+		t.Error("a _-prefixed checkout is a tracked repo, not a group")
+	}
+}

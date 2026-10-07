@@ -286,3 +286,46 @@ func TestUpdateSingle_UntrackedCheckoutUpdatesAsSkill(t *testing.T) {
 		t.Errorf("version not recorded: %+v", e)
 	}
 }
+
+// The batch stream classifies named items like POST /api/update: only a
+// _-prefixed checkout, flat or under --into, is a tracked repo (#476).
+func TestHandleUpdateStream_NamedItemsUseTrackedCheckoutRule(t *testing.T) {
+	f := newTrackedUpdateFixture(t)
+	src := filepath.Dir(f.repo)
+	testutil.RunGit(t, "", "clone", f.remote, filepath.Join(src, "org", "_team"))
+	testutil.RunGit(t, "", "clone", f.remote, filepath.Join(src, "solo"))
+	f.s.skillsStore.Set("solo", &install.MetadataEntry{Source: "file://" + f.remote, Version: "old"})
+	if err := f.s.skillsStore.Save(src); err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]bool{}
+	for _, r := range runFollowUpdate(t, f.s, true, "team,org/_team,solo") {
+		got[r.Name] = r.IsRepo
+	}
+	want := map[string]bool{"_team": true, "org/_team": true, "solo": false}
+	if len(got) != len(want) {
+		t.Fatalf("results = %v, want %v", got, want)
+	}
+	for name, isRepo := range want {
+		if got[name] != isRepo {
+			t.Errorf("%s: isRepo = %v, want %v", name, got[name], isRepo)
+		}
+	}
+}
+
+// An unprefixed checkout without metadata is not a tracked repo, and it does
+// not hide the _-prefixed repo of the same name (#476).
+func TestUpdateSingle_UnprefixedCheckoutIsNotResolvedAsTrackedRepo(t *testing.T) {
+	f := newTrackedUpdateFixture(t)
+	src := filepath.Dir(f.repo)
+	testutil.RunGit(t, "", "clone", f.remote, filepath.Join(src, "team"))
+	testutil.RunGit(t, "", "clone", f.remote, filepath.Join(src, "solo"))
+
+	if got := f.s.updateSingleByKind("team", "skill", false, true); !got.IsRepo || got.Name != "_team" {
+		t.Errorf("team: got %+v, want the _team repo", got)
+	}
+	if got := f.s.updateSingleByKind("solo", "skill", false, true); got.IsRepo || got.Action != "error" {
+		t.Errorf("solo: got %+v, want not found", got)
+	}
+}

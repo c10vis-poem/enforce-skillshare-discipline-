@@ -465,3 +465,28 @@ func TestUpdateProject_BatchAll_SubdirSkills_NoDuplication(t *testing.T) {
 		}
 	}
 }
+
+// An unprefixed git checkout updates as a regular skill; only _-prefixed ones
+// (also under a group, as --into installs them) are tracked repos (#476).
+func TestUpdateProject_NamedCheckoutUsesTrackedRule(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	projectRoot := sb.SetupProjectDir("claude")
+	skills := filepath.Join(projectRoot, ".skillshare", "skills")
+	for _, name := range []string{"_team", "org/_team", "solo"} {
+		dir := filepath.Join(skills, filepath.FromSlash(name))
+		os.MkdirAll(dir, 0755)
+		run(t, dir, "git", "init")
+	}
+	writeProjectMeta(t, filepath.Join(skills, "solo"))
+
+	for name, want := range map[string]string{
+		"team":      "would run git pull",
+		"org/_team": "would run git pull",
+		"solo":      "would reinstall",
+	} {
+		result := sb.RunCLIInDir(projectRoot, "update", name, "--dry-run", "-p")
+		result.AssertSuccess(t)
+		result.AssertAnyOutputContains(t, want)
+	}
+}
