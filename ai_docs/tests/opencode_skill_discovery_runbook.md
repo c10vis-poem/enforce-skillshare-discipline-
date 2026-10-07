@@ -69,7 +69,7 @@ ss doctor -g --json | jq '.checks[] | select(.name == "cross_target_discovery")'
 Expected:
 - exit_code: 0
 - jq: .status == "warning"
-- jq: .details | any(test("loads skills its filters leave out: claude-only$"))
+- jq: .details | any(test("loads skills missing from its own folder: claude-only$"))
 - jq: .suggestions | any(test("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1"))
 
 ### Step 4: The variable hides the skill from OpenCode and passes doctor
@@ -103,7 +103,25 @@ Expected:
 - jq: .loaded | map(.name) == ["claude-only", "shared"]
 - jq: .doctor.status == "pass"
 
-### Step 6: Clean up
+### Step 6: A skill the user keeps in ~/.claude/skills reaches OpenCode and doctor names it
+
+```bash
+S=/workspace/scripts/opencode/skill-discovery.sh
+bash "$S" fixture all
+mkdir -p ~/.claude/skills/my-local
+printf -- '---\nname: my-local\ndescription: kept by hand in claude\n---\nbody\n' > ~/.claude/skills/my-local/SKILL.md
+L=$(bash "$S" loaded)
+D=$(ss doctor -g --json | jq '.checks[] | select(.name == "cross_target_discovery")')
+jq -n --argjson loaded "$L" --argjson doctor "$D" '{loaded: $loaded, doctor: $doctor}'
+```
+
+Expected:
+- exit_code: 0
+- jq: .loaded | map(select(.name == "my-local")) == [{"name": "my-local", "from": "~/.claude/skills"}]
+- jq: .doctor.status == "warning"
+- jq: .doctor.details | any(test("loads skills missing from its own folder: my-local$"))
+
+### Step 7: Clean up
 
 ```bash
 bash /workspace/scripts/opencode/skill-discovery.sh clean
@@ -116,6 +134,6 @@ Expected:
 
 ## Pass Criteria
 
-Steps 1 to 6 pass: doctor warns exactly when OpenCode loads a skill sync keeps
+Steps 1 to 7 pass: doctor warns exactly when OpenCode loads a skill sync keeps
 out of it, and passes when the variable is set or every skill reaches both
 folders.

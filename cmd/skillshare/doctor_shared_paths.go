@@ -46,7 +46,7 @@ func crossTargetDiscoverySuggestion(scanner string, writers []string, isProject 
 // leakedSkillsSuggestion also names the most specific environment variable
 // that makes the runtime skip every one of paths, when one does.
 func leakedSkillsSuggestion(scanner string, paths []string, isProject bool) string {
-	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
+	s := fmt.Sprintf("These skills are not in %s's folder, but %s also reads other targets' folders. Sync them to %s too", scanner, scanner, scanner)
 	disabledBy := config.AlsoScansDisabledBy(scanner, isProject)
 	for _, v := range disabledBy[paths[0]] {
 		if !slices.ContainsFunc(paths[1:], func(p string) bool { return !slices.Contains(disabledBy[p], v) }) {
@@ -129,7 +129,7 @@ func checkSharedTargetPaths(cfg *config.Config, result *doctorResult, isProject 
 // different primary paths but converging runtime discovery (e.g. Codex's
 // ~/.codex/skills primary plus its ~/.agents/skills also_scans means it sees
 // the universal target's content too). For a runtime that keeps one skill per
-// name, only the skills sync leaves out of its own folder count.
+// name, only the skills missing from its own folder count.
 func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProject bool, discovered []sync.DiscoveredSkill) {
 	primaryByName := make(map[string]string, len(cfg.Targets))
 	for name, target := range cfg.Targets {
@@ -247,7 +247,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 		header := fmt.Sprintf("%s will see content from: %s", so.scanner, strings.Join(writers, ", "))
 		suggestion := crossTargetDiscoverySuggestion(so.scanner, writers, isProject)
 		if !so.unknown {
-			header = fmt.Sprintf("%s loads %s kept out of it, from: %s", so.scanner, plural(len(leaked), "skill"), strings.Join(writers, ", "))
+			header = fmt.Sprintf("%s loads %s missing from its own folder, from: %s", so.scanner, plural(len(leaked), "skill"), strings.Join(writers, ", "))
 			suggestion = leakedSkillsSuggestion(so.scanner, paths, isProject)
 		}
 		ui.Warning("%s", header)
@@ -256,7 +256,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 			detail := fmt.Sprintf("%s (%s) also scans %s ← %s", so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "))
 			if !so.unknown {
 				note += ": " + strings.Join(p.leaked, ", ")
-				detail += " and loads skills its filters leave out: " + strings.Join(p.leaked, ", ")
+				detail += " and loads skills missing from its own folder: " + strings.Join(p.leaked, ", ")
 			}
 			ui.Note(note)
 			details = append(details, detail)

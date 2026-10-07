@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -32,6 +33,27 @@ func TestLeakedSkills_NoneWhenScannerGetsEverySkill(t *testing.T) {
 	leaked, known := LeakedSkills("opencode", "claude", leakTargets(t, "opencode"), "merge", discovered)
 	if !known || len(leaked) != 0 {
 		t.Errorf("LeakedSkills = %v, %v; want none, true", leaked, known)
+	}
+}
+
+func TestLeakedSkills_CountsLocalSkillsInWriterFolder(t *testing.T) {
+	// Merge mode keeps skills the user put in claude's folder; opencode loads
+	// them unless its own folder has the same name.
+	targets := leakTargets(t, "opencode")
+	claude, opencode := targets["claude"].Skills.Path, targets["opencode"].Skills.Path
+	for _, dir := range []string{
+		filepath.Join(claude, "my-local"),
+		filepath.Join(claude, "shared"),
+		filepath.Join(claude, "in-both"),
+		filepath.Join(opencode, "in-both"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	leaked, known := LeakedSkills("opencode", "claude", targets, "merge", []DiscoveredSkill{{FlatName: "shared"}})
+	if !known || !slices.Equal(leaked, []string{"my-local"}) {
+		t.Errorf("LeakedSkills = %v, %v; want [my-local], true", leaked, known)
 	}
 }
 

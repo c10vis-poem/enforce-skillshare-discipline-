@@ -2,13 +2,17 @@ package sync
 
 import (
 	"cmp"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"skillshare/internal/config"
 )
 
-// LeakedSkills returns the source skills scanner's runtime loads from writer's
-// folder although sync leaves them out of scanner's own folder. It needs a
+// LeakedSkills returns the skills scanner's runtime loads from writer's folder
+// although sync leaves them out of scanner's own folder: source skills its
+// filters skip, and skills the user keeps in writer's folder. It needs a
 // runtime that loads one skill per name (config.LoadsOneSkillPerName): which
 // copy wins is not fixed (OpenCode loads them concurrently), but a source skill
 // synced to both folders has the same content either way. known is false when
@@ -34,13 +38,35 @@ func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig
 	}
 
 	synced := make(map[string]bool, len(own))
+	ownNames := make(map[string]bool, len(own))
 	for _, s := range own {
-		synced[s.FlatName] = true
+		synced[s.Skill.FlatName] = true
+		ownNames[s.TargetName] = true
 	}
+	managed := make(map[string]bool, len(theirs))
 	for _, s := range theirs {
-		if !synced[s.FlatName] {
-			leaked = append(leaked, s.FlatName)
+		managed[s.TargetName] = true
+		if !synced[s.Skill.FlatName] {
+			leaked = append(leaked, s.Skill.FlatName)
 		}
+	}
+	// Merge and copy mode keep what the user put in writer's folder.
+	w, sc := targets[writer], targets[scanner]
+	writerDir := config.ExpandPath(w.SkillsConfig().Path)
+	ownDir := config.ExpandPath(sc.SkillsConfig().Path)
+	entries, _ := os.ReadDir(writerDir)
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, ".") || managed[name] || ownNames[name] {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(writerDir, name)); err != nil || !info.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(ownDir, name)); err == nil {
+			continue
+		}
+		leaked = append(leaked, name)
 	}
 	sort.Strings(leaked)
 	return leaked, true
@@ -49,19 +75,19 @@ func LeakedSkills(scanner, writer string, targets map[string]config.TargetConfig
 // syncedSkills returns the source skills sync puts in a target's folder: the
 // whole source in symlink mode, otherwise what its filters and target_naming
 // let through.
-func syncedSkills(name string, target config.TargetConfig, defaultMode string, discovered []DiscoveredSkill) ([]DiscoveredSkill, error) {
+func syncedSkills(name string, target config.TargetConfig, defaultMode string, discovered []DiscoveredSkill) ([]ResolvedTargetSkill, error) {
 	if isSymlinkMode(target, defaultMode) {
-		return discovered, nil
+		skills := make([]ResolvedTargetSkill, len(discovered))
+		for i, d := range discovered {
+			skills[i] = ResolvedTargetSkill{Skill: d, TargetName: d.FlatName}
+		}
+		return skills, nil
 	}
 	res, err := ResolveTargetSkillsForTarget(name, target.SkillsConfig(), discovered)
 	if err != nil {
 		return nil, err
 	}
-	skills := make([]DiscoveredSkill, len(res.Skills))
-	for i, r := range res.Skills {
-		skills[i] = r.Skill
-	}
-	return skills, nil
+	return res.Skills, nil
 }
 
 func isSymlinkMode(target config.TargetConfig, defaultMode string) bool {

@@ -217,7 +217,7 @@ func TestCheckCrossTargetDiscovery_OpenCodeNamesLeakedSkills(t *testing.T) {
 	if r.warnings != 1 {
 		t.Fatalf("expected 1 warning, got %d (checks=%+v)", r.warnings, r.checks)
 	}
-	if detail := r.checks[0].Details[0]; !strings.Contains(detail, "loads skills its filters leave out: claude-only") {
+	if detail := r.checks[0].Details[0]; !strings.Contains(detail, "loads skills missing from its own folder: claude-only") {
 		t.Errorf("detail %q does not name the leaked skill", detail)
 	}
 	if s := r.checks[0].Suggestions[0]; !strings.Contains(s, "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1") {

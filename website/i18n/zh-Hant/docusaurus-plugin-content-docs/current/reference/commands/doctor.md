@@ -166,16 +166,16 @@ Doctor 會在兩類重複 skill 風險到達 runtime picker 之前先標示出�
 
 解決方式：先移除負責掃描的 target（上例中的 `codex`）。它的 runtime 本來就會讀取共用目錄，而且不會影響其他工具。可用 `skillshare target remove codex --dry-run` 預覽。若改為移除寫入者（`universal`），其他讀取 `~/.agents/skills` 的工具也會看不到這些 skill。只有在掃描端 target 帶有被寫入者過濾掉的 skill 時才同時保留兩者，並接受 runtime picker 出現重複列表。
 
-OpenCode 在 `~/.claude/skills`、`~/.agents/skills` 和自己的資料夾之間，同名的 skill 只保留一個，所以從 source 同步到兩邊的 skill 只會載入一次。對 `opencode`，這項檢查只在它從其他 target 的資料夾載入了 sync 沒放進 OpenCode 資料夾的 skill 時才警告（原因可能是 `targets:`、include/exclude，或 `target_naming: standard` 略過了它），並列出這些 skill：
+OpenCode 在 `~/.claude/skills`、`~/.agents/skills` 和自己的資料夾之間，同名的 skill 只保留一個，所以從 source 同步到兩邊的 skill 只會載入一次。對 `opencode`，這項檢查只在它從其他 target 的資料夾載入了 OpenCode 自己資料夾沒有的 skill 時才警告，並列出這些 skill。skill 不在 OpenCode 資料夾裡，可能是 sync 沒放進去（`targets:`、include/exclude，或 `target_naming: standard` 略過了它），也可能是你自己放在另一個資料夾裡的：
 
 ```text
-! opencode loads 1 skill kept out of it, from: claude
+! opencode loads 1 skill missing from its own folder, from: claude
   ~/.claude/skills ← claude: claude-only
 ```
 
 如果寫入方（例如 `claude`）使用 symlink mode 而 `opencode` 沒有，那個資料夾就是 source 本身，檢查無法判斷 OpenCode 會從中載入哪些 skill，因此顯示一般的警告。
 
-解決方式：讓 `opencode` 也能拿到這些 skill，或在執行 OpenCode 的環境設定 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，連 `.agents/skills` 也略過）。skillshare 只看得到自己的環境：執行 skillshare 的環境也設定了這個變數時，`doctor`、`sync` 和 dashboard 會把該資料夾當成已略過，`doctor` 也會註明：
+解決方式：把這些 skill 也同步給 `opencode`，或在執行 OpenCode 的環境設定 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，連 `.agents/skills` 也略過）。skillshare 只看得到自己的環境：執行 skillshare 的環境也設定了這個變數時，`doctor`、`sync` 和 dashboard 會把該資料夾當成已略過，`doctor` 也會註明：
 
 ```text
 opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment

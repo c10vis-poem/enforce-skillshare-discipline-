@@ -166,16 +166,16 @@ Doctor は、ランタイムのピッカーに到達する前に、Skill 重複�
 
 解決方法: まずスキャンする側の Target（上の例では `codex`）を削除してください。そのランタイムは共有ディレクトリをすでに読み込んでおり、他のツールには影響しません。`skillshare target remove codex --dry-run` でプレビューできます。代わりに書き込み元（`universal`）を削除すると、`~/.agents/skills` を読み込む他のツールからもそれらの skill が見えなくなります。スキャンする側の Target が、書き込み元でフィルタされている skill を持つ場合に限り両方を残し、ランタイムのピッカーでの重複表示を受け入れてください。
 
-OpenCode は `~/.claude/skills`、`~/.agents/skills`、自分のフォルダの間で同じ名前の skill を 1 つだけ残すため、source から両方に同期された skill は 1 回だけ読み込まれます。`opencode` については、sync が OpenCode のフォルダに入れなかった skill（`targets:`、include/exclude、または `target_naming: standard` によるスキップ）を他の target のフォルダから読み込む場合にだけ警告し、その skill を表示します：
+OpenCode は `~/.claude/skills`、`~/.agents/skills`、自分のフォルダの間で同じ名前の skill を 1 つだけ残すため、source から両方に同期された skill は 1 回だけ読み込まれます。`opencode` については、OpenCode 自身のフォルダにない skill を他の target のフォルダから読み込む場合にだけ警告し、その skill を表示します。フォルダにない理由は、sync が入れなかった（`targets:`、include/exclude、または `target_naming: standard` によるスキップ）か、他のフォルダに手で置いたかのどちらかです：
 
 ```text
-! opencode loads 1 skill kept out of it, from: claude
+! opencode loads 1 skill missing from its own folder, from: claude
   ~/.claude/skills ← claude: claude-only
 ```
 
 `claude` などの書き込み側が symlink mode で `opencode` がそうでない場合、そのフォルダは source そのものなので、OpenCode がそこからどの skill を読み込むかを判断できず、通常の警告を表示します。
 
-対処：その skill を `opencode` にも許可するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。skillshare が見えるのは自分の環境だけです。skillshare を実行する環境でもこの変数を設定すると、`doctor`、`sync`、dashboard はそのフォルダを読まれないものとして扱い、`doctor` はその旨を表示します：
+対処：その skill を `opencode` にも同期するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。skillshare が見えるのは自分の環境だけです。skillshare を実行する環境でもこの変数を設定すると、`doctor`、`sync`、dashboard はそのフォルダを読まれないものとして扱い、`doctor` はその旨を表示します：
 
 ```text
 opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
