@@ -904,6 +904,14 @@
     "note": "List file backup storage"
   },
   {
+    "file": "internal/sync/leaked.go",
+    "function": "LeakedSkills",
+    "callee": "os.ReadDir",
+    "root": "writerDir",
+    "reason": "target",
+    "note": "Find skills kept by hand in another target's folder"
+  },
+  {
     "file": "internal/sync/pull.go",
     "function": "CalculateDirSize",
     "callee": "filepath.Walk",

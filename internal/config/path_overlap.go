@@ -11,8 +11,9 @@ import (
 // primary path or by being scanned via cross-runtime discovery (also_scans).
 //
 // Used by `sync` (CLI hint) and the Web UI sync handler to surface a brief
-// warning that points users at `doctor` for the full breakdown.
-func DetectPathOverlap(targets map[string]TargetConfig, isProject bool) []string {
+// warning that points users at `doctor` for the full breakdown. A non-nil
+// harmless leaves out a scanner reading a writer's folder when it reports true.
+func DetectPathOverlap(targets map[string]TargetConfig, isProject bool, harmless func(scanner, writer string) bool) []string {
 	if len(targets) < 2 {
 		return nil
 	}
@@ -55,7 +56,7 @@ func DetectPathOverlap(targets map[string]TargetConfig, isProject bool) []string
 				continue
 			}
 			for _, w := range writers {
-				if w == scanner {
+				if w == scanner || (harmless != nil && harmless(scanner, w)) {
 					continue
 				}
 				involved[scanner] = struct{}{}

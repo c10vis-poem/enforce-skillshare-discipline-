@@ -16,8 +16,9 @@ targets:
       global: "~/.config/agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.agents/skills", "~/.config/amp/skills", "~/.claude/skills"]
-      project: [".claude/skills"]
+      - {global: "~/.agents/skills"}
+      - {global: "~/.config/amp/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
     instructions:
       global: "~/.config/amp/AGENTS.md"
       project: "AGENTS.md"
@@ -60,8 +61,11 @@ targets:
       global: "~/.autohand/skills"
       project: ".autohand/skills"
     also_scans:
-      global: ["~/.agents/skills", "~/.codex/skills", "~/.claude/skills", "~/.agent/skills"]
-      project: [".agents/skills", ".claude/skills", ".agent/skills", "skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
+      - {global: "~/.codex/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {global: "~/.agent/skills", project: ".agent/skills"}
+      - {project: "skills"}
     instructions:
       project: "AGENTS.md"
   - name: bob
@@ -97,7 +101,8 @@ targets:
       global: "~/.cline/skills"
       project: ".cline/skills"
     also_scans:
-      project: [".clinerules/skills", ".claude/skills"]
+      - {project: ".clinerules/skills"}
+      - {project: ".claude/skills"}
     instructions:
       global: "~/.agents/AGENTS.md"
       project: "AGENTS.md"
@@ -133,8 +138,7 @@ targets:
       global: "~/.agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.codex/skills"]
-      project: [".codex/skills"]
+      - {global: "~/.codex/skills", project: ".codex/skills"}
     instructions:
       global: "~/.codex/AGENTS.md"
       project: "AGENTS.md"
@@ -143,8 +147,7 @@ targets:
       global: "~/.commandcode/skills"
       project: ".commandcode/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.commandcode/AGENTS.md"
       project: "AGENTS.md"
@@ -166,8 +169,8 @@ targets:
       global: "~/.copilot/agents"
       project: ".github/agents"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".claude/skills", ".agents/skills"]
+      - {project: ".claude/skills"}
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.copilot/copilot-instructions.md"
       project: ".github/copilot-instructions.md"
@@ -177,8 +180,10 @@ targets:
       global: "~/.config/crush/skills"
       project: ".crush/skills"
     also_scans:
-      global: ["~/.config/agents/skills", "~/.agents/skills", "~/.claude/skills"]
-      project: [".agents/skills", ".claude/skills", ".cursor/skills"]
+      - {global: "~/.config/agents/skills"}
+      - {global: "~/.agents/skills", project: ".agents/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {project: ".cursor/skills"}
   - name: cursor
     skills:
       global: "~/.cursor/skills"
@@ -187,8 +192,10 @@ targets:
       global: "~/.cursor/agents"
       project: ".cursor/agents"
     also_scans:
-      global: ["~/.agents/skills", "~/.claude/skills", "~/.codex/skills"]
-      project: [".cursor/skills", ".claude/skills", ".codex/skills"]
+      - {project: ".cursor/skills"}
+      - {global: "~/.agents/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {global: "~/.codex/skills", project: ".codex/skills"}
     # Cursor keeps User Rules in app settings, so there is no global file.
     instructions:
       project: "AGENTS.md"
@@ -197,8 +204,7 @@ targets:
       global: "~/.deepagents/agent/skills"
       project: ".deepagents/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.deepagents/agent/AGENTS.md"
       project: ".deepagents/AGENTS.md"
@@ -208,8 +214,7 @@ targets:
       global: "~/.dsh/skills"
       project: ".dsh/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
   - name: devin
     skills:
       global: "~/.config/devin/skills"
@@ -230,8 +235,8 @@ targets:
       global: "~/.factory/droids"
       project: ".factory/droids"
     also_scans:
-      global: ["~/.agents/skills", "~/.agent/skills"]
-      project: [".agents/skills", ".agent/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
+      - {global: "~/.agent/skills", project: ".agent/skills"}
     instructions:
       global: "~/.factory/AGENTS.md"
       project: "AGENTS.md"
@@ -241,7 +246,11 @@ targets:
       global: "~/.firebender/skills"
       project: ".firebender/skills"
     also_scans:
-      global: ["~/.agents/skills", "~/.claude/skills", "~/.codex/skills", "~/.cursor/skills", "~/.goose/skills"]
+      - {global: "~/.agents/skills"}
+      - {global: "~/.claude/skills"}
+      - {global: "~/.codex/skills"}
+      - {global: "~/.cursor/skills"}
+      - {global: "~/.goose/skills"}
     instructions:
       global: "~/.firebender/AGENTS.md"
       project: "AGENTS.md"
@@ -250,7 +259,7 @@ targets:
       global: "~/forge/skills"
       project: ".forge/skills"
     also_scans:
-      global: ["~/.agents/skills"]
+      - {global: "~/.agents/skills"}
     instructions:
       global: "~/forge/AGENTS.md"
       project: "AGENTS.md"
@@ -260,8 +269,13 @@ targets:
       global: "~/.fx/skills"
       project: ".fx/skills"
     also_scans:
-      global: ["~/.agents/skills", "~/.claude/skills", "~/.codex/skills", "~/.config/opencode/skills", "~/.claw/skills"]
-      project: [".agents/skills", ".claude/skills", ".codex/skills", ".opencode/skills", ".claw/skills", "skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {global: "~/.codex/skills", project: ".codex/skills"}
+      - {global: "~/.config/opencode/skills"}
+      - {project: ".opencode/skills"}
+      - {global: "~/.claw/skills", project: ".claw/skills"}
+      - {project: "skills"}
     instructions:
       global: "~/.fx/AGENTS.md"
       project: "AGENTS.md"
@@ -270,8 +284,7 @@ targets:
       global: "~/.gemini/skills"
       project: ".gemini/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     # Gemini CLI's @import only reads allowed directories; unverified for skillshare paths, so symlink for now.
     instructions:
       global: "~/.gemini/GEMINI.md"
@@ -282,15 +295,17 @@ targets:
       global: "~/.gitlab/duo/skills"
       project: "skills"
     also_scans:
-      global: ["~/.agents/skills"]
+      - {global: "~/.agents/skills"}
   - name: goose
     detect: "~/.config/goose"
     skills:
       global: "~/.agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.config/goose/skills", "~/.claude/skills", "~/.config/agents/skills"]
-      project: [".goose/skills", ".claude/skills"]
+      - {project: ".goose/skills"}
+      - {global: "~/.config/goose/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {global: "~/.config/agents/skills"}
     instructions:
       global: "~/.config/goose/.goosehints"
       project: "AGENTS.md"
@@ -299,7 +314,7 @@ targets:
       global: "~/.grok/skills"
       project: ".grok/skills"
     also_scans:
-      global: ["~/.agents/skills"]
+      - {global: "~/.agents/skills"}
     instructions:
       global: "~/.grok/AGENTS.md"
       project: "AGENTS.md"
@@ -326,7 +341,7 @@ targets:
       global: "~/.jazz/skills"
       project: "skills"
     also_scans:
-      global: ["~/.agents/skills"]
+      - {global: "~/.agents/skills"}
     instructions:
       global: "~/.agents/AGENTS.md"
       project: "AGENTS.md"
@@ -343,8 +358,7 @@ targets:
       global: "~/.kilo/skills"
       project: ".kilo/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.config/kilo/AGENTS.md"
       project: "AGENTS.md"
@@ -354,7 +368,9 @@ targets:
       global: "~/.config/kimchi/harness/skills"
       project: ".kimchi/skills"
     also_scans:
-      project: [".agents/skills", ".claude/skills", ".pi/agent/skills"]
+      - {project: ".agents/skills"}
+      - {project: ".claude/skills"}
+      - {project: ".pi/agent/skills"}
     instructions:
       global: "~/.config/kimchi/harness/AGENTS.md"
       project: "AGENTS.md"
@@ -364,8 +380,9 @@ targets:
       global: "~/.config/agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.kimi/skills", "~/.claude/skills", "~/.codex/skills"]
-      project: [".kimi/skills", ".claude/skills", ".codex/skills"]
+      - {global: "~/.kimi/skills", project: ".kimi/skills"}
+      - {global: "~/.claude/skills", project: ".claude/skills"}
+      - {global: "~/.codex/skills", project: ".codex/skills"}
     instructions:
       project: "AGENTS.md"
     aliases: [kimi-cli]
@@ -374,8 +391,7 @@ targets:
       global: "~/.kimi-code/skills"
       project: ".kimi-code/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.kimi-code/AGENTS.md"
       project: "AGENTS.md"
@@ -392,7 +408,7 @@ targets:
       global: "~/.kode/skills"
       project: ".kode/skills"
     also_scans:
-      project: [".claude/skills"]
+      - {project: ".claude/skills"}
   - name: letta
     skills:
       global: "~/.letta/skills"
@@ -428,7 +444,8 @@ targets:
     skills:
       project: ".ona/skills"
     also_scans:
-      project: [".claude/skills", ".agents/skills"]
+      - {project: ".claude/skills"}
+      - {project: ".agents/skills"}
     instructions:
       project: "AGENTS.md"
   - name: openclaw
@@ -436,8 +453,7 @@ targets:
       global: "~/.openclaw/skills"
       project: "skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
   - name: opencode
     skills:
       global: "~/.config/opencode/skills"
@@ -446,8 +462,15 @@ targets:
       global: "~/.config/opencode/agents"
       project: ".opencode/agents"
     also_scans:
-      global: ["~/.claude/skills", "~/.agents/skills"]
-      project: [".claude/skills", ".agents/skills"]
+      # off_when_env: packages/opencode/src/effect/runtime-flags.ts
+      - global: "~/.claude/skills"
+        project: ".claude/skills"
+        off_when_env: [OPENCODE_DISABLE_CLAUDE_CODE_SKILLS, OPENCODE_DISABLE_CLAUDE_CODE, OPENCODE_DISABLE_EXTERNAL_SKILLS]
+      - global: "~/.agents/skills"
+        project: ".agents/skills"
+        off_when_env: [OPENCODE_DISABLE_EXTERNAL_SKILLS]
+    # Same-named skills across its own and also_scans folders load once.
+    one_skill_per_name: true
     instructions:
       global: "~/.config/opencode/AGENTS.md"
       project: "AGENTS.md"
@@ -457,16 +480,14 @@ targets:
       global: "~/.agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.openhands/skills"]
-      project: [".openhands/skills"]
+      - {global: "~/.openhands/skills", project: ".openhands/skills"}
   - name: pi
     config_dir: "~/.pi/agent"
     skills:
       global: "~/.pi/agent/skills"
       project: ".pi/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.pi/agent/AGENTS.md"
       project: "AGENTS.md"
@@ -483,8 +504,7 @@ targets:
       global: "~/.posit/assistant/skills"
       project: ".posit/assistant/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.posit/assistant/AGENTS.md"
       project: "AGENTS.md"
@@ -525,8 +545,9 @@ targets:
       global: "~/.reasonix/skills"
       project: ".reasonix/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills", ".agent/skills", ".claude/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
+      - {project: ".agent/skills"}
+      - {project: ".claude/skills"}
     instructions:
       project: "AGENTS.md"
   - name: roo
@@ -534,8 +555,7 @@ targets:
       global: "~/.roo/skills"
       project: ".roo/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.roo/rules/AGENTS.md"
       project: "AGENTS.md"
@@ -609,8 +629,7 @@ targets:
       global: "~/.zcode/skills"
       project: ".zcode/skills"
     also_scans:
-      global: ["~/.agents/skills"]
-      project: [".agents/skills"]
+      - {global: "~/.agents/skills", project: ".agents/skills"}
     instructions:
       global: "~/.zcode/AGENTS.md"
       project: "AGENTS.md"
@@ -627,8 +646,7 @@ targets:
       global: "~/.agents/skills"
       project: ".agents/skills"
     also_scans:
-      global: ["~/.zencoder/skills"]
-      project: [".zencoder/skills"]
+      - {global: "~/.zencoder/skills", project: ".zencoder/skills"}
     aliases: [zenflow]
   - name: replit
     skills:

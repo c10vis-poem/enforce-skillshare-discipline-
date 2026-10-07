@@ -166,7 +166,24 @@ When the targets sharing a path have different `include` or `exclude` filters, e
 
 Resolution: start by removing the scanning target (`codex` above). Its runtime already reads the shared directory, and no other tool is affected. Preview with `skillshare target remove codex --dry-run`. Removing the writer (`universal`) instead also hides those skills from every other tool that reads `~/.agents/skills`. Keep both targets only if the scanning target carries skills the writer filters out, and accept the duplicate listings in the runtime picker.
 
-Both checks are pure metadata — they read configured paths and the built-in `also_scans` table, no filesystem probing.
+OpenCode keeps one skill per name across `~/.claude/skills`, `~/.agents/skills`, and its own folder, so a skill synced from the source to both folders loads once. For `opencode`, the check only warns about skills it loads from another target's folder that are missing from OpenCode's own folder, and names them. A skill can be missing because sync leaves it out (through `targets:`, include/exclude, or a `target_naming: standard` skip) or because you keep it by hand in the other folder:
+
+```text
+! opencode loads 1 skill missing from its own folder, from: claude
+  ~/.claude/skills ← claude: claude-only
+```
+
+When a writer such as `claude` uses symlink mode and `opencode` does not, its folder is the source itself, so the check cannot tell which skills OpenCode receives there and shows the general warning.
+
+Resolution: sync those skills to `opencode` too, or set `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` (or `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`, which also skips `.agents/skills`) where OpenCode runs. skillshare only sees its own environment: when the variable is also set where you run skillshare, `doctor`, `sync`, and the dashboard treat that folder as skipped, and `doctor` notes it:
+
+```text
+opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
+```
+
+If OpenCode starts with a different environment, for example from a desktop launcher, set the variable there as well.
+
+`shared_target_paths` reads configured paths only. `cross_target_discovery` also reads the built-in `also_scans` table, and for `opencode` the skills each target receives.
 
 ### Version
 

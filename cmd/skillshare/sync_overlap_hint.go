@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sync"
 	"skillshare/internal/theme"
 	"skillshare/internal/ui"
 )
@@ -14,7 +15,7 @@ import (
 // share a folder with different settings undo each other's sync, so they get
 // a specific line and the command to keep one; any other overlap keeps the
 // brief line pointing at `doctor`.
-func printSyncOverlapHint(targets map[string]config.TargetConfig, isProject, jsonOutput bool) {
+func printSyncOverlapHint(targets map[string]config.TargetConfig, isProject, jsonOutput bool, defaultMode string, discovered []sync.DiscoveredSkill) {
 	if jsonOutput {
 		return
 	}
@@ -30,7 +31,7 @@ func printSyncOverlapHint(targets map[string]config.TargetConfig, isProject, jso
 		}
 	}
 	rest := 0
-	for _, name := range config.DetectPathOverlap(targets, isProject) {
+	for _, name := range config.DetectPathOverlap(targets, isProject, sync.HarmlessOverlap(targets, defaultMode, discovered)) {
 		if !explained[name] {
 			rest++
 		}

@@ -24,9 +24,44 @@ type targetPathPair struct {
 // official documentation. Used by `skillshare doctor` to warn about
 // cross-target discovery overlap (e.g. Codex's runtime scans ~/.agents/skills
 // even though its primary skillshare path is ~/.codex/skills).
+//
+// In targets.yaml it is a list with one entry per scanned folder, so a
+// folder's global and project paths and its env switches are written once.
 type targetAlsoScans struct {
-	Global  []string `yaml:"global,omitempty"`
-	Project []string `yaml:"project,omitempty"`
+	Global  []string
+	Project []string
+	// DisabledByEnv maps an also_scans path to the environment variables that
+	// make the runtime skip it.
+	DisabledByEnv map[string][]string
+}
+
+type alsoScansEntry struct {
+	Global  string `yaml:"global"`
+	Project string `yaml:"project"`
+	// OffWhenEnv lists the environment variables that make the runtime skip
+	// this folder, most specific first (doctor suggests the first that applies).
+	OffWhenEnv []string `yaml:"off_when_env"`
+}
+
+func (a *targetAlsoScans) UnmarshalYAML(node *yaml.Node) error {
+	var entries []alsoScansEntry
+	if err := node.Decode(&entries); err != nil {
+		return err
+	}
+	a.DisabledByEnv = make(map[string][]string)
+	for _, e := range entries {
+		if e.Global != "" {
+			a.Global = append(a.Global, e.Global)
+		}
+		if e.Project != "" {
+			a.Project = append(a.Project, e.Project)
+		}
+		if len(e.OffWhenEnv) > 0 {
+			a.DisabledByEnv[e.Global] = e.OffWhenEnv
+			a.DisabledByEnv[e.Project] = e.OffWhenEnv
+		}
+	}
+	return nil
 }
 
 // targetInstructions is the instruction file (CLAUDE.md, AGENTS.md, ...) a
@@ -66,11 +101,14 @@ type targetSpec struct {
 	Detect string `yaml:"detect,omitempty"`
 	// ConfigDir is the directory the Agent keeps its files in, where the Agent can be told to
 	// use another one (CLAUDE_CONFIG_DIR). A target may then be such another directory.
-	ConfigDir    string             `yaml:"config_dir,omitempty"`
-	Skills       targetPathPair     `yaml:"skills"`
-	Agents       targetPathPair     `yaml:"agents,omitempty"`
-	AlsoScans    targetAlsoScans    `yaml:"also_scans,omitempty"`
-	Instructions targetInstructions `yaml:"instructions,omitempty"`
+	ConfigDir string          `yaml:"config_dir,omitempty"`
+	Skills    targetPathPair  `yaml:"skills"`
+	Agents    targetPathPair  `yaml:"agents,omitempty"`
+	AlsoScans targetAlsoScans `yaml:"also_scans,omitempty"`
+	// OneSkillPerName marks a runtime that loads a single skill per name across
+	// its own folder and the folders it also scans.
+	OneSkillPerName bool               `yaml:"one_skill_per_name,omitempty"`
+	Instructions    targetInstructions `yaml:"instructions,omitempty"`
 	// Files are plain files the tool reads besides its instruction file,
 	// relative to its file root (see TargetFileRoot).
 	Files   []string `yaml:"files,omitempty"`
@@ -348,6 +386,80 @@ func AlsoScansProject(name string) []string {
 	return nil
 }
 
+// LoadsOneSkillPerName reports whether a target's runtime loads a single skill
+// per name across its own folder and the folders it also scans.
+func LoadsOneSkillPerName(name string) bool {
+	specs, err := loadTargetSpecs()
+	if err != nil {
+		return false
+	}
+	for _, spec := range specs {
+		if spec.Name == name {
+			return spec.OneSkillPerName
+		}
+	}
+	return false
+}
+
+// ScanOff is an also_scans path a target's runtime skips because EnvVar is set.
+type ScanOff struct {
+	Path   string
+	EnvVar string
+}
+
+// AlsoScansDisabledBy returns, per also_scans path (normalised like
+// AlsoScansGlobal/AlsoScansProject), the environment variables that make the
+// target's runtime skip it, most specific first.
+func AlsoScansDisabledBy(name string, isProject bool) map[string][]string {
+	specs, err := loadTargetSpecs()
+	if err != nil {
+		return nil
+	}
+	for _, spec := range specs {
+		if spec.Name != name {
+			continue
+		}
+		raw := spec.AlsoScans.Global
+		if isProject {
+			raw = spec.AlsoScans.Project
+		}
+		out := make(map[string][]string)
+		for _, p := range raw {
+			if vars := spec.AlsoScans.DisabledByEnv[p]; len(vars) > 0 {
+				out[normalizeTargetPath(p)] = vars
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// ScansTurnedOff returns the also_scans paths an environment variable of this
+// process turns off. It assumes the runtime sees the same environment.
+func ScansTurnedOff(name string, isProject bool) []ScanOff {
+	var off []ScanOff
+	for path, vars := range AlsoScansDisabledBy(name, isProject) {
+		for _, v := range vars {
+			if envTrue(os.Getenv(v)) {
+				off = append(off, ScanOff{Path: path, EnvVar: v})
+				break
+			}
+		}
+	}
+	sort.Slice(off, func(i, j int) bool { return off[i].Path < off[j].Path })
+	return off
+}
+
+// envTrue reports whether v is a true value as OpenCode's flags read it
+// (Effect's Config.boolean).
+func envTrue(v string) bool {
+	switch v {
+	case "true", "yes", "on", "1", "y":
+		return true
+	}
+	return false
+}
+
 // DetectDir returns the install directory that identifies a target's tool,
 // tilde-expanded and OS-normalised. Returns "" for unknown targets or targets
 // without detect metadata (their skills path already identifies them).
@@ -379,11 +491,15 @@ func RuntimeScanPaths(name string, isProject bool) []string {
 		scans = AlsoScansGlobal(name)
 		primary = DefaultTargets()[name].Path
 	}
+	off := make(map[string]bool)
+	for _, s := range ScansTurnedOff(name, isProject) {
+		off[s.Path] = true
+	}
 
 	paths := make([]string, 0, len(scans)+1)
 	seen := make(map[string]bool, len(scans)+1)
 	for _, p := range scans {
-		if p == "" || seen[p] {
+		if p == "" || seen[p] || off[p] {
 			continue
 		}
 		seen[p] = true

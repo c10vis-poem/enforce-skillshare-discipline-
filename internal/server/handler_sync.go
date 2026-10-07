@@ -125,7 +125,8 @@ type syncOutcome struct {
 
 // folderConflicts returns the skills folders whose targets undo each other's
 // sync, never nil, plus how many targets overlap in a way they don't explain.
-func folderConflicts(targets map[string]config.TargetConfig, isProject bool) ([]config.SkillsFolderConflict, int) {
+// harmless is passed on to config.DetectPathOverlap.
+func folderConflicts(targets map[string]config.TargetConfig, isProject bool, harmless func(scanner, writer string) bool) ([]config.SkillsFolderConflict, int) {
 	conflicts := config.SkillsFolderConflicts(targets)
 	explained := map[string]bool{}
 	for _, c := range conflicts {
@@ -134,7 +135,7 @@ func folderConflicts(targets map[string]config.TargetConfig, isProject bool) ([]
 		}
 	}
 	rest := 0
-	for _, name := range config.DetectPathOverlap(targets, isProject) {
+	for _, name := range config.DetectPathOverlap(targets, isProject, harmless) {
 		if !explained[name] {
 			rest++
 		}
@@ -183,8 +184,6 @@ func (s *Server) syncResources(start time.Time, dryRun, force bool, kind, projec
 	// it fails like one with invalid settings.
 	maps.Copy(invalid, s.unresolvedTargets)
 	total := len(targets) + len(s.unresolvedTargets)
-
-	conflicts, overlap := folderConflicts(s.cfg.Targets, s.IsProjectMode())
 
 	results := make([]syncTargetResult, 0)
 	failed := make([]syncFailure, 0)
@@ -384,6 +383,8 @@ func (s *Server) syncResources(start time.Time, dryRun, force bool, kind, projec
 	}
 	s.writeOpsLog("sync", status, start, logArgs, "")
 
+	conflicts, overlap := folderConflicts(s.cfg.Targets, s.IsProjectMode(),
+		ssync.HarmlessOverlap(s.cfg.Targets, globalMode, allSkills))
 	return &syncOutcome{results: results, warnings: warnings, failed: failed, folderConflicts: conflicts, pathOverlap: overlap, skills: allSkills, ignoreStats: ignoreStats}, 0, nil
 }
 
@@ -588,7 +589,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 	globalMode := s.cfg.Mode
 	ignorePatterns := ssync.EffectiveFileIgnorePatterns(s.cfg.Ignore)
 	targets := s.cloneTargets()
-	conflicts, _ := folderConflicts(targets, s.IsProjectMode())
+	conflicts, _ := folderConflicts(targets, s.IsProjectMode(), nil)
 	s.mu.RUnlock()
 
 	if globalMode == "" {
