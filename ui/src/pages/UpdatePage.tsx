@@ -8,6 +8,7 @@ import { queryKeys, staleTimes } from '../lib/queryKeys';
 import { clearAuditCache } from '../lib/auditCache';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
 import { folderOf, formatTrackedRepoName } from '../lib/resourceNames';
+import { repoOf } from '../lib/resourceGrouping';
 import { formatRelativeTime, useI18n, useT } from '../i18n';
 import Button from '../components/Button';
 import { Checkbox } from '../components/Checkbox';
@@ -185,7 +186,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
           ? { status: 'error', message: repo.message, checkedAt }
           : { status: 'up-to-date', message: repo.message, checkedAt };
         for (const item of updatable) {
-          if (!item.isInRepo || folderOf(item) !== repo.name) continue;
+          if (repoOf(item) !== repo.name) continue;
           next.set(item.name, repoStatus);
           pending.delete(item.name);
         }
@@ -258,7 +259,7 @@ export default function UpdatePage({ kind }: { kind: Kind }) {
         if (!isSuccessfulUpdateAction(result.action)) continue;
         for (const item of updatable) {
           const hit = result.isRepo
-            ? item.isInRepo && folderOf(item) === result.name
+            ? repoOf(item) === result.name
             : !item.isInRepo && matchesCheckSkill(item, result.name);
           if (hit) next.set(item.name, { ...status, message: result.message });
         }

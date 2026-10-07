@@ -450,7 +450,7 @@ func (s *Server) updateAll(force, skipAudit bool) []updateResultItem {
 	if err == nil {
 		for _, repo := range repos {
 			repoPath := filepath.Join(s.cfg.EffectiveSkillsSource(), repo)
-			results = append(results, s.updateTrackedRepo(filepath.ToSlash(repo), repoPath, s.cfg.EffectiveSkillsSource(), force, skipAudit, walk.Follow))
+			results = append(results, s.updateTrackedRepo(repo, repoPath, s.cfg.EffectiveSkillsSource(), force, skipAudit, walk.Follow))
 		}
 	}
 

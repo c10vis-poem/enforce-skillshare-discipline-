@@ -85,7 +85,7 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			for _, repo := range repos {
 				items = append(items, updateItem{
-					name:   filepath.ToSlash(repo),
+					name:   repo,
 					isRepo: true,
 					path:   filepath.Join(source, repo),
 				})

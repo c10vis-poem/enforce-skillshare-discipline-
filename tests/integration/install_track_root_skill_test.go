@@ -212,25 +212,18 @@ func TestInstall_Track_RootSkillMd_ShowsInStatus(t *testing.T) {
 	}
 }
 
-func TestInstall_Track_Into_SuggestsUpdateByRepoPath(t *testing.T) {
+// TestInstall_Track_Into_NamesRepoByPath verifies that a tracked repo
+// installed with --into is named by its path in the install hint and status.
+func TestInstall_Track_Into_NamesRepoByPath(t *testing.T) {
 	sb := testutil.NewSandbox(t)
 	defer sb.Cleanup()
 	setupGlobalConfig(sb)
 
-	repoURL := setupBareRepoWithNestedAndRootSkill(t, sb, "into-hint")
+	repoURL := setupBareRepoWithNestedAndRootSkill(t, sb, "into")
 
 	result := sb.RunCLI("install", repoURL, "--track", "--name", "team-skills", "--into", "org")
 	result.AssertSuccess(t)
 	result.AssertOutputContains(t, "skillshare update org/_team-skills")
-}
-
-func TestInstall_Track_Into_StatusCountsRepoSkills(t *testing.T) {
-	sb := testutil.NewSandbox(t)
-	defer sb.Cleanup()
-	setupGlobalConfig(sb)
-
-	repoURL := setupBareRepoWithNestedAndRootSkill(t, sb, "into-status")
-	sb.RunCLI("install", repoURL, "--track", "--name", "team-skills", "--into", "org").AssertSuccess(t)
 
 	statusResult := sb.RunCLI("status", "--json")
 	statusResult.AssertSuccess(t)
@@ -243,7 +236,7 @@ func TestInstall_Track_Into_StatusCountsRepoSkills(t *testing.T) {
 	if err := json.Unmarshal([]byte(statusResult.Stdout), &output); err != nil {
 		t.Fatalf("failed to parse status --json: %v\nstdout: %s", err, statusResult.Stdout)
 	}
-	want := filepath.Join("org", "_team-skills")
+	const want = "org/_team-skills"
 	for _, r := range output.TrackedRepos {
 		if r.Name == want {
 			if r.SkillCount == 0 {

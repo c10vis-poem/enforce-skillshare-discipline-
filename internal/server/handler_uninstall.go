@@ -13,6 +13,7 @@ import (
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/uninstall"
+	"skillshare/internal/utils"
 )
 
 type batchUninstallRequest struct {
@@ -187,7 +188,7 @@ func (s *Server) resolveBatchUninstallItem(discovered []sync.DiscoveredSkill, so
 	repoPath := filepath.Join(source, name)
 	_, repoFollowed := walk.Follow.Resolve(repoPath)
 	// A repo installed with --into is named by its path, e.g. org/_team.
-	managedRepo := strings.HasPrefix(filepath.Base(name), "_") && !repoFollowed && install.IsGitRepo(repoPath)
+	managedRepo := utils.IsTrackedRepoDir(filepath.Base(name)) && !repoFollowed && install.IsGitRepo(repoPath)
 	var skill *sync.DiscoveredSkill
 	if !managedRepo {
 		var err error

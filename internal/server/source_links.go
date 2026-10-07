@@ -19,9 +19,8 @@ func dashboardRepos(source string, walk sourcewalk.Options) ([]string, []linkedR
 	managed := make([]string, 0, len(repos))
 	linked := []linkedRepoInfo{}
 	seen := map[string]bool{}
-	for _, rel := range repos {
-		// The dashboard matches repos by slash path (org/_team); GetTrackedRepos is OS-native.
-		path, name := filepath.Join(source, rel), filepath.ToSlash(rel)
+	for _, name := range repos {
+		path := filepath.Join(source, name)
 		if target, ok := walk.Follow.Resolve(path); ok {
 			linked = append(linked, linkedRepoInfo{Name: name, Target: target})
 			seen[name] = true

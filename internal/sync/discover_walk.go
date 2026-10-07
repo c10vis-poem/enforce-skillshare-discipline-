@@ -138,19 +138,20 @@ func matchesHostSkillPath(relPath, targetName, targetPath string) bool {
 func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]DiscoveredSkill, []string, *skillignore.IgnoreStats, error) {
 	var skills []DiscoveredSkill
 	var trackedRepos []string
-	ignoreMatchers := make(map[string]*skillignore.Matcher) // tracked repo abs path → .skillignore matcher
-	repoRoots := make(map[string]bool)                      // slash rel paths of git repos seen so far, e.g. org/_team from --into
+	ignoreMatchers := make(map[string]*skillignore.Matcher) // tracked repo slash rel path → .skillignore matcher
+	repoRoots := make(map[string]bool)                      // slash rel paths of _-prefixed git repos seen so far, e.g. org/_team from --into
 
-	// repoOf returns the tracked repo root containing parts, or "". A _-prefixed
-	// first segment always counts; a deeper one only when the walk saw it as a
-	// git repo, so a plain org/_drafts folder is not mistaken for a repo.
-	repoOf := func(parts []string) string {
-		if utils.IsTrackedRepoDir(parts[0]) {
-			return parts[0]
+	// repoOf returns the tracked repo root containing slash relPath, or "". A
+	// _-prefixed first segment always counts; a deeper one only when the walk
+	// saw it as a git repo, so a plain org/_drafts folder is not mistaken for a repo.
+	repoOf := func(relPath string) string {
+		first, _, _ := strings.Cut(relPath, "/")
+		if utils.IsTrackedRepoDir(first) {
+			return first
 		}
-		for i := 1; i < len(parts); i++ {
-			if root := strings.Join(parts[:i+1], "/"); utils.IsTrackedRepoDir(parts[i]) && repoRoots[root] {
-				return root
+		for i := len(first) + 1; i <= len(relPath); i++ {
+			if (i == len(relPath) || relPath[i] == '/') && repoRoots[relPath[:i]] {
+				return relPath[:i]
 			}
 		}
 		return ""
@@ -206,15 +207,17 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 		if info.IsDir() && info.Name() != "." && utils.IsTrackedRepoDir(info.Name()) {
 			if install.IsGitRepo(path) {
 				relPath, relErr := filepath.Rel(walkRoot, path)
+				repoRel := ""
 				if relErr == nil && relPath != "." {
-					repoRoots[filepath.ToSlash(relPath)] = true
+					repoRel = filepath.ToSlash(relPath)
+					repoRoots[repoRel] = true
 					if opts.collectTracked {
 						trackedRepos = append(trackedRepos, relPath)
 					}
 				}
 				m := skillignore.ReadMatcher(path)
 				if m.HasRules() {
-					ignoreMatchers[path] = m
+					ignoreMatchers[repoRel] = m
 					// Record repo-level .skillignore in stats
 					if opts.collectIgnored {
 						repoIgnorePath := filepath.Join(path, ".skillignore")
@@ -236,8 +239,8 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 			relPath, relErr := filepath.Rel(walkRoot, path)
 			if relErr == nil && relPath != "." {
 				relPath = strings.ReplaceAll(relPath, "\\", "/")
-				if repo := repoOf(strings.Split(relPath, "/")); repo != "" && repo != relPath {
-					if m, ok := ignoreMatchers[filepath.Join(walkRoot, filepath.FromSlash(repo))]; ok {
+				if repo := repoOf(relPath); repo != "" && repo != relPath {
+					if m, ok := ignoreMatchers[repo]; ok {
 						if m.CanSkipDir(strings.TrimPrefix(relPath, repo+"/")) {
 							return filepath.SkipDir
 						}
@@ -260,14 +263,14 @@ func discoverSourceSkillsInternal(sourcePath string, opts discoverOptions) ([]Di
 
 			relPath = strings.ReplaceAll(relPath, "\\", "/")
 
-			repoRelPath := repoOf(strings.Split(relPath, "/"))
+			repoRelPath := repoOf(relPath)
 			isInRepo := repoRelPath != ""
 
 			// Root-level .skillignore fallback (for files in non-skipped dirs),
 			// then the repo-level .skillignore inside tracked repos. With
 			// includeIgnored the skill is kept, flagged Disabled, and measured
 			// like any other so analyze can price it for symlink-mode targets.
-			disabled := rootMatcher.Match(relPath, false) || (isInRepo && isSkillIgnored(relPath, repoRelPath, walkRoot, ignoreMatchers))
+			disabled := rootMatcher.Match(relPath, false) || (isInRepo && isSkillIgnored(relPath, repoRelPath, ignoreMatchers))
 			if disabled {
 				if opts.collectIgnored {
 					stats.IgnoredSkills = append(stats.IgnoredSkills, relPath)

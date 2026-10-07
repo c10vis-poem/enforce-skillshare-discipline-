@@ -229,14 +229,9 @@ func TestHandleBatchUninstall_RepoInstalledInto(t *testing.T) {
 	s, src := newTestServer(t)
 	addTrackedRepo(t, src, "org/_team")
 	addSkill(t, filepath.Join(src, "org", "_team"), "foo")
-	body, err := json.Marshal(batchUninstallRequest{Names: []string{"org/_team"}, Force: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/uninstall/batch", bytes.NewReader(body)))
+	_, res := postBatchUninstall(t, s, true, "org/_team")
 	if _, err := os.Stat(filepath.Join(src, "org", "_team")); !os.IsNotExist(err) {
-		t.Fatalf("expected org/_team to be uninstalled, stat err %v: %s", err, rr.Body.String())
+		t.Fatalf("expected org/_team to be uninstalled, stat err %v: %+v", err, res)
 	}
 }
 
@@ -247,23 +242,12 @@ func TestHandleBatchUninstall_NestedRepoBehindUnfollowedLinkIsKept(t *testing.T)
 	if err := os.Symlink(outside, filepath.Join(src, "org")); err != nil {
 		t.Fatal(err)
 	}
-	body, err := json.Marshal(batchUninstallRequest{Names: []string{"org/_evil"}, Force: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/uninstall/batch", bytes.NewReader(body)))
-	var resp struct {
-		Summary batchUninstallSummary `json:"summary"`
-	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp.Summary.Failed != 1 {
-		t.Fatalf("expected the request to be refused: %s", rr.Body.String())
+	_, res := postBatchUninstall(t, s, true, "org/_evil")
+	if len(res) != 1 || res[0].Success {
+		t.Fatalf("expected the request to be refused: %+v", res)
 	}
 	if _, err := os.Stat(filepath.Join(outside, "_evil", ".git")); err != nil {
-		t.Fatalf("repo outside the source was removed through an unfollowed link: %v: %s", err, rr.Body.String())
+		t.Fatalf("repo outside the source was removed through an unfollowed link: %v", err)
 	}
 }
 

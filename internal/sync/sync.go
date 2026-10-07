@@ -37,12 +37,13 @@ type DiscoveredSkill struct {
 
 // isSkillIgnored checks whether a skill inside a tracked repo should be
 // skipped based on the repo's .skillignore matcher.
-// relPath and repoRelPath are slash paths relative to the source root.
-func isSkillIgnored(relPath, repoRelPath, walkRoot string, ignoreMatchers map[string]*skillignore.Matcher) bool {
+// relPath and repoRelPath are slash paths relative to the source root, and
+// ignoreMatchers is keyed by repo root in the same form.
+func isSkillIgnored(relPath, repoRelPath string, ignoreMatchers map[string]*skillignore.Matcher) bool {
 	if relPath == repoRelPath {
 		return false
 	}
-	m, ok := ignoreMatchers[filepath.Join(walkRoot, filepath.FromSlash(repoRelPath))]
+	m, ok := ignoreMatchers[repoRelPath]
 	if !ok {
 		return false
 	}

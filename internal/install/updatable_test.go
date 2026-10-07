@@ -175,7 +175,7 @@ func TestGetTrackedRepos_FindsNested(t *testing.T) {
 	if len(repos) != 1 {
 		t.Fatalf("expected 1 nested tracked repo, got %d", len(repos))
 	}
-	if repos[0] != filepath.Join("frontend", "_ui-skills") {
+	if repos[0] != "frontend/_ui-skills" {
 		t.Errorf("expected 'frontend/_ui-skills', got %q", repos[0])
 	}
 }

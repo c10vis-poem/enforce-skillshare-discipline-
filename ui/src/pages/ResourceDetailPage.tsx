@@ -13,8 +13,8 @@ import { SEV, parseFindings, thresholdOf } from '../lib/auditMessage';
 import { parseSkillMarkdown } from '../lib/frontmatter';
 import { isMarkdown } from '../lib/highlight';
 import { parseRemoteURL } from '../lib/parseRemoteURL';
-import { folderOf, resourceHref } from '../lib/resourceNames';
-import { sourceLinkOf } from '../lib/resourceGrouping';
+import { resourceHref } from '../lib/resourceNames';
+import { repoOf, sourceLinkOf } from '../lib/resourceGrouping';
 import { targetFilterPatch } from '../lib/targetFilter';
 import { useSyncMatrix } from '../hooks/useSyncMatrix';
 import { projectUrl } from '../components/projects/projectView';
@@ -142,7 +142,7 @@ export default function ResourceDetailPage() {
   const runUpdate = async (skipAudit: boolean) => {
     setUpdating(true);
     try {
-      const target = resource.isInRepo ? folderOf(resource) : isAgent ? resource.flatName : resource.relPath;
+      const target = repoOf(resource) ?? (isAgent ? resource.flatName : resource.relPath);
       const res = await api.update({ name: target, kind: resource.kind, skipAudit });
       const item = res.results[0];
       if (item?.action === 'updated') {

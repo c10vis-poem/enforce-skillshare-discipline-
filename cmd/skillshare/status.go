@@ -262,11 +262,10 @@ func buildTrackedRepoJSON(sourcePath string, trackedRepos []string, discovered [
 
 	// Count skills per repo (single pass). RepoRelPath covers skills at the
 	// repo root and nested ones, and repos placed with --into (org/_repo).
-	// trackedRepos holds OS-native paths, RepoRelPath slash paths.
 	repoSkillCount := make(map[string]int, len(trackedRepos))
 	for _, d := range discovered {
 		if d.IsInRepo {
-			repoSkillCount[filepath.FromSlash(d.RepoRelPath)]++
+			repoSkillCount[d.RepoRelPath]++
 		}
 	}
 
