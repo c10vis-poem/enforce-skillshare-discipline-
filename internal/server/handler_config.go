@@ -12,6 +12,7 @@ import (
 	"skillshare/internal/config"
 	"skillshare/internal/hooks"
 	"skillshare/internal/plugin"
+	"skillshare/internal/utils"
 )
 
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +173,13 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		warnings = w2
 	}
 
-	if err := os.WriteFile(s.configPath(), []byte(body.Raw), 0644); err != nil {
+	// Write a symlinked config's target; a project config must stay inside the project.
+	path, err := utils.ConfigWritePath(s.configPath(), s.IsProjectMode())
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := os.WriteFile(path, []byte(body.Raw), 0644); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to write config: "+err.Error())
 		return
 	}

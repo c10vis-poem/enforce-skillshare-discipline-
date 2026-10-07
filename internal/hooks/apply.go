@@ -285,7 +285,7 @@ func (s *Service) Mutate(m Mutation, revision string, sync bool) (*Result, error
 		if _, err := s.render(source); err != nil {
 			return nil, err
 		}
-		if err := source.save(); err != nil {
+		if err := source.save(s.ProjectRoot != ""); err != nil {
 			return nil, err
 		}
 		if err := s.forgetUnmanaged(source); err != nil {
@@ -313,7 +313,7 @@ func (s *Service) Mutate(m Mutation, revision string, sync bool) (*Result, error
 	if sync && p.blockedIn(scope) {
 		return &Result{Plan: p, Applied: []string{}, BackupIDs: []string{}}, ErrConflict
 	}
-	if err := source.save(); err != nil {
+	if err := source.save(s.ProjectRoot != ""); err != nil {
 		return nil, err
 	}
 	if !sync {

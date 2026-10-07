@@ -270,7 +270,7 @@ func (s *Source) checkUnchanged() error {
 }
 
 // save writes only the entries a draft touched; everything else keeps its bytes' meaning.
-func (s *Source) save() error {
+func (s *Source) save(project bool) error {
 	if len(s.touched) == 0 && len(s.touchedProjects) == 0 {
 		return nil
 	}
@@ -335,10 +335,10 @@ func (s *Source) save() error {
 	if err != nil {
 		return err
 	}
-	path := s.ConfigPath
 	// Dotfile managers often symlink config.yaml; write its target so the link survives.
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
+	path, err := utils.ConfigWritePath(s.ConfigPath, project)
+	if err != nil {
+		return err
 	}
 	info, err := os.Stat(path)
 	if err != nil {

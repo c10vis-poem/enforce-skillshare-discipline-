@@ -246,3 +246,24 @@ func TestHandleConfigSaveAcceptsAccountHooks(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlePutConfig_ProjectLinkOutOfTheProject_400(t *testing.T) {
+	s, projectRoot := newTestProjectServerWithExtras(t, nil)
+	outside := filepath.Join(t.TempDir(), "elsewhere.yaml")
+	os.WriteFile(outside, []byte("targets: []\n"), 0644)
+	link := config.ProjectConfigPath(projectRoot)
+	os.Remove(link)
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"raw":"targets: [claude]\n"}`
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(body)))
+
+	if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "outside the project") {
+		t.Errorf("expected 400 naming the link, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if data, _ := os.ReadFile(outside); string(data) != "targets: []\n" {
+		t.Errorf("file outside the project was written:\n%s", data)
+	}
+}
