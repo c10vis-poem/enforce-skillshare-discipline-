@@ -403,7 +403,7 @@ skillshare update --all -p --skip-audit  # 보안 audit gate 건너뛰기
 
 | Type | Method | 감지 방법 |
 |------|--------|-------------|
-| **Tracked repo**(`_repo`) | `git pull` | `.git/` 디렉터리가 있음 |
+| **Tracked repo**(`_repo`) | `git pull` | `_`로 시작하고 `.git/` 디렉터리가 있는 폴더 |
 | **Remote skill**(metadata 포함) | source에서 재설치 | `.metadata.json`에 등록됨 |
 | **로컬 경로 설치** | 기록된 경로에서 다시 복사 | `.metadata.json`에 `type: local`로 등록됨 |
 | **Local skill** | 건너뜀 | `.metadata.json`에 등록되지 않음 |

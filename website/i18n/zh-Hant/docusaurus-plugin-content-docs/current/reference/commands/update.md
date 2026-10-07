@@ -403,7 +403,7 @@ skillshare update --all -p --skip-audit  # 跳過安全性 audit 關卡
 
 | 類型 | 方法 | 判斷依據 |
 |------|--------|-------------|
-| **Tracked 儲存庫**（`_repo`） | `git pull` | 有 `.git/` 目錄 |
+| **Tracked 儲存庫**（`_repo`） | `git pull` | 以 `_` 開頭且有 `.git/` 目錄的資料夾 |
 | **遠端 skill**（有 metadata） | 從來源重新安裝 | 列於 `.metadata.json` |
 | **從本機路徑安裝** | 從記錄的路徑重新複製 | 列於 `.metadata.json`，且 `type: local` |
 | **本機 skill** | 跳過 | 未列於 `.metadata.json` |

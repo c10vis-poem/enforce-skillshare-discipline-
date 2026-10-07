@@ -403,7 +403,7 @@ skillshare update --all -p --skip-audit  # security audit gate をスキップ
 
 | タイプ | 方法 | 検出方法 |
 |------|--------|-------------|
-| **Tracked repo**（`_repo`） | `git pull` | `.git/` ディレクトリを持つ |
+| **Tracked repo**（`_repo`） | `git pull` | `_` で始まり `.git/` ディレクトリを持つフォルダ |
 | **Remote skill**（metadata 付き） | source から再インストール | `.metadata.json` に記載されている |
 | **ローカルパスからのインストール** | 記録されたパスから再コピー | `.metadata.json` に `type: local` で記載されている |
 | **Local skill** | スキップ | `.metadata.json` に記載されていない |
