@@ -60,7 +60,7 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			// A tracked repo (a _-prefixed checkout; an unprefixed one is a regular skill)
-			if repoName, repoPath := install.FindTrackedCheckout(source, name); repoPath != "" {
+			if repoName, repoPath := install.FindTrackedCheckoutUnlessSkill(source, name); repoPath != "" {
 				items = append(items, updateItem{name: repoName, isRepo: true, path: repoPath})
 				continue
 			}

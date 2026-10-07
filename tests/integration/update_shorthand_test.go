@@ -68,3 +68,34 @@ func TestUpdateProject_ShorthandIntoRepo(t *testing.T) {
 		return sb.RunCLIInDir(projectRoot, "update", name, "-p")
 	})
 }
+
+// A skill at org/team is what `update org/team -p` names; the shorthand must
+// not send it to the org/_team checkout beside it.
+func TestUpdateProject_ExistingSkillBeatsShorthand(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	projectRoot := sb.SetupProjectDir("claude")
+	source := filepath.Join(projectRoot, ".skillshare", "skills")
+	addPendingTrackedRepo(t, sb, source, "org/_team")
+	writeProjectMeta(t, sb.CreateProjectSkill(projectRoot, "org/team", map[string]string{"SKILL.md": "# Team"}))
+
+	result := sb.RunCLIInDir(projectRoot, "update", "org/team", "--dry-run", "-p")
+
+	result.AssertSuccess(t)
+	result.AssertOutputNotContains(t, "_team")
+}
+
+// `update team/` names the same item as `update team`: both the skill and the
+// _team repo match, so it is ambiguous either way.
+func TestUpdate_TrailingSlashKeepsAmbiguity(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	setupGlobalConfig(sb)
+	addPendingTrackedRepo(t, sb, sb.SourcePath, "_team")
+	writeMeta(t, sb.CreateSkill("team", map[string]string{"SKILL.md": "# Team"}))
+
+	result := sb.RunCLI("update", "team/")
+
+	result.AssertFailure(t)
+	result.AssertAnyOutputContains(t, "matches multiple items")
+}

@@ -2,6 +2,7 @@ package install
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -29,6 +30,22 @@ func FindTrackedCheckout(sourceRoot, input string) (name, repoPath string) {
 		}
 	}
 	return "", ""
+}
+
+// FindTrackedCheckoutUnlessSkill is FindTrackedCheckout, except that the
+// shorthand inside a folder (org/team -> org/_team) does not apply when a
+// directory already exists at org/team: that is the skill the name refers to.
+func FindTrackedCheckoutUnlessSkill(sourceRoot, input string) (name, repoPath string) {
+	name, repoPath = FindTrackedCheckout(sourceRoot, input)
+	if repoPath == "" {
+		return "", ""
+	}
+	if typed := cleanName(input); name != typed && path.Dir(name) != "." {
+		if info, err := os.Stat(filepath.Join(sourceRoot, filepath.FromSlash(typed))); err == nil && info.IsDir() {
+			return "", ""
+		}
+	}
+	return name, repoPath
 }
 
 // cleanName turns a typed name into a clean slash path ("org/team/" -> "org/team").

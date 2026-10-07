@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,6 +23,7 @@ type updateTarget struct {
 // resolveByBasename searches nested skills and tracked repos by their
 // directory basename. Returns an error when zero or multiple matches found.
 func resolveByBasename(sourceDir, name string, walks ...sourcewalk.Options) (updateTarget, error) {
+	name = path.Clean(filepath.ToSlash(name)) // "team/" names the same item as "team"
 	var matches []updateTarget
 
 	// Search tracked repos

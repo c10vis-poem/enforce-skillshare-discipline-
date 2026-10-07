@@ -55,3 +55,17 @@ func TestHandleUpdate_ShorthandIntoRepo(t *testing.T) {
 		})
 	}
 }
+
+// A skill that exists at org/team is what the name refers to; the shorthand
+// must not send the update to org/_team instead.
+func TestHandleUpdateStream_ExistingSkillBeatsShorthand(t *testing.T) {
+	s, src := newTestServer(t)
+	addSkill(t, src, "org/team")
+	addTrackedRepo(t, src, "org/_team")
+
+	results := runFollowUpdate(t, s, true, "org/team")
+
+	if len(results) != 1 || results[0].Name != "org/team" || results[0].IsRepo {
+		t.Fatalf("results = %+v, want the org/team skill, not the org/_team repo", results)
+	}
+}

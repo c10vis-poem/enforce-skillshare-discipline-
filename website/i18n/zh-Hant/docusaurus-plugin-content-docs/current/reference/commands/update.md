@@ -408,7 +408,7 @@ skillshare update --all -p --skip-audit  # 跳過安全性 audit 關卡
 | **從本機路徑安裝** | 從記錄的路徑重新複製 | 列於 `.metadata.json`，且 `type: local` |
 | **本機 skill** | 跳過 | 未列於 `.metadata.json` |
 
-`_` 前綴是選填的，路徑最後一段也一樣 — `skillshare update team-skills -p` 會自動偵測為 `_team-skills`，`skillshare update devops/team-skills` 會找到以 `--into devops` 安裝的 `devops/_team-skills`。
+`_` 前綴是選填的，路徑最後一段也一樣 — `skillshare update team-skills -p` 會自動偵測為 `_team-skills`，`skillshare update devops/team-skills -p` 會找到以 `--into devops` 安裝的 `devops/_team-skills`。
 
 ### Lockfile
 

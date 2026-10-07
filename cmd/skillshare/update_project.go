@@ -86,7 +86,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 			continue
 		}
 
-		if repoName, repoPath := install.FindTrackedCheckout(sourcePath, name); repoPath != "" {
+		if repoName, repoPath := install.FindTrackedCheckoutUnlessSkill(sourcePath, name); repoPath != "" {
 			if !seen[repoPath] {
 				seen[repoPath] = true
 				targets = append(targets, updateTarget{name: repoName, path: repoPath, isRepo: true})

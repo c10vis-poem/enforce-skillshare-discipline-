@@ -408,7 +408,7 @@ skillshare update --all -p --skip-audit  # security audit gate をスキップ
 | **ローカルパスからのインストール** | 記録されたパスから再コピー | `.metadata.json` に `type: local` で記載されている |
 | **Local skill** | スキップ | `.metadata.json` に記載されていない |
 
-`_` prefix は最後のパス区間でも省略可能です — `skillshare update team-skills -p` は自動的に `_team-skills` を検出し、`skillshare update devops/team-skills` は `--into devops` でインストールした `devops/_team-skills` を検出します。
+`_` prefix は最後のパス区間でも省略可能です — `skillshare update team-skills -p` は自動的に `_team-skills` を検出し、`skillshare update devops/team-skills -p` は `--into devops` でインストールした `devops/_team-skills` を検出します。
 
 ### ロックファイル
 
