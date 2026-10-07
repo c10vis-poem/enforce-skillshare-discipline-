@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.25.2] - 2026-10-07
+
+### Bug Fixes
+
+#### Tracked repositories
+
+- **Tracked repos installed with `--into` are treated as repos** — `install --track --into <dir>` places the checkout at `<dir>/_repo`, but discovery only recognized a repo at the top level. Its skills were listed as ordinary skills, counted outside the repo in `list` and `status`, grouped wrongly in the dashboard tree, and `uninstall <dir>/_repo` could not remove it as a repo. `list`, `status`, `check`, the dashboard and `uninstall` now treat it as the tracked repo it is. Refs: #470.
+  ```bash
+  skillshare install github.com/team/skills --track --into devops
+  skillshare uninstall devops/_skills
+  ```
+- **Updating a tracked repo from the dashboard keeps it tracked** — the Update button reinstalled the repo as a regular skill and dropped its tracked state, after which `skillshare update <repo>` failed with "matches multiple items". The dashboard now pulls the repo like the CLI does. An entry that was already rewritten is repaired on the repo's next update, from the CLI or the dashboard. Refs: #473.
+- **`update` and `uninstall` accept `org/team` for a repo installed with `--into org`** — the shorthand worked only for the dashboard's single update; the batch update, `update`, `update -p` and `uninstall` looked for `_org/team` and failed. Every entry point now resolves `org/team` to `org/_team`. A skill or folder that exists at the typed path still wins, and a name that matches more than one repo is an error rather than a guess.
+  ```bash
+  skillshare update devops/skills
+  skillshare uninstall devops/skills --dry-run
+  ```
+- **Only `_`-prefixed git checkouts are tracked repos** — a plain git checkout in the source, such as a skill cloned by hand, was updated with `git pull` by the dashboard's batch update, `update --group` and `update -p`, and `reconcile` marked it as tracked. It is now handled as a regular skill everywhere. An old entry with `tracked: true` keeps its source and branch; only the flag is cleared on the next reconcile. Refs: #476.
+- **Removing part of a tracked repo is refused** — `uninstall` moved a skill or folder out of a tracked repo's checkout, leaving the repo with deleted files. It now fails with `inside a tracked repo; uninstall the repo instead`, even with `--force`. Skills under a followed source link can still be removed one at a time.
+- **A nested tracked repo no longer takes over a top-level repo's metadata** — when `org/_team` had no metadata entry and a top-level `_team` existed, reconcile moved `_team`'s entry, with its source, to `org/_team`, and the wrong source stayed there. Each repo now keeps its own entry; entries from the older registry format are still recognized. Refs: #478.
+- **The dashboard shows owner/repo for skills inside a tracked repo** — skills in a subfolder of a tracked repo, such as `_skills/skills/engineering/tdd`, had no source, so their cards on the Updates tab showed only `tracked`. Refs: #467.
+- **A skill at the root of a tracked repo appears under its repo in the dashboard tree** — it was listed beside the repo instead of inside it.
+
+#### Dashboard
+
+- **The Pi Extensions tab tells packages from plugins** — every entry Skillshare manages was titled `Plugins · <name>` with a box icon, so a Pi package installed through the Plugins page looked like a plugin. A Pi package now reads `Package · <name>` with Pi's black and white mark, and a plugin reads `Plugin · <name>`.
+
+#### Audit
+
+- **SDK `system:` parameters in Markdown examples no longer block installs** — API examples in skill documentation, such as those in anthropics/skills, were reported as CRITICAL prompt injection, so the default policy blocked their install and update. Recognized SDK parameter shapes are now HIGH: the default policy warns, `--strict` still blocks, and explicit instructions to hide content remain CRITICAL. Refs: #468.
+  - Generic disclosure restrictions now use the HIGH rule `prompt-injection-5`. Existing overrides or accepted findings for `prompt-injection-4` do not carry over to it.
+- **Shell analysis follows commands across Markdown boundaries** — a blank line inside raw HTML or a comment split a shell data flow in two, and a code fence whose info string used a tab was skipped. Both are now analyzed.
+- **Custom disclosure rules keep their exclusions** — replacing a built-in disclosure rule's regex dropped its whole-line exclusions. They are now kept, including when only the severity or `enabled` state is overridden.
+
 ## [0.25.1] - 2026-10-07
 
 ### New Features
