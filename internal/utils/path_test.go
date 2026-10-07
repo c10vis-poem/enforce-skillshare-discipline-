@@ -93,6 +93,26 @@ func TestConfigWritePath(t *testing.T) {
 			t.Fatalf("expected refusal, got %v", err)
 		}
 	})
+	t.Run("dangling link chain leaving the project is refused", func(t *testing.T) {
+		hop := filepath.Join(root, "hop.yaml")
+		os.Remove(hop)
+		if err := os.Symlink(filepath.Join(filepath.Dir(outside), "not-yet.yaml"), hop); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ConfigWritePath(projectLink(t, hop), true); err == nil || !strings.Contains(err.Error(), "outside the project") {
+			t.Fatalf("expected refusal, got %v", err)
+		}
+	})
+	t.Run("missing target under an escaping directory link is refused", func(t *testing.T) {
+		escape := filepath.Join(root, "escape")
+		os.Remove(escape)
+		if err := os.Symlink(filepath.Dir(outside), escape); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ConfigWritePath(projectLink(t, "../escape/missing/config.yaml"), true); err == nil || !strings.Contains(err.Error(), "outside the project") {
+			t.Fatalf("expected refusal, got %v", err)
+		}
+	})
 	t.Run("new project config is allowed", func(t *testing.T) {
 		p := filepath.Join(root, "new", ".skillshare", "config.yaml")
 		if _, err := ConfigWritePath(p, true); err != nil {

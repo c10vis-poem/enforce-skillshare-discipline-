@@ -30,6 +30,24 @@ func ResolveSymlink(path string) string {
 	return path
 }
 
+// resolveExisting resolves symlinks in the longest existing prefix of path and
+// appends the part that does not exist yet.
+func resolveExisting(path string) string {
+	path = filepath.Clean(path)
+	rest := ""
+	for {
+		if resolved, err := filepath.EvalSymlinks(path); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return filepath.Join(path, rest)
+		}
+		rest = filepath.Join(filepath.Base(path), rest)
+		path = parent
+	}
+}
+
 // ConfigWritePath returns the file a save of the config at path writes: the target
 // of a symlink, so the link survives, including a link whose target does not exist
 // yet. A project config (<root>/.skillshare/config.yaml) must resolve inside its
@@ -37,20 +55,30 @@ func ResolveSymlink(path string) string {
 func ConfigWritePath(path string, project bool) (string, error) {
 	dest, err := filepath.EvalSymlinks(path)
 	if err != nil {
+		// The file does not exist yet. Follow every link to the file a write would
+		// create, so a link inside the project cannot hand the write to one outside.
 		dest = path
-		if target, err := os.Readlink(path); err == nil {
+		for hops := 0; ; hops++ {
+			target, err := os.Readlink(dest)
+			if err != nil {
+				break
+			}
+			if hops == 40 {
+				return "", fmt.Errorf("%s: too many levels of symbolic links", path)
+			}
 			if !filepath.IsAbs(target) {
-				target = filepath.Join(filepath.Dir(path), target)
+				target = filepath.Join(resolveExisting(filepath.Dir(dest)), target)
 			}
 			dest = target
 		}
-		// The file does not exist yet; resolve its directory to compare like for like.
-		dest = filepath.Join(ResolveSymlink(filepath.Dir(dest)), filepath.Base(dest))
+		// Resolve every directory that exists, so a missing one cannot hide a link
+		// above it that leaves the project.
+		dest = resolveExisting(dest)
 	}
 	if !project {
 		return dest, nil
 	}
-	root := ResolveSymlink(filepath.Dir(filepath.Dir(path)))
+	root := resolveExisting(filepath.Dir(filepath.Dir(path)))
 	if !PathHasPrefix(dest, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("%s links outside the project to %s; replace the link with a regular file", path, dest)
 	}
