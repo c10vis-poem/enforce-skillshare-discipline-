@@ -1029,3 +1029,28 @@ func TestUpdate_Batch_DirtyRepoSkipped(t *testing.T) {
 		t.Error("clean repo should have been updated")
 	}
 }
+
+// The old dashboard update rewrote a tracked repo's entry as a regular install
+// (#473). Updating the repo by name must not be ambiguous and must restore it.
+func TestUpdate_TrackedRepo_RepairsRewrittenEntry(t *testing.T) {
+	sb := testutil.NewSandbox(t)
+	defer sb.Cleanup()
+	setupGlobalConfig(sb)
+
+	repoName := setupCleanTrackedRepo(t, sb, "rewritten")
+	store := install.NewMetadataStore()
+	store.Set(repoName, &install.MetadataEntry{Source: "file:///remote.git", Type: "github", RepoURL: "file:///remote.git", Version: "abc1234"})
+	if err := store.Save(sb.SourcePath); err != nil {
+		t.Fatal(err)
+	}
+
+	sb.RunCLI("update", repoName).AssertSuccess(t)
+
+	got, err := install.LoadMetadata(sb.SourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := got.Get(repoName); e == nil || !e.Tracked || e.Type != "" || e.RepoURL != "" || e.Version != "" {
+		t.Errorf("entry not restored to a tracked entry: %+v", e)
+	}
+}

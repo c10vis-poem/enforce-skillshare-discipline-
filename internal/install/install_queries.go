@@ -22,11 +22,13 @@ func getUpdatableSkillsImpl(sourceDir string) ([]string, error) {
 		if entry == nil || entry.Source == "" {
 			continue
 		}
-		// Skip tracked repos (they are handled separately)
-		if entry.Tracked {
+		// Skip tracked repos (they are handled separately), including an entry
+		// the old dashboard update rewrote as a regular install (#473).
+		rel := KeyToRelPath(name, entry)
+		if entry.Tracked || IsTrackedCheckout(filepath.Join(sourceDir, rel)) {
 			continue
 		}
-		skills = append(skills, KeyToRelPath(name, entry))
+		skills = append(skills, rel)
 	}
 	return skills, nil
 }
@@ -233,14 +235,12 @@ func getTrackedReposImpl(sourceDir string, walk sourcewalk.Options) ([]string, e
 			return filepath.SkipDir
 		}
 		// Look for _-prefixed directories that are git repos
-		if info.IsDir() && len(info.Name()) > 0 && info.Name()[0] == '_' {
-			if IsGitRepo(path) {
-				relPath, relErr := filepath.Rel(walkRoot, path)
-				if relErr == nil {
-					repos = append(repos, filepath.ToSlash(relPath))
-				}
-				return filepath.SkipDir // Don't recurse into tracked repos
+		if info.IsDir() && IsTrackedCheckout(path) {
+			relPath, relErr := filepath.Rel(walkRoot, path)
+			if relErr == nil {
+				repos = append(repos, filepath.ToSlash(relPath))
 			}
+			return filepath.SkipDir // Don't recurse into tracked repos
 		}
 		return nil
 	})

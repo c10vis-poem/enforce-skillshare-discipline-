@@ -545,7 +545,7 @@ func (s *Server) resolveTrackedRepo(input string, walks ...sourcewalk.Options) (
 	candidates := []string{input}
 	if !strings.HasPrefix(filepath.Base(input), "_") {
 		if dir := filepath.Dir(input); dir != "." && dir != "" {
-			candidates = append(candidates, filepath.Join(dir, "_"+filepath.Base(input)))
+			candidates = append(candidates, filepath.ToSlash(filepath.Join(dir, "_"+filepath.Base(input))))
 		} else {
 			candidates = append(candidates, "_"+input)
 		}

@@ -212,3 +212,77 @@ func TestTrackedBlockMessage(t *testing.T) {
 		}
 	}
 }
+
+// A tracked repo's own metadata entry has a Source too; updating it by name must
+// pull the checkout, not reinstall it as a regular skill and drop tracked. An
+// entry the old path already rewrote as a regular install is restored (#473).
+func TestUpdateSingle_TrackedEntryUpdatesAsRepo(t *testing.T) {
+	// rewritten is what the old path left; reconcile later sets tracked on it
+	// again without dropping the regular-install fields.
+	for _, name := range []string{"_team", "org/_team"} {
+		for _, state := range []string{"tracked", "rewritten", "reconciled"} {
+			t.Run(name+"/"+state, func(t *testing.T) {
+				s, src := newTestServer(t)
+				base := t.TempDir()
+				remote := testutil.SetupBareRemoteRepo(t, base)
+				testutil.SeedRemoteBranch(t, base, remote, "main", map[string]string{"child/SKILL.md": trackedCleanSkill})
+				testutil.RunGit(t, "", "clone", remote, filepath.Join(src, name))
+				entry := &install.MetadataEntry{Source: "file://" + remote, Tracked: state != "rewritten"}
+				if state != "tracked" {
+					entry.Type, entry.RepoURL, entry.Version = "github", "file://"+remote, "abc1234"
+				}
+				s.skillsStore.Set(name, entry)
+				if err := s.skillsStore.Save(src); err != nil {
+					t.Fatal(err)
+				}
+
+				got := s.updateSingleByKind(name, "skill", false, true)
+				if !got.IsRepo || got.Action != "up-to-date" {
+					t.Fatalf("got %+v, want an up-to-date repo update", got)
+				}
+				if e := s.skillsStore.GetByPath(name); e == nil || !e.Tracked || e.Type != "" || e.RepoURL != "" || e.Version != "" {
+					t.Errorf("not a tracked entry: %+v", e)
+				}
+			})
+		}
+	}
+}
+
+// A tracked entry whose checkout is gone must not update another repo that
+// shares its basename, nor be reinstalled as a regular skill.
+func TestUpdateSingle_MissingTrackedCheckoutIsError(t *testing.T) {
+	s, src := newTestServer(t)
+	other := filepath.Join(src, "org", "_team")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	initGitRepo(t, other)
+	s.skillsStore.Set("_team", &install.MetadataEntry{Source: "https://github.com/example/team.git", Tracked: true})
+
+	got := s.updateSingleByKind("_team", "skill", false, true)
+	if got.Action != "error" || got.Name != "_team" || !strings.Contains(got.Message, "missing on disk") {
+		t.Fatalf("got %+v, want a missing-checkout error for _team", got)
+	}
+}
+
+// A standalone skill installed as a full checkout is not a tracked repo; its
+// regular update records the new version (Codex review on #474).
+func TestUpdateSingle_UntrackedCheckoutUpdatesAsSkill(t *testing.T) {
+	s, src := newTestServer(t)
+	base := t.TempDir()
+	remote := testutil.SetupBareRemoteRepo(t, base)
+	testutil.SeedRemoteBranch(t, base, remote, "main", map[string]string{"SKILL.md": trackedCleanSkill})
+	testutil.RunGit(t, "", "clone", remote, filepath.Join(src, "solo"))
+	s.skillsStore.Set("solo", &install.MetadataEntry{Source: "file://" + remote, Version: "old"})
+	if err := s.skillsStore.Save(src); err != nil {
+		t.Fatal(err)
+	}
+
+	got := s.updateSingleByKind("solo", "skill", false, true)
+	if got.IsRepo || got.Action != "updated" {
+		t.Fatalf("got %+v, want a regular skill update", got)
+	}
+	if e := s.skillsStore.GetByPath("solo"); e == nil || e.Version == "old" {
+		t.Errorf("version not recorded: %+v", e)
+	}
+}

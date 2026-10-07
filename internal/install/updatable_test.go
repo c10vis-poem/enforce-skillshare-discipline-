@@ -314,3 +314,27 @@ func TestFindRepoInstalls_EmptyCloneURL(t *testing.T) {
 		t.Errorf("expected 0 matches for empty cloneURL, got %v", matches)
 	}
 }
+
+// An entry the old dashboard update rewrote as a regular install over a
+// tracked checkout, top-level or --into, is the repo itself (#473).
+func TestGetUpdatableSkills_SkipsRewrittenTrackedCheckouts(t *testing.T) {
+	src := t.TempDir()
+	store := NewMetadataStore()
+	for _, rel := range []string{"_team", "org/_team", "org/solo"} {
+		if err := os.MkdirAll(filepath.Join(src, rel, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		store.Set(rel, &MetadataEntry{Source: "github.com/example/repo", Type: "github"})
+	}
+	if err := store.Save(src); err != nil {
+		t.Fatal(err)
+	}
+
+	skills, err := GetUpdatableSkills(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skills) != 1 || skills[0] != "org/solo" {
+		t.Errorf("got %v, want only the untracked checkout org/solo", skills)
+	}
+}
