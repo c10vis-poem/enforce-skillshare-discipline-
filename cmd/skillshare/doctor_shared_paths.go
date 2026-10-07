@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -42,24 +43,24 @@ func crossTargetDiscoverySuggestion(scanner string, writers []string, isProject 
 		scanner, scanner, strings.Join(writers, ", "), scanner, targetRemoveDryRunCommand(isProject), strings.Join(writers, ", "))
 }
 
-// scanOffHint says how a runtime can stop reading the given folders of other
-// targets, or "" when that is not known.
-func scanOffHint(scanner string, paths []string) string {
-	if scanner != "opencode" {
+// scanOffHint names the most specific environment variable that makes the
+// runtime skip every one of paths, or "" when none does.
+func scanOffHint(scanner string, paths []string, isProject bool) string {
+	if len(paths) == 0 {
 		return ""
 	}
-	for _, p := range paths {
-		// OPENCODE_DISABLE_CLAUDE_CODE_SKILLS leaves .agents/skills loaded.
-		if filepath.Base(filepath.Dir(p)) == ".agents" {
-			return "set OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to skip .claude/skills and .agents/skills"
+	disabledBy := config.AlsoScansDisabledBy(scanner, isProject)
+	for _, v := range disabledBy[paths[0]] {
+		if !slices.ContainsFunc(paths[1:], func(p string) bool { return !slices.Contains(disabledBy[p], v) }) {
+			return "set " + v + "=1"
 		}
 	}
-	return "set OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 to skip .claude/skills, or OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to also skip .agents/skills"
+	return ""
 }
 
-func leakedSkillsSuggestion(scanner string, paths []string) string {
+func leakedSkillsSuggestion(scanner string, paths []string, isProject bool) string {
 	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
-	if hint := scanOffHint(scanner, paths); hint != "" {
+	if hint := scanOffHint(scanner, paths, isProject); hint != "" {
 		s += ", or where " + scanner + " runs, " + hint
 	}
 	return s + "."
@@ -154,6 +155,20 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 		writersByPath[path] = append(writersByPath[path], name)
 	}
 
+	// Say which written folders a runtime skips because of this environment:
+	// the runtime may run with another one.
+	var skipped []string
+	for _, scanner := range slices.Sorted(maps.Keys(primaryByName)) {
+		for _, s := range config.ScansTurnedOff(scanner, isProject) {
+			if _, written := writersByPath[filepath.Clean(s.Path)]; !written {
+				continue
+			}
+			note := fmt.Sprintf("%s skips %s: %s is set in this environment", scanner, shortenPath(s.Path), s.EnvVar)
+			ui.Note(note)
+			skipped = append(skipped, note)
+		}
+	}
+
 	type pathOverlap struct {
 		sharedPath string
 		writers    []string
@@ -209,7 +224,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 	}
 
 	if len(overlapsByScanner) == 0 {
-		result.addCheck("cross_target_discovery", checkPass, "No cross-target discovery overlap", nil)
+		result.addCheck("cross_target_discovery", checkPass, "No cross-target discovery overlap", skipped)
 		return
 	}
 
@@ -220,7 +235,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 	}
 	sort.Strings(scannerNames)
 
-	var details []string
+	details := skipped
 	var suggestions []string
 	for _, name := range scannerNames {
 		so := overlapsByScanner[name]
@@ -254,7 +269,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				details = append(details, fmt.Sprintf("%s (%s) also scans %s ← %s and loads skills its filters leave out: %s",
 					so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
 			}
-			suggestion := leakedSkillsSuggestion(so.scanner, leakPaths)
+			suggestion := leakedSkillsSuggestion(so.scanner, leakPaths, isProject)
 			ui.Note("suggestion: " + suggestion)
 			suggestions = append(suggestions, suggestion)
 			result.addWarning()

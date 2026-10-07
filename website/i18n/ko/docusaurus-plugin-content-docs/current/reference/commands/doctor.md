@@ -173,7 +173,13 @@ OpenCode는 `~/.claude/skills`, `~/.agents/skills`, 자신의 폴더 사이에�
   ~/.claude/skills ← claude: claude-only
 ```
 
-해결: 해당 skill을 `opencode`에도 허용하거나, OpenCode를 실행하는 환경에 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`(`.agents/skills`도 건너뛰려면 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`)을 설정합니다. `doctor`는 OpenCode의 환경을 볼 수 없으므로 설정한 뒤에도 경고는 계속 표시됩니다.
+해결: 해당 skill을 `opencode`에도 허용하거나, OpenCode를 실행하는 환경에 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`(`.agents/skills`도 건너뛰려면 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`)을 설정합니다. skillshare는 자신의 환경만 볼 수 있습니다. skillshare를 실행하는 환경에도 이 변수를 설정하면 `doctor`, `sync`, dashboard는 해당 폴더를 건너뛴 것으로 처리하고, `doctor`는 이를 표시합니다:
+
+```text
+opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
+```
+
+OpenCode를 다른 환경(예: 데스크톱 런처)에서 실행한다면 그쪽에도 변수를 설정하세요.
 
 `shared_target_paths`는 구성된 경로만 읽습니다. `cross_target_discovery`는 내장된 `also_scans` 테이블도 읽고, `opencode`의 경우 각 target이 받는 skill도 확인합니다.
 

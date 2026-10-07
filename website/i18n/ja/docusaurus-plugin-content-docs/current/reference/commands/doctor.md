@@ -173,7 +173,13 @@ OpenCode は `~/.claude/skills`、`~/.agents/skills`、自分のフォルダの�
   ~/.claude/skills ← claude: claude-only
 ```
 
-対処：その skill を `opencode` にも許可するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。`doctor` からは OpenCode の環境が見えないため、設定後も警告は表示されます。
+対処：その skill を `opencode` にも許可するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。skillshare が見えるのは自分の環境だけです。skillshare を実行する環境でもこの変数を設定すると、`doctor`、`sync`、dashboard はそのフォルダを読まれないものとして扱い、`doctor` はその旨を表示します：
+
+```text
+opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
+```
+
+OpenCode を別の環境（デスクトップのランチャーなど）から起動する場合は、そちらでも変数を設定してください。
 
 `shared_target_paths` は設定済みのパスだけを読みます。`cross_target_discovery` は組み込みの `also_scans` テーブルも読み、`opencode` については各 target が受け取る skill も確認します。
 

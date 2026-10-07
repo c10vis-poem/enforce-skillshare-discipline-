@@ -225,6 +225,22 @@ func TestCheckCrossTargetDiscovery_OpenCodeNamesLeakedSkills(t *testing.T) {
 	}
 }
 
+func TestCheckCrossTargetDiscovery_OpenCodeEnvOffPassesWithNote(t *testing.T) {
+	cfg := opencodeAndClaude(t)
+	t.Setenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "1")
+	r := &doctorResult{}
+	checkCrossTargetDiscovery(cfg, r, false, []sync.DiscoveredSkill{
+		{FlatName: "claude-only", Targets: []string{"claude"}},
+	})
+
+	if r.warnings != 0 || r.checks[0].Status != checkPass {
+		t.Fatalf("expected a passing check, got %+v", r.checks)
+	}
+	if d := strings.Join(r.checks[0].Details, "\n"); !strings.Contains(d, "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set") {
+		t.Errorf("details %q do not say why ~/.claude/skills is skipped", d)
+	}
+}
+
 func TestCheckCrossTargetDiscovery_OpenCodeAgentsLeakOnlySuggestsExternalOff(t *testing.T) {
 	// OPENCODE_DISABLE_CLAUDE_CODE_SKILLS leaves .agents/skills loaded.
 	cfg := opencodeAndClaude(t)

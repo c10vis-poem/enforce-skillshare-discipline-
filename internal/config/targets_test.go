@@ -236,6 +236,47 @@ func TestRuntimeScanPaths_UnionOfAlsoScansAndPrimary(t *testing.T) {
 	}
 }
 
+func TestRuntimeScanPaths_SkipsPathTurnedOffByEnv(t *testing.T) {
+	t.Setenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "1")
+	got := RuntimeScanPaths("opencode", false)
+	if slices.Contains(got, normalizeTargetPath("~/.claude/skills")) {
+		t.Errorf("RuntimeScanPaths(opencode) = %v, want ~/.claude/skills skipped", got)
+	}
+	if !slices.Contains(got, normalizeTargetPath("~/.agents/skills")) {
+		t.Errorf("RuntimeScanPaths(opencode) = %v, want ~/.agents/skills kept", got)
+	}
+}
+
+func TestRuntimeScanPaths_ExternalSkillsOffSkipsBothProjectPaths(t *testing.T) {
+	t.Setenv("OPENCODE_DISABLE_EXTERNAL_SKILLS", "true")
+	got := RuntimeScanPaths("opencode", true)
+	if len(got) != 1 || filepath.ToSlash(got[0]) != ".opencode/skills" {
+		t.Errorf("RuntimeScanPaths(opencode, project) = %v, want only .opencode/skills", got)
+	}
+}
+
+func TestRuntimeScanPaths_KeepsPathWhenEnvIsFalse(t *testing.T) {
+	t.Setenv("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "0")
+	if got := RuntimeScanPaths("opencode", false); !slices.Contains(got, normalizeTargetPath("~/.claude/skills")) {
+		t.Errorf("RuntimeScanPaths(opencode) = %v, want ~/.claude/skills kept", got)
+	}
+}
+
+// A disabled_by_env key that is not an also_scans path would never apply.
+func TestAlsoScans_DisabledByEnvKeysAreScannedPaths(t *testing.T) {
+	specs, err := loadTargetSpecs()
+	if err != nil {
+		t.Fatalf("loadTargetSpecs: %v", err)
+	}
+	for _, spec := range specs {
+		for path := range spec.AlsoScans.DisabledByEnv {
+			if !slices.Contains(spec.AlsoScans.Global, path) && !slices.Contains(spec.AlsoScans.Project, path) {
+				t.Errorf("%s: disabled_by_env key %q is not in also_scans", spec.Name, path)
+			}
+		}
+	}
+}
+
 func TestRuntimeScanPaths_Deduplicates(t *testing.T) {
 	// warp's primary path is ~/.agents/skills and it has no also_scans.
 	got := RuntimeScanPaths("warp", false)

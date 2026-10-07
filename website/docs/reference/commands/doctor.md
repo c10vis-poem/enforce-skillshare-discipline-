@@ -173,7 +173,13 @@ OpenCode keeps one skill per name across `~/.claude/skills`, `~/.agents/skills`,
   ~/.claude/skills ← claude: claude-only
 ```
 
-Resolution: allow those skills for `opencode`, or set `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` (or `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`, which also skips `.agents/skills`) where OpenCode runs. `doctor` cannot see OpenCode's environment, so the warning stays after you set either variable.
+Resolution: allow those skills for `opencode`, or set `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` (or `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`, which also skips `.agents/skills`) where OpenCode runs. skillshare only sees its own environment: when the variable is also set where you run skillshare, `doctor`, `sync`, and the dashboard treat that folder as skipped, and `doctor` notes it:
+
+```text
+opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
+```
+
+If OpenCode starts with a different environment, for example from a desktop launcher, set the variable there as well.
 
 `shared_target_paths` reads configured paths only. `cross_target_discovery` also reads the built-in `also_scans` table, and for `opencode` the skills each target receives.
 

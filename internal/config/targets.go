@@ -27,6 +27,9 @@ type targetPathPair struct {
 type targetAlsoScans struct {
 	Global  []string `yaml:"global,omitempty"`
 	Project []string `yaml:"project,omitempty"`
+	// DisabledByEnv maps an also_scans path to the environment variables that
+	// make the runtime skip it, most specific first.
+	DisabledByEnv map[string][]string `yaml:"disabled_by_env,omitempty"`
 }
 
 // targetInstructions is the instruction file (CLAUDE.md, AGENTS.md, ...) a
@@ -348,6 +351,65 @@ func AlsoScansProject(name string) []string {
 	return nil
 }
 
+// ScanOff is an also_scans path a target's runtime skips because EnvVar is set.
+type ScanOff struct {
+	Path   string
+	EnvVar string
+}
+
+// AlsoScansDisabledBy returns, per also_scans path (normalised like
+// AlsoScansGlobal/AlsoScansProject), the environment variables that make the
+// target's runtime skip it, most specific first.
+func AlsoScansDisabledBy(name string, isProject bool) map[string][]string {
+	specs, err := loadTargetSpecs()
+	if err != nil {
+		return nil
+	}
+	for _, spec := range specs {
+		if spec.Name != name {
+			continue
+		}
+		raw := spec.AlsoScans.Global
+		if isProject {
+			raw = spec.AlsoScans.Project
+		}
+		out := make(map[string][]string)
+		for _, p := range raw {
+			if vars := spec.AlsoScans.DisabledByEnv[p]; len(vars) > 0 {
+				out[normalizeTargetPath(p)] = vars
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// ScansTurnedOff returns the also_scans paths an environment variable of this
+// process turns off. It assumes the runtime sees the same environment.
+func ScansTurnedOff(name string, isProject bool) []ScanOff {
+	var off []ScanOff
+	for path, vars := range AlsoScansDisabledBy(name, isProject) {
+		for _, v := range vars {
+			if envTrue(os.Getenv(v)) {
+				off = append(off, ScanOff{Path: path, EnvVar: v})
+				break
+			}
+		}
+	}
+	sort.Slice(off, func(i, j int) bool { return off[i].Path < off[j].Path })
+	return off
+}
+
+// envTrue reports whether v is a true value as OpenCode's flags read it
+// (Effect's Config.boolean).
+func envTrue(v string) bool {
+	switch v {
+	case "true", "yes", "on", "1", "y":
+		return true
+	}
+	return false
+}
+
 // DetectDir returns the install directory that identifies a target's tool,
 // tilde-expanded and OS-normalised. Returns "" for unknown targets or targets
 // without detect metadata (their skills path already identifies them).
@@ -379,11 +441,15 @@ func RuntimeScanPaths(name string, isProject bool) []string {
 		scans = AlsoScansGlobal(name)
 		primary = DefaultTargets()[name].Path
 	}
+	off := make(map[string]bool)
+	for _, s := range ScansTurnedOff(name, isProject) {
+		off[s.Path] = true
+	}
 
 	paths := make([]string, 0, len(scans)+1)
 	seen := make(map[string]bool, len(scans)+1)
 	for _, p := range scans {
-		if p == "" || seen[p] {
+		if p == "" || seen[p] || off[p] {
 			continue
 		}
 		seen[p] = true

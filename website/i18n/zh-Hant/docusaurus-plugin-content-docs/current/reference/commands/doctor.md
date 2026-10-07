@@ -173,7 +173,13 @@ OpenCode 在 `~/.claude/skills`、`~/.agents/skills` 和自己的資料夾之間
   ~/.claude/skills ← claude: claude-only
 ```
 
-解決方式：讓 `opencode` 也能拿到這些 skill，或在執行 OpenCode 的環境設定 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，連 `.agents/skills` 也略過）。`doctor` 看不到 OpenCode 的環境，所以設定後警告仍會出現。
+解決方式：讓 `opencode` 也能拿到這些 skill，或在執行 OpenCode 的環境設定 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，連 `.agents/skills` 也略過）。skillshare 只看得到自己的環境：執行 skillshare 的環境也設定了這個變數時，`doctor`、`sync` 和 dashboard 會把該資料夾當成已略過，`doctor` 也會註明：
+
+```text
+opencode skips ~/.claude/skills: OPENCODE_DISABLE_CLAUDE_CODE_SKILLS is set in this environment
+```
+
+如果 OpenCode 是從其他環境啟動（例如桌面捷徑），那邊也要設定這個變數。
 
 `shared_target_paths` 只讀取已設定的路徑。`cross_target_discovery` 也會讀內建的 `also_scans` 表，對 `opencode` 還會看每個 target 拿到哪些 skill。
 
