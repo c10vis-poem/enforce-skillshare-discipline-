@@ -60,7 +60,10 @@ func reconcileSkillsWalk(sourcePath string, walk sourcewalk.Options, store *inst
 		var source string
 		tracked := install.IsTrackedCheckout(path)
 
-		existing := store.GetByPath(fullPath)
+		existing := store.Get(fullPath)
+		if !tracked {
+			existing = store.GetByPath(fullPath)
+		}
 		if existing != nil && existing.Source != "" {
 			source = existing.Source
 		} else if tracked {
