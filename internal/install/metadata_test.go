@@ -378,3 +378,29 @@ func TestMetadataStore_RefreshHashes_NoOp(t *testing.T) {
 		t.Error("should not compute hashes when FileHashes is nil")
 	}
 }
+
+// The repair looks up the repo's own key only: the basename fallback of
+// GetByPath would hand it a different top-level item's entry.
+func TestRefreshTrackedRepoMetadata_LeavesBasenameSiblingAlone(t *testing.T) {
+	src := t.TempDir()
+	repo := filepath.Join(src, "org", "_team")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store := NewMetadataStore()
+	store.Set("_team", &MetadataEntry{Source: "github.com/example/team", Type: "github", Version: "v1"})
+	if err := store.Save(src); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RefreshTrackedRepoMetadata(src, "org/_team", repo); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadMetadata(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := got.Get("_team"); e == nil || e.Tracked || e.Version != "v1" {
+		t.Errorf("sibling entry was rewritten: %+v", e)
+	}
+}

@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"skillshare/internal/utils"
 )
 
 var commitSHAPattern = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
@@ -31,6 +33,12 @@ func IsGitRepo(path string) bool {
 	gitDir := filepath.Join(path, ".git")
 	info, err := os.Stat(gitDir)
 	return err == nil && (info.IsDir() || info.Mode().IsRegular())
+}
+
+// IsTrackedCheckout reports whether path is a tracked repo checkout: a
+// _-prefixed directory that is a git repo.
+func IsTrackedCheckout(path string) bool {
+	return utils.IsTrackedRepoDir(filepath.Base(path)) && IsGitRepo(path)
 }
 
 // gitCommandTimeout is the maximum time for a git network operation.

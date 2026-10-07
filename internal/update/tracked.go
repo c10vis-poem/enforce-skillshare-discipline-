@@ -189,5 +189,5 @@ func refreshMetadata(repoPath string, opts TrackedRepoOptions) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return install.RefreshTrackedRepoMetadata(opts.SourceDir, filepath.ToSlash(rel), repoPath, opts.Follow)
+	return install.RefreshTrackedRepoMetadata(opts.SourceDir, rel, repoPath, opts.Follow)
 }

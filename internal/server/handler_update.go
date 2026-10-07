@@ -176,10 +176,12 @@ func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) up
 		return *refusal
 	}
 	// A tracked repo's own entry has a Source too; a reinstall would drop its
-	// tracked state, so tracked entries and _-prefixed checkouts (the repos
-	// GetTrackedRepos lists) go to the tracked-repo update.
-	isRepo := strings.HasPrefix(filepath.Base(name), "_") && install.IsGitRepo(skillPath)
-	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" && !entry.Tracked && !isRepo {
+	// tracked state, so checkouts go to the tracked-repo update. A tracked repo
+	// whose checkout is gone is not reinstalled, nor matched by basename.
+	if entry := s.skillsStore.GetByPath(name); entry != nil && entry.Source != "" && !install.IsTrackedCheckout(skillPath) {
+		if entry.Tracked && utils.IsTrackedRepoDir(filepath.Base(name)) {
+			return updateResultItem{Name: name, Action: "error", Message: fmt.Sprintf("tracked repo '%s' is declared in metadata but missing on disk", name)}
+		}
 		return s.updateRegularSkill(name, skillPath, force, skipAudit, walk.Follow)
 	}
 

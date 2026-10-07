@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
@@ -34,13 +33,8 @@ func resolveByBasename(sourceDir, name string, walks ...sourcewalk.Options) (upd
 	}
 
 	// Search updatable skills
-	// An entry rewritten as a regular install over a checkout (#473) is the
-	// repo itself; the tracked update repairs its metadata.
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 	for _, s := range skills {
-		if slices.Contains(repos, filepath.FromSlash(s)) {
-			continue
-		}
 		if s == name || filepath.Base(s) == name {
 			matches = append(matches, updateTarget{name: s, path: filepath.Join(sourceDir, s), isRepo: false})
 		}
@@ -77,9 +71,6 @@ func resolveByGlob(sourceDir, pattern string, walks ...sourcewalk.Options) ([]up
 
 	skills, _ := install.GetUpdatableSkills(sourceDir)
 	for _, s := range skills {
-		if slices.Contains(repos, filepath.FromSlash(s)) {
-			continue
-		}
 		if matchGlob(pattern, filepath.Base(s)) {
 			matches = append(matches, updateTarget{name: s, path: filepath.Join(sourceDir, s), isRepo: false})
 		}

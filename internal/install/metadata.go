@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -429,28 +428,20 @@ func (s *MetadataStore) RefreshTrackedRootSkillHashes(relPath, repoPath string, 
 // RefreshTrackedRepoMetadata refreshes a tracked repo's metadata entry and
 // reports whether it saved a change. It restores an entry that the old
 // dashboard update rewrote as a regular install (#473), but only for a
-// checkout GetTrackedRepos lists, and refreshes root-skill hashes.
+// tracked checkout, and refreshes root-skill hashes.
 func RefreshTrackedRepoMetadata(sourceDir, relPath, repoPath string, follow ...*sourcewalk.Follow) (bool, error) {
 	relPath = filepath.ToSlash(relPath)
 	store, err := LoadMetadataWithMigration(sourceDir, "")
 	if err != nil {
 		return false, err
 	}
+	// Get, not GetByPath: its basename fallback can return another item's entry.
+	// Reconcile may already have set tracked again, leaving the other fields.
 	repaired := false
-	if entry := store.GetByPath(relPath); entry != nil && !entry.Tracked {
-		var walk sourcewalk.Options
-		if len(follow) > 0 {
-			walk.Follow = follow[0]
-		}
-		repos, err := GetTrackedRepos(sourceDir, walk)
-		if err != nil {
-			return false, err
-		}
-		if slices.Contains(repos, filepath.FromSlash(relPath)) {
-			// Keep only what install --track and reconcile record.
-			*entry = MetadataEntry{Source: entry.Source, Kind: entry.Kind, Tracked: true, Group: entry.Group, Branch: entry.Branch}
-			repaired = true
-		}
+	if entry := store.Get(relPath); entry != nil && (!entry.Tracked || entry.Type != "" || entry.RepoURL != "") && IsTrackedCheckout(repoPath) {
+		// Keep only what install --track and reconcile record.
+		*entry = MetadataEntry{Source: entry.Source, Kind: entry.Kind, Tracked: true, Group: entry.Group, Branch: entry.Branch}
+		repaired = true
 	}
 	changed, err := store.RefreshTrackedRootSkillHashes(relPath, repoPath, follow...)
 	if err != nil || !(changed || repaired) {
