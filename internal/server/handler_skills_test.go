@@ -55,6 +55,59 @@ func TestHandleListSkills_WithSkills(t *testing.T) {
 	}
 }
 
+// listedSources saves store, lists resources through the full handler (which
+// reloads metadata from disk), and returns each resource's source by relPath.
+func listedSources(t *testing.T, s *Server, src string, store *install.MetadataStore) map[string]string {
+	t.Helper()
+	if err := store.Save(src); err != nil {
+		t.Fatalf("save metadata: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	s.handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/resources", nil))
+	var resp struct {
+		Resources []struct {
+			RelPath string `json:"relPath"`
+			Source  string `json:"source"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode resources: %v: %s", err, rr.Body.String())
+	}
+	sources := make(map[string]string)
+	for _, r := range resp.Resources {
+		sources[r.RelPath] = r.Source
+	}
+	return sources
+}
+
+func TestHandleListSkills_NestedTrackedSkillUsesRepoSource(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "_team-skills")
+	addSkill(t, src, "_team-skills/skills/vue")
+	const remote = "https://github.com/team/skills.git"
+	store := install.NewMetadataStore()
+	store.Set("_team-skills", &install.MetadataEntry{Source: remote, Tracked: true})
+
+	if got := listedSources(t, s, src, store)["_team-skills/skills/vue"]; got != remote {
+		t.Fatalf("expected nested tracked skill to report source %q, got %q", remote, got)
+	}
+}
+
+func TestHandleListSkills_NestedTrackedSkillIgnoresSameNamedTopLevelSkill(t *testing.T) {
+	s, src := newTestServer(t)
+	addTrackedRepo(t, src, "_team-skills")
+	addSkill(t, src, "_team-skills/skills/vue")
+	addSkill(t, src, "vue")
+	const remote = "https://github.com/team/skills.git"
+	store := install.NewMetadataStore()
+	store.Set("_team-skills", &install.MetadataEntry{Source: remote, Tracked: true})
+	store.Set("vue", &install.MetadataEntry{Source: "github.com/other/vue"})
+
+	if got := listedSources(t, s, src, store)["_team-skills/skills/vue"]; got != remote {
+		t.Fatalf("expected nested tracked skill to report source %q, got %q", remote, got)
+	}
+}
+
 func TestHandleListSkills_ManualOnly(t *testing.T) {
 	s, src := newTestServer(t)
 	addSkill(t, src, "auto")
