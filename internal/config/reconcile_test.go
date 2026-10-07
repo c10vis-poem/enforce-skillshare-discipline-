@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"skillshare/internal/install"
@@ -10,6 +11,64 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+func TestReconcileGlobalSkills_NestedTrackedRepoWithoutEntry(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "skills")
+	t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+	remotes := map[string]string{}
+	for _, name := range []string{"_team", "org/_team"} {
+		repoRoot := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(repoRoot, 0755); err != nil {
+			t.Fatal(err)
+		}
+		remote := testutil.SetupBareRemoteRepo(t, repoRoot)
+		testutil.SeedRemoteBranch(t, repoRoot, remote, "main", map[string]string{"README.md": name})
+		testutil.RunGit(t, "", "clone", remote, filepath.Join(sourceDir, filepath.FromSlash(name)))
+		remotes[name] = remote
+	}
+
+	top := install.MetadataEntry{Source: remotes["_team"], Tracked: true, Branch: "main", FileHashes: map[string]string{"README.md": "unchanged"}}
+	store := install.NewMetadataStore()
+	store.Set("_team", &top)
+	wantTop := top
+	cfg := &Config{Source: sourceDir}
+	for pass := 1; pass <= 2; pass++ {
+		if err := ReconcileGlobalSkills(cfg, store); err != nil {
+			t.Fatal(err)
+		}
+		store = install.LoadMetadataOrNew(sourceDir)
+		if got := store.Get("_team"); !reflect.DeepEqual(got, &wantTop) {
+			t.Errorf("pass %d: top-level entry = %+v, want %+v", pass, got, wantTop)
+		}
+		if got := store.Get("org/_team"); got == nil || got.Source != remotes["org/_team"] || !got.Tracked || got.Group != "org" || got.Branch != "main" {
+			t.Errorf("pass %d: nested entry = %+v, want source %q, tracked, group org, branch main", pass, got, remotes["org/_team"])
+		}
+	}
+}
+
+func TestReconcileGlobalSkills_NestedTrackedRepoLegacyEntry(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "skills")
+	t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+	remote := testutil.SetupBareRemoteRepo(t, root)
+	testutil.SeedRemoteBranch(t, root, remote, "main", map[string]string{"README.md": "# team"})
+	testutil.RunGit(t, "", "clone", remote, filepath.Join(sourceDir, "org", "_team"))
+	store := install.NewMetadataStore()
+	want := install.MetadataEntry{Source: "github.com/example/team/custom", Tracked: true, Group: "org", Branch: "custom", FileHashes: map[string]string{"README.md": "unchanged"}}
+	entry := want
+	store.Set("_team", &entry)
+	if err := ReconcileGlobalSkills(&Config{Source: sourceDir}, store); err != nil {
+		t.Fatal(err)
+	}
+	store = install.LoadMetadataOrNew(sourceDir)
+	if got := store.Get("org/_team"); !reflect.DeepEqual(got, &want) {
+		t.Errorf("migrated entry = %+v, want %+v", got, want)
+	}
+	if store.Has("_team") {
+		t.Error("legacy key was not migrated")
+	}
+}
 
 func TestReconcileGlobalSkills_AddsNewSkill(t *testing.T) {
 	root := t.TempDir()
