@@ -45,7 +45,7 @@ Approved proposals will be added to the roadmap. Implementation is handled by th
 
 ## Translated READMEs
 
-The language links at the top of each README are sorted by language code (`ja`, `ko`, `zh-CN`, `zh-TW`), with English first as the source. Add a new language at its place in that order, name the file `README-<code>.md`, and use the language's own name without a region or flag.
+The language links at the top of each README are sorted by language code (`de`, `es`, `fr`, `ja`, `ko`, `pt-BR`, `zh-CN`, `zh-TW`), with English first as the source. Add a new language at its place in that order, name the file `README-<code>.md`, and use the language's own name without a region or flag.
 
 ## Development Setup
 
