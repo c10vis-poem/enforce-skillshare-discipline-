@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.25.1] - 2026-10-07
+
+### New Features
+
+#### One shared instruction file, and your own, in the same file
+
+- **`prepend` and `append` modes for single-file extras** — tools without `@import`, such as Codex, Gemini CLI and Cursor, could only take a shared instruction file as a symlink or copy, which replaced the tool's own file. `prepend` and `append` write the shared file's content into the target file as a managed block at the top or end and leave the rest of the file alone. When the source changes, the next sync replaces the block in place. A block edited by hand is not overwritten: `extras list` shows the target as `modified` until you copy the edit back to the source or reapply the block. Refs: #436.
+  ```bash
+  skillshare extras init team-agents --file AGENTS.md --source ~/dotfiles/team \
+    --target ~/.codex --mode append
+  skillshare sync extras
+  ```
+- **The AGENTS.md tab offers `prepend` and `append`** — the mode picker lists them with `import` as the modes that keep the tool's own file. Each target row's path opens the file it writes, with skillshare's blocks tinted, a hand-edited block in the warning colour with **Collect** and **Reapply**, and a link to the target page for editing.
+
+#### Doctor
+
+- **`doctor` honors OpenCode's switches for external skills** — OpenCode also reads `~/.claude/skills` and `~/.agents/skills`, so `doctor` warned about every overlap and the warning could not be silenced. OpenCode loads one skill per name, so a skill synced to both folders is fine: `doctor` now warns only about skills OpenCode loads from another target's folder that are missing from its own, including ones you keep there by hand, and names them. When `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS`, `OPENCODE_DISABLE_CLAUDE_CODE` or `OPENCODE_DISABLE_EXTERNAL_SKILLS` is set where skillshare runs, `doctor`, `sync` and the dashboard treat that folder as skipped. Refs: #458.
+  ```
+  ! opencode loads 1 skill missing from its own folder, from: claude
+  ```
+
+#### Dashboard
+
+- **Uninstall a tracked repo with uncommitted changes from the dashboard** — the dashboard refused such a repo, or one whose git status could not be read, with no way past it. It now says why and asks again, then moves the repo to the trash as it is, like `uninstall --force`.
+
+### Bug Fixes
+
+- **Installing a git submodule path is refused instead of leaving an empty folder** — skillshare does not fetch submodules, so installing one reported success with nothing in it, a path inside one failed with a misleading "does not exist", and whole-repo installs dropped its skills silently. The error now names the submodule, its pinned commit and its upstream URL, and `install`, `--track` and `update` warn about each submodule they skip. Credentials in a submodule URL are never shown. Refs: #433.
+- **Scripts stay executable when a skill is downloaded through the content API** — when sparse checkout was not available, the GitHub, Gitea and CNB fallbacks wrote every file without the exec bit. A file that starts with `#!` is now executable. Refs: #439.
+- **Plugin changes keep a symlinked `config.yaml`** — `plugin add` and `plugin update` replaced a `config.yaml` linked from a dotfiles folder with a regular file, so the shared config never got the change, and they ignored `preserve_tilde_on_save`. A plugin source spelled with `~` also made `plugin update` fail with "snapshot ownership conflict". Refs: #460, #461.
+- **A project's config can no longer be pointed outside the project** — a cloned project could link `.skillshare/config.yaml`, or its `sources.mcp` file, to any file you can write, and the next save, plugin, hook or MCP change, or the dashboard's config editor, would rewrite it. These writes now refuse a destination outside the project and name the link. A global config still writes through its link.
+- **The dashboard recognizes a project made with `init -p --visible`** — it looked only for `.skillshare/config.yaml`, so a project in `skillshare/` was reported as having no config and the MCP page missed its override conflict. Refs: #437.
+- **The config schemas accept every valid key** — editors flagged `plugins`, `cnb_hosts`, `gitea_hosts`, `extras_source`, `log` and a skill's `kind` as unknown. Refs: #438.
+- **Codex and Gemini agent conversion works inside ESM projects** — in a project whose `package.json` sets `"type": "module"`, the bundled Codex and Gemini extensions failed with `require is not defined`. The dashboard's Sync page now shows a short cause for a failure, with the full output expandable and copyable.
+- **The floating action bar stays on one line** — on the Pi and Oh My Pi pending-changes bars, wide content wrapped and overflowed the bar.
+
 ## [0.25.0] - 2026-10-06
 
 ### New Features
