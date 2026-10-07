@@ -466,9 +466,21 @@ func LoadProject(projectRoot string) (*ProjectConfig, error) {
 			// Write a symlinked config's target so the link survives. A link out of
 			// the project is left alone; the next save reports it.
 			if dest, err := utils.ConfigWritePath(path, true); err == nil {
-				tmpPath := dest + ".tmp"
-				if writeErr := os.WriteFile(tmpPath, mdata, 0644); writeErr == nil {
-					os.Rename(tmpPath, dest)
+				// A fresh temp file: a predictable name could be a link the repository planted.
+				if f, err := os.CreateTemp(filepath.Dir(dest), ".config-*.tmp"); err == nil {
+					_, writeErr := f.Write(mdata)
+					if closeErr := f.Close(); writeErr == nil {
+						writeErr = closeErr
+					}
+					if writeErr == nil {
+						writeErr = os.Chmod(f.Name(), 0644)
+					}
+					if writeErr == nil {
+						writeErr = os.Rename(f.Name(), dest)
+					}
+					if writeErr != nil {
+						os.Remove(f.Name())
+					}
 				}
 			}
 		}

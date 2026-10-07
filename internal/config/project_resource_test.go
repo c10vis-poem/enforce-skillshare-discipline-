@@ -297,3 +297,24 @@ func TestProjectConfigSave_RefusesALinkOutOfTheProject(t *testing.T) {
 		t.Fatalf("file outside the project was written:\n%s", data)
 	}
 }
+
+func TestLoadProject_LegacyMigrationIgnoresAPlantedTempLink(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, ".skillshare", "config.yaml")
+	os.MkdirAll(filepath.Dir(cfgPath), 0755)
+	os.WriteFile(cfgPath, []byte("targets:\n  - name: claude\n    path: .claude/skills\n"), 0644)
+	outside := filepath.Join(t.TempDir(), "victim")
+	os.WriteFile(outside, []byte("keep me\n"), 0644)
+	if err := os.Symlink(outside, cfgPath+".tmp"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadProject(root); err != nil {
+		t.Fatalf("LoadProject: %v", err)
+	}
+	if data, _ := os.ReadFile(outside); string(data) != "keep me\n" {
+		t.Fatalf("file outside the project was written:\n%s", data)
+	}
+	if info, err := os.Lstat(cfgPath); err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("project config is no longer a regular file: %v", err)
+	}
+}
