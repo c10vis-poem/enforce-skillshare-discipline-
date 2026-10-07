@@ -42,14 +42,24 @@ func crossTargetDiscoverySuggestion(scanner string, writers []string, isProject 
 		scanner, scanner, strings.Join(writers, ", "), scanner, targetRemoveDryRunCommand(isProject), strings.Join(writers, ", "))
 }
 
-// scanOffHints says how a runtime can stop reading other targets' folders.
-var scanOffHints = map[string]string{
-	"opencode": "set OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 to skip .claude/skills, or OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to also skip .agents/skills",
+// scanOffHint says how a runtime can stop reading the given folders of other
+// targets, or "" when that is not known.
+func scanOffHint(scanner string, paths []string) string {
+	if scanner != "opencode" {
+		return ""
+	}
+	for _, p := range paths {
+		// OPENCODE_DISABLE_CLAUDE_CODE_SKILLS leaves .agents/skills loaded.
+		if filepath.Base(filepath.Dir(p)) == ".agents" {
+			return "set OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to skip .claude/skills and .agents/skills"
+		}
+	}
+	return "set OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 to skip .claude/skills, or OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to also skip .agents/skills"
 }
 
-func leakedSkillsSuggestion(scanner string) string {
+func leakedSkillsSuggestion(scanner string, paths []string) string {
 	s := fmt.Sprintf("Sync leaves these skills out of %s's folder, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
-	if hint := scanOffHints[scanner]; hint != "" {
+	if hint := scanOffHint(scanner, paths); hint != "" {
 		s += ", or where " + scanner + " runs, " + hint
 	}
 	return s + "."
@@ -231,10 +241,12 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 
 		if so.known {
 			leakedSet := map[string]struct{}{}
+			var leakPaths []string
 			for _, p := range so.paths {
 				for _, s := range p.leaked {
 					leakedSet[s] = struct{}{}
 				}
+				leakPaths = append(leakPaths, p.sharedPath)
 			}
 			ui.Warning("%s loads %s kept out of it, from: %s", so.scanner, plural(len(leakedSet), "skill"), strings.Join(writers, ", "))
 			for _, p := range so.paths {
@@ -242,7 +254,7 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 				details = append(details, fmt.Sprintf("%s (%s) also scans %s ← %s and loads skills its filters leave out: %s",
 					so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
 			}
-			suggestion := leakedSkillsSuggestion(so.scanner)
+			suggestion := leakedSkillsSuggestion(so.scanner, leakPaths)
 			ui.Note("suggestion: " + suggestion)
 			suggestions = append(suggestions, suggestion)
 			result.addWarning()

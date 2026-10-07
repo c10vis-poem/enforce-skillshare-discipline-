@@ -225,6 +225,22 @@ func TestCheckCrossTargetDiscovery_OpenCodeNamesLeakedSkills(t *testing.T) {
 	}
 }
 
+func TestCheckCrossTargetDiscovery_OpenCodeAgentsLeakOnlySuggestsExternalOff(t *testing.T) {
+	// OPENCODE_DISABLE_CLAUDE_CODE_SKILLS leaves .agents/skills loaded.
+	cfg := opencodeAndClaude(t)
+	cfg.Targets["universal"] = config.TargetConfig{Skills: &config.ResourceTargetConfig{Path: "~/.agents/skills"}}
+	r := &doctorResult{}
+	checkCrossTargetDiscovery(cfg, r, false, []sync.DiscoveredSkill{
+		{FlatName: "shared"},
+		{FlatName: "universal-only", Targets: []string{"universal"}},
+	})
+
+	s := r.checks[0].Suggestions[0]
+	if !strings.Contains(s, "OPENCODE_DISABLE_EXTERNAL_SKILLS=1") || strings.Contains(s, "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS") {
+		t.Errorf("suggestion %q should offer only OPENCODE_DISABLE_EXTERNAL_SKILLS=1", s)
+	}
+}
+
 func TestCheckCrossTargetDiscovery_ProjectMode(t *testing.T) {
 	// In project mode, cursor.also_scans.project includes .claude/skills.
 	// If claude (project) writes to .claude/skills, cursor overlaps.
