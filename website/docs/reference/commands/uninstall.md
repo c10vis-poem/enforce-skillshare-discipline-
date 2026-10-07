@@ -175,6 +175,7 @@ For tracked repositories (folders starting with `_`):
 - Automatically removes the entry from `.gitignore`
 - The `_` prefix is optional when uninstalling
 - A repo installed with `--into` is named by its path, such as `devops/_team-skills`
+- For `--into` repos, the final `_` is optional too: `devops/team-skills` resolves to `devops/_team-skills`. An existing skill or folder at the typed path takes precedence; use the explicit `_` path to remove the repo. Ambiguous short names fail and require the full path.
 - A skill or folder inside a tracked repo cannot be removed on its own, even with `--force`; the command fails with `inside a tracked repo; uninstall the repo instead`. Skills below a followed source link can still be removed one at a time
 
 ```bash
@@ -182,6 +183,7 @@ skillshare uninstall _team-skills        # With prefix
 skillshare uninstall team-skills         # Without prefix (auto-detected)
 skillshare uninstall _team-skills --force # Force remove with uncommitted changes
 skillshare uninstall devops/_team-skills # Repo installed with --into devops
+skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
 ```
 
 ## Examples

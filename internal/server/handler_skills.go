@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -537,54 +536,12 @@ func (s *Server) handleUninstallSkill(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, "skill not found: "+name)
 }
 
-// resolveTrackedRepo resolves a repo name (flat or nested) to its directory name
-// and absolute path under s.cfg.EffectiveSkillsSource(). Returns ("", "", nil) if not found.
-// Returns a non-nil error for ambiguous matches or internal failures.
+// resolveTrackedRepo resolves a repo name (flat or nested) to its slash-form
+// name and absolute path under s.cfg.EffectiveSkillsSource(). Returns ("", "", nil)
+// if not found, and a non-nil error for ambiguous matches or internal failures.
 func (s *Server) resolveTrackedRepo(input string, walks ...sourcewalk.Options) (string, string, error) {
-	sourceRoot := filepath.Clean(s.cfg.EffectiveSkillsSource())
-	candidates := []string{input}
-	if !strings.HasPrefix(filepath.Base(input), "_") {
-		if dir := filepath.Dir(input); dir != "." && dir != "" {
-			candidates = append(candidates, filepath.ToSlash(filepath.Join(dir, "_"+filepath.Base(input))))
-		} else {
-			candidates = append(candidates, "_"+input)
-		}
+	if len(walks) == 0 {
+		walks = []sourcewalk.Options{s.skillsWalk()}
 	}
-	for _, candidate := range candidates {
-		repoPath := filepath.Clean(filepath.Join(sourceRoot, candidate))
-		relPath, relErr := filepath.Rel(sourceRoot, repoPath)
-		if relErr != nil || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
-			continue
-		}
-		if install.IsTrackedCheckout(repoPath) {
-			return candidate, repoPath, nil
-		}
-	}
-
-	// Fallback: match nested tracked repos by basename.
-	var walk sourcewalk.Options
-	if len(walks) > 0 {
-		walk = walks[0]
-	} else {
-		walk = s.skillsWalk()
-	}
-	repos, err := install.GetTrackedRepos(s.cfg.EffectiveSkillsSource(), walk)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to list tracked repositories: %w", err)
-	}
-	var match string
-	for _, repo := range repos {
-		base := filepath.Base(repo)
-		trimmed := strings.TrimPrefix(base, "_")
-		if base == input || trimmed == input {
-			if match != "" {
-				return "", "", fmt.Errorf("multiple tracked repositories match: %s — use the full path", input)
-			}
-			match = repo
-		}
-	}
-	if match != "" {
-		return match, filepath.Join(sourceRoot, match), nil
-	}
-	return "", "", nil
+	return install.ResolveTrackedRepo(s.cfg.EffectiveSkillsSource(), input, walks[0])
 }

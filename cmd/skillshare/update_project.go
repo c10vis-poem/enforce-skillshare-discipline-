@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"skillshare/internal/install"
 	"skillshare/internal/sourcewalk"
@@ -87,17 +86,7 @@ func cmdUpdateProjectBatch(sourcePath string, opts *updateOptions, projectRoot s
 			continue
 		}
 
-		// Normalize _ prefix for tracked repos
-		repoName := name
-		if !strings.HasPrefix(repoName, "_") {
-			prefixed := filepath.Join(sourcePath, "_"+name)
-			if install.IsTrackedCheckout(prefixed) {
-				repoName = "_" + name
-			}
-		}
-		repoPath := filepath.Join(sourcePath, repoName)
-
-		if install.IsTrackedCheckout(repoPath) {
+		if repoName, repoPath := install.FindTrackedCheckoutUnlessSkill(sourcePath, name); repoPath != "" {
 			if !seen[repoPath] {
 				seen[repoPath] = true
 				targets = append(targets, updateTarget{name: repoName, path: repoPath, isRepo: true})

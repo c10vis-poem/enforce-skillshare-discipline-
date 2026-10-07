@@ -146,25 +146,21 @@ func resolveUninstallTarget(skillName, sourceDir, sourceLabel string, walk sourc
 		return nil, fmt.Errorf("invalid skill name: %q", skillName)
 	}
 
-	// Normalize _ prefix for tracked repos
-	if !strings.HasPrefix(skillName, "_") {
-		prefixedPath := filepath.Join(sourceDir, "_"+skillName)
-		if install.IsGitRepo(prefixedPath) {
-			skillName = "_" + skillName
-		}
-	}
-
 	skillPath := filepath.Join(sourceDir, skillName)
 	info, err := os.Stat(skillPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Fallback: search by basename in nested directories
-			resolved, resolveErr := resolveNestedSkillDir(sourceDir, skillName, sourceLabel, walk)
-			if resolveErr != nil {
-				return nil, resolveErr
+			// Preserve an existing typed path before trying tracked-repo shorthand.
+			if repoName, repoPath := install.FindTrackedCheckoutUnlessSkill(sourceDir, skillName); repoPath != "" {
+				skillName, skillPath = repoName, repoPath
+			} else {
+				resolved, resolveErr := resolveNestedSkillDir(sourceDir, skillName, sourceLabel, walk)
+				if resolveErr != nil {
+					return nil, resolveErr
+				}
+				skillName = resolved
+				skillPath = filepath.Join(sourceDir, resolved)
 			}
-			skillName = resolved
-			skillPath = filepath.Join(sourceDir, resolved)
 		} else {
 			return nil, fmt.Errorf("cannot access skill: %w", err)
 		}
@@ -175,7 +171,7 @@ func resolveUninstallTarget(skillName, sourceDir, sourceLabel string, walk sourc
 	return &uninstallTarget{
 		name:          skillName,
 		path:          skillPath,
-		isTrackedRepo: install.IsGitRepo(skillPath),
+		isTrackedRepo: install.IsTrackedCheckout(skillPath),
 	}, nil
 }
 
@@ -197,7 +193,7 @@ func resolveUninstallByGlob(pattern, sourceDir string, walk sourcewalk.Options) 
 			targets = append(targets, &uninstallTarget{
 				name:          e.Name(),
 				path:          skillPath,
-				isTrackedRepo: install.IsGitRepo(skillPath),
+				isTrackedRepo: install.IsTrackedCheckout(skillPath),
 			})
 		}
 	}
@@ -256,7 +252,7 @@ func resolveGroupSkills(group, sourceDir string, walks ...sourcewalk.Options) ([
 		if _, statErr := os.Stat(filepath.Join(path, "SKILL.md")); statErr == nil {
 			hasSkillMD = true
 		}
-		isRepo := install.IsGitRepo(path)
+		isRepo := install.IsTrackedCheckout(path)
 
 		if hasSkillMD || isRepo {
 			rel, relErr := filepath.Rel(resolvedSourceDir, logicalPath)
@@ -344,7 +340,7 @@ func countGroupSkills(dir string) []string {
 			names = append(names, fi.Name())
 			return filepath.SkipDir
 		}
-		if install.IsGitRepo(path) {
+		if install.IsTrackedCheckout(path) {
 			names = append(names, fi.Name())
 			return filepath.SkipDir
 		}

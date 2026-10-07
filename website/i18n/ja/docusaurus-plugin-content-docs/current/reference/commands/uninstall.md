@@ -175,6 +175,7 @@ tracked repositories（`_` で始まるフォルダ）の場合:
 - `.gitignore` からエントリを自動的に削除します
 - uninstall 時に `_` prefix は省略可能です
 - `--into` でインストールしたリポジトリは `devops/_team-skills` のようにパスで指定します
+- `--into` のリポジトリも末尾の `_` を省略できます。`devops/team-skills` は `devops/_team-skills` を指定します。入力したパスに既存の Skill やフォルダがある場合はそちらを優先するため、リポジトリを削除するには `_` を含むパスを指定してください。短い名前が複数に一致する場合は失敗し、完全なパスが必要です。
 - 追跡リポジトリ内の Skill やフォルダは、`--force` を付けても単独では削除できず、`inside a tracked repo; uninstall the repo instead` で失敗します。followed source link 配下の Skill は 1 つずつ削除できます
 
 ```bash
@@ -182,6 +183,7 @@ skillshare uninstall _team-skills        # prefix 付き
 skillshare uninstall team-skills         # prefix なし（自動検出）
 skillshare uninstall _team-skills --force # 未コミットの変更があっても強制削除
 skillshare uninstall devops/_team-skills # --into devops でインストールしたリポジトリ
+skillshare uninstall devops/team-skills  # Same repo, unless this path already exists
 ```
 
 ## 例
