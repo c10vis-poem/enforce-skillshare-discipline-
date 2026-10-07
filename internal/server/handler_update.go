@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -166,6 +167,7 @@ func (s *Server) updateSingle(name string, force, skipAudit bool) updateResultIt
 }
 
 func (s *Server) updateSingleByKind(name, kind string, force, skipAudit bool) updateResultItem {
+	name = path.Clean(filepath.ToSlash(name)) // "org/team/" names the same item as "org/team"
 	if kind == "agent" {
 		return s.updateAgent(name, force, skipAudit)
 	}

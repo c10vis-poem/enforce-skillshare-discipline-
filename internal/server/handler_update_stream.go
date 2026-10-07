@@ -59,20 +59,9 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 				items = append(items, updateItem{name: name, invalid: true})
 				continue
 			}
-			// Check if it's a tracked repo (a _-prefixed checkout; an unprefixed one is a regular skill)
-			repoName := name
-			if !strings.HasPrefix(repoName, "_") {
-				repoName = "_" + name
-			}
-			repoPath := filepath.Join(source, repoName)
-			if install.IsTrackedCheckout(repoPath) {
+			// A tracked repo (a _-prefixed checkout; an unprefixed one is a regular skill)
+			if repoName, repoPath := install.FindTrackedCheckoutUnlessSkill(source, name); repoPath != "" {
 				items = append(items, updateItem{name: repoName, isRepo: true, path: repoPath})
-				continue
-			}
-			// Check original name as repo
-			origPath := filepath.Join(source, name)
-			if install.IsTrackedCheckout(origPath) {
-				items = append(items, updateItem{name: name, isRepo: true, path: origPath})
 				continue
 			}
 			// Regular skill

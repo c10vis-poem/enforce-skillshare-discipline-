@@ -408,7 +408,7 @@ skillshare update --all -p --skip-audit  # 보안 audit gate 건너뛰기
 | **로컬 경로 설치** | 기록된 경로에서 다시 복사 | `.metadata.json`에 `type: local`로 등록됨 |
 | **Local skill** | 건너뜀 | `.metadata.json`에 등록되지 않음 |
 
-`_` 접두사는 선택 사항입니다 — `skillshare update team-skills -p`는 `_team-skills`를 자동으로 감지합니다.
+`_` 접두사는 경로의 마지막 구간에서도 선택 사항입니다 — `skillshare update team-skills -p`는 `_team-skills`를 자동으로 감지하고, `skillshare update devops/team-skills -p`는 `--into devops`로 설치한 `devops/_team-skills`를 찾습니다.
 
 ### Lockfile
 
