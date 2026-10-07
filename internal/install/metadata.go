@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -435,10 +436,15 @@ func RefreshTrackedRepoMetadata(sourceDir, relPath, repoPath string, follow ...*
 	if err != nil {
 		return false, err
 	}
-	// Get, not GetByPath: its basename fallback can return another item's entry.
+	// Only the repo's own entry: GetByPath's basename fallback can return a
+	// top-level item that shares the basename of an --into repo.
+	entry := store.GetByPath(relPath)
+	if entry == nil || (store.Get(relPath) == nil && entry.Group != path.Dir(relPath)) {
+		return false, nil
+	}
 	// Reconcile may already have set tracked again, leaving the other fields.
 	repaired := false
-	if entry := store.Get(relPath); entry != nil && (!entry.Tracked || entry.Type != "" || entry.RepoURL != "") && IsTrackedCheckout(repoPath) {
+	if (!entry.Tracked || entry.Type != "" || entry.RepoURL != "") && IsTrackedCheckout(repoPath) {
 		// Keep only what install --track and reconcile record.
 		*entry = MetadataEntry{Source: entry.Source, Kind: entry.Kind, Tracked: true, Group: entry.Group, Branch: entry.Branch}
 		repaired = true

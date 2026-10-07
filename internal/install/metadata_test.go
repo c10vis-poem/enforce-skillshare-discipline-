@@ -404,3 +404,32 @@ func TestRefreshTrackedRepoMetadata_LeavesBasenameSiblingAlone(t *testing.T) {
 		t.Errorf("sibling entry was rewritten: %+v", e)
 	}
 }
+
+// An --into repo with no entry of its own must not refresh the root-skill
+// hashes of a top-level repo that shares its basename.
+func TestRefreshTrackedRepoMetadata_NestedRepoWithoutEntry(t *testing.T) {
+	src := t.TempDir()
+	repo := filepath.Join(src, "org", "_team")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "SKILL.md"), []byte("---\nname: team\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := NewMetadataStore()
+	store.Set("_team", &MetadataEntry{Source: "github.com/example/team", Tracked: true, FileHashes: map[string]string{"SKILL.md": "sha256:top"}})
+	if err := store.Save(src); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RefreshTrackedRepoMetadata(src, "org/_team", repo); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadMetadata(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h := got.Get("_team").FileHashes["SKILL.md"]; h != "sha256:top" {
+		t.Errorf("top-level _team hashes were overwritten: %q", h)
+	}
+}
