@@ -200,7 +200,7 @@ func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]boo
 			})
 		}
 
-		// --- Unified file scan: static + tier + dataflow in a single pass ---
+		// --- Unified file scan: static + tier + dataflow ---
 		var rulesForFile []rule
 		if isMarkdown {
 			rulesForFile = mdContentRules
@@ -275,9 +275,8 @@ func scanSkillImpl(skillPath string, activeRules []rule, disabled map[string]boo
 	return result, nil
 }
 
-// scanFileUnified merges static regex scanning, tier detection, and dataflow
-// collection into a single pass over the file content. This avoids 3 separate
-// string(content) conversions and 3 separate line iterations.
+// scanFileUnified combines static regex scanning, tier detection, and dataflow
+// collection, sharing line traversal or parsed Markdown blocks.
 //
 // activeRules should be mdContentRules for markdown files and resolvedRules
 // for non-markdown files. profile is modified in place.
@@ -294,102 +293,61 @@ func scanFileUnified(
 	return scanFileUnifiedPlain(text, relPath, activeRules, profile, hasStatic, hasDataflow, isShell)
 }
 
-// scanFileUnifiedMarkdown handles the markdown case: static rules apply to all
-// non-fence-marker lines, tier detection runs only inside code fences, and
-// shell code blocks are collected for dataflow analysis.
+// scanFileUnifiedMarkdown shares parsed code blocks across static, tier, and
+// dataflow analysis. All original lines still receive static security checks.
 func scanFileUnifiedMarkdown(
 	text, relPath string,
 	activeRules []rule, profile *TierProfile,
 	hasStatic, hasDataflow bool,
 ) (staticFindings, dfFindings []Finding) {
-	inCodeFence := false
-	fenceMarker := ""
-	isShellFence := false
-	tutorialPath := isLikelyTutorialPath(relPath)
-	var blockLines []string
-	blockStart := 0
-
-	lineNum := 0
-	for start := 0; start <= len(text); {
-		lineNum++
-		end := strings.IndexByte(text[start:], '\n')
-		var line string
-		if end == -1 {
-			line = text[start:]
-			start = len(text) + 1
-		} else {
-			line = text[start : start+end]
-			start = start + end + 1
-		}
-
-		// Fence tracking.
-		if marker, ok := detectFenceMarker(line); ok {
-			if !inCodeFence {
-				inCodeFence = true
-				fenceMarker = marker
-				if hasDataflow {
-					isShellFence = isShellFenceLang(line)
-					blockLines = nil
-					blockStart = lineNum
-				}
-			} else if marker == fenceMarker {
-				// Fence close — analyse collected shell block.
-				if hasDataflow && isShellFence && len(blockLines) > 0 {
-					dfFindings = append(dfFindings,
-						analyzeShellBlock(blockLines, blockStart, relPath)...)
-				}
-				inCodeFence = false
-				fenceMarker = ""
-				isShellFence = false
-				blockLines = nil
-			}
-			continue // skip fence markers for regex (same as original)
-		}
-
-		// Tier detection: only inside code fences.
-		if inCodeFence {
-			if len(line) > 0 {
+	blocks := markdownCodeBlocks([]byte(text))
+	for _, block := range blocks {
+		if profile != nil {
+			for _, line := range block.lines {
 				classifyLineCommands(line, profile)
 			}
-			// Collect shell block lines (including blank) for dataflow.
-			if hasDataflow && isShellFence {
-				blockLines = append(blockLines, line)
-			}
 		}
-
-		// Static regex: all non-fence-marker lines.
-		if hasStatic && len(line) > 0 {
-			lineLower := ""
-			lineLowerReady := false
-			for _, r := range activeRules {
-				if !rulePrefilterAllows(r, line, &lineLower, &lineLowerReady) {
-					continue
-				}
-				if !r.Regex.MatchString(line) {
-					continue
-				}
-				if r.Exclude != nil && r.Exclude.MatchString(line) {
-					continue
-				}
-				if shouldSuppressTutorialExample(r.Pattern, line, inCodeFence, tutorialPath) {
-					continue
-				}
-				staticFindings = append(staticFindings, Finding{
-					Severity:   r.Severity,
-					Pattern:    r.Pattern,
-					Message:    r.Message,
-					File:       relPath,
-					Line:       lineNum,
-					Snippet:    strings.TrimSpace(line),
-					RuleID:     r.ID,
-					Analyzer:   AnalyzerStatic,
-					Category:   categoryForPattern(r.Pattern),
-					Confidence: 0.95,
-				})
-			}
+		if hasDataflow && (block.language == "" || shellLangs[block.language]) {
+			dfFindings = append(dfFindings, analyzeShellBlock(block.lines, block.start, relPath)...)
 		}
 	}
+	if !hasStatic {
+		return nil, dfFindings
+	}
 
+	tutorialPath := isLikelyTutorialPath(relPath)
+	blockIndex, lineNum := 0, 0
+	for line := range strings.SplitSeq(text, "\n") {
+		for blockIndex < len(blocks) && lineNum >= blocks[blockIndex].end {
+			blockIndex++
+		}
+		inCodeFence := blockIndex < len(blocks) && lineNum >= blocks[blockIndex].start
+		parameterContext := inCodeFence && !blocks[blockIndex].inHTML
+		nextLine := ""
+		if inCodeFence {
+			block := blocks[blockIndex]
+			if index := lineNum - block.start + 1; index < len(block.lines) {
+				nextLine = block.lines[index]
+			}
+		}
+		lineNum++
+		lineLower := ""
+		lineLowerReady := false
+		for _, r := range activeRules {
+			if !rulePrefilterAllows(r, line, &lineLower, &lineLowerReady) || !r.matchesLine(line) {
+				continue
+			}
+			if shouldSuppressTutorialExample(r.Pattern, line, inCodeFence, tutorialPath) {
+				continue
+			}
+			staticFindings = append(staticFindings, Finding{
+				Severity: markdownFindingSeverity(r, line, parameterContext, nextLine),
+				Pattern:  r.Pattern, Message: r.Message, File: relPath, Line: lineNum,
+				Snippet: strings.TrimSpace(line), RuleID: r.ID, Analyzer: AnalyzerStatic,
+				Category: categoryForPattern(r.Pattern), Confidence: 0.95,
+			})
+		}
+	}
 	return staticFindings, dfFindings
 }
 
@@ -439,10 +397,7 @@ func scanFileUnifiedPlain(
 				if !rulePrefilterAllows(r, line, &lineLower, &lineLowerReady) {
 					continue
 				}
-				if r.Regex.MatchString(line) {
-					if r.Exclude != nil && r.Exclude.MatchString(line) {
-						continue
-					}
+				if r.matchesLine(line) {
 					staticFindings = append(staticFindings, Finding{
 						Severity:   r.Severity,
 						Pattern:    r.Pattern,
@@ -542,29 +497,22 @@ func scanFileImpl(filePath string, activeRules []rule, disabled map[string]bool)
 	}
 
 	isMarkdown := strings.EqualFold(filepath.Ext(info.Name()), ".md")
+	var dfFindings []Finding
 	if isMarkdown {
-		mdContentRules, mdLinkRules := splitMarkdownLinkRules(resolvedRules)
-		result.Findings = ScanMarkdownContentWithRules(data, filepath.Base(filePath), mdContentRules)
+		contentRules, linkRules := splitMarkdownLinkRules(resolvedRules)
+		result.Findings, dfFindings = scanFileUnified(data, filepath.Base(filePath), true,
+			contentRules, &result.TierProfile, true, true, false)
 		result.Findings = append(result.Findings, checkMarkdownLinkRules([]mdFileInfo{
-			{
-				relPath: filepath.Base(filePath),
-				data:    data,
-				absDir:  filepath.Dir(filePath),
-			},
-		}, nil, mdLinkRules)...)
-		result.TierProfile = DetectCommandTiersInMarkdown(data)
+			{relPath: filepath.Base(filePath), data: data, absDir: filepath.Dir(filePath)},
+		}, nil, linkRules)...)
 	} else {
 		result.Findings = ScanContentWithRules(data, filepath.Base(filePath), resolvedRules)
 		result.TierProfile = DetectCommandTiers(data)
+		if isShellFile(info.Name()) {
+			dfFindings = ScanShellDataflow(data, filepath.Base(filePath))
+		}
 	}
 
-	// Dataflow taint tracking for single-file scan.
-	var dfFindings []Finding
-	if isShellFile(info.Name()) {
-		dfFindings = ScanShellDataflow(data, filepath.Base(filePath))
-	} else if isMarkdown {
-		dfFindings = ScanMarkdownDataflow(data, filepath.Base(filePath))
-	}
 	result.Findings = append(result.Findings,
 		DeduplicateDataflow(dfFindings, result.Findings)...)
 

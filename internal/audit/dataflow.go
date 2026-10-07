@@ -94,42 +94,7 @@ func ScanShellDataflow(content []byte, filename string) []Finding {
 // each one for taint flows. Code blocks are isolated — taint does not propagate
 // across blocks.
 func ScanMarkdownDataflow(content []byte, filename string) []Finding {
-	var findings []Finding
-	text := string(content)
-	lines := strings.Split(text, "\n")
-
-	inCodeFence := false
-	fenceMarker := ""
-	var blockLines []string
-	blockStart := 0
-	isShell := false
-
-	for i, line := range lines {
-		if marker, ok := detectFenceMarker(line); ok {
-			if !inCodeFence {
-				inCodeFence = true
-				fenceMarker = marker
-				isShell = isShellFenceLang(line)
-				blockLines = nil
-				blockStart = i + 1 // next line is the first content line
-			} else if marker == fenceMarker {
-				// End of code block — analyse if shell
-				if isShell && len(blockLines) > 0 {
-					findings = append(findings,
-						analyzeShellBlock(blockLines, blockStart, filename)...)
-				}
-				inCodeFence = false
-				fenceMarker = ""
-				isShell = false
-				blockLines = nil
-			}
-			continue
-		}
-		if inCodeFence && isShell {
-			blockLines = append(blockLines, line)
-		}
-	}
-
+	_, findings := scanFileUnifiedMarkdown(string(content), filename, nil, nil, false, true)
 	return findings
 }
 
@@ -176,35 +141,6 @@ func DeduplicateDataflow(dfFindings, existing []Finding) []Finding {
 
 var shellLangs = map[string]bool{
 	"bash": true, "sh": true, "zsh": true, "shell": true,
-}
-
-// isShellFenceLang checks if a fence opening line indicates a shell code block.
-// Unlabelled code blocks (``` with no language) are treated as shell.
-func isShellFenceLang(fenceLine string) bool {
-	lang := extractFenceLang(fenceLine)
-	return lang == "" || shellLangs[lang]
-}
-
-// extractFenceLang extracts the language hint from a fence marker line.
-// e.g. "```bash" → "bash", "```" → "", "~~~ python" → "python"
-func extractFenceLang(line string) string {
-	trimmed := strings.TrimSpace(line)
-	// Remove fence markers
-	for _, prefix := range []string{"```", "~~~"} {
-		if strings.HasPrefix(trimmed, prefix) {
-			rest := strings.TrimSpace(trimmed[len(prefix):])
-			// Take first word as language
-			if rest == "" {
-				return ""
-			}
-			fields := strings.Fields(rest)
-			if len(fields) > 0 {
-				return strings.ToLower(fields[0])
-			}
-			return ""
-		}
-	}
-	return ""
 }
 
 // isShellFile returns true if the filename has a shell script extension.

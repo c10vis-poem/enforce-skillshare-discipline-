@@ -2,6 +2,7 @@ package audit
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -42,10 +43,7 @@ func ScanContentWithRules(content []byte, filename string, activeRules []rule) [
 			if !rulePrefilterAllows(r, line, &lineLower, &lineLowerReady) {
 				continue
 			}
-			if r.Regex.MatchString(line) {
-				if r.Exclude != nil && r.Exclude.MatchString(line) {
-					continue
-				}
+			if r.matchesLine(line) {
 				findings = append(findings, Finding{
 					Severity:   r.Severity,
 					Pattern:    r.Pattern,
@@ -65,8 +63,8 @@ func ScanContentWithRules(content []byte, filename string, activeRules []rule) [
 	return findings
 }
 
-// ScanMarkdownContentWithRules scans markdown content and suppresses selected
-// non-critical patterns when they appear in educational example context.
+// ScanMarkdownContentWithRules scans markdown content, suppresses selected
+// tutorial patterns, and downgrades SDK-style system parameters in code fences.
 func ScanMarkdownContentWithRules(content []byte, filename string, activeRules []rule) []Finding {
 	if activeRules == nil {
 		var err error
@@ -76,67 +74,39 @@ func ScanMarkdownContentWithRules(content []byte, filename string, activeRules [
 		}
 	}
 
-	var findings []Finding
-	text := string(content)
-	inCodeFence := false
-	fenceMarker := ""
-	tutorialPath := isLikelyTutorialPath(filename)
-	lineNum := 0
-
-	for start := 0; start <= len(text); {
-		lineNum++
-		end := strings.IndexByte(text[start:], '\n')
-		var line string
-		if end == -1 {
-			line = text[start:]
-			start = len(text) + 1
-		} else {
-			line = text[start : start+end]
-			start = start + end + 1
-		}
-
-		if marker, ok := detectFenceMarker(line); ok {
-			if !inCodeFence {
-				inCodeFence = true
-				fenceMarker = marker
-			} else if marker == fenceMarker {
-				inCodeFence = false
-				fenceMarker = ""
-			}
-			continue
-		}
-
-		lineLower := ""
-		lineLowerReady := false
-		for _, r := range activeRules {
-			if !rulePrefilterAllows(r, line, &lineLower, &lineLowerReady) {
-				continue
-			}
-			if !r.Regex.MatchString(line) {
-				continue
-			}
-			if r.Exclude != nil && r.Exclude.MatchString(line) {
-				continue
-			}
-			if shouldSuppressTutorialExample(r.Pattern, line, inCodeFence, tutorialPath) {
-				continue
-			}
-			findings = append(findings, Finding{
-				Severity:   r.Severity,
-				Pattern:    r.Pattern,
-				Message:    r.Message,
-				File:       filename,
-				Line:       lineNum,
-				Snippet:    strings.TrimSpace(line),
-				RuleID:     r.ID,
-				Analyzer:   AnalyzerStatic,
-				Category:   categoryForPattern(r.Pattern),
-				Confidence: 0.95,
-			})
-		}
-	}
-
+	findings, _ := scanFileUnifiedMarkdown(string(content), filename, activeRules, nil, true, false)
 	return findings
+}
+
+// Match parameter values, not prose after a role label. Other injection rules
+// still scan the entire line and retain their configured severity.
+var mdSystemValueRe = regexp.MustCompile("^(?:[\"'`\\[]|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\(|[|>][+-]?$|[A-Za-z_][A-Za-z0-9_]*,[ \\t]*(?://.*)?$)")
+
+func markdownFindingSeverity(r rule, line string, inCodeFence bool, nextLine string) string {
+	if r.Pattern != "prompt-injection" || r.Severity != SeverityCritical || r.severityOverridden {
+		return r.Severity
+	}
+	if !inCodeFence || r.ID != "prompt-injection-1" {
+		return r.Severity
+	}
+	if isMarkdownSystemParameter(line, nextLine) {
+		return SeverityHigh
+	}
+	return r.Severity
+}
+
+func isMarkdownSystemParameter(line, nextLine string) bool {
+	key, value, ok := strings.Cut(strings.TrimSpace(line), ":")
+	if !ok || (key != "system" && key != "System") {
+		return false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		// A split argument must continue with code, not a bare role directive.
+		value = strings.TrimSpace(nextLine)
+		return strings.HasPrefix(value, "\"") || strings.HasPrefix(value, "'") || strings.HasPrefix(value, "[")
+	}
+	return mdSystemValueRe.MatchString(value)
 }
 
 var tutorialSuppressedPatterns = map[string]bool{

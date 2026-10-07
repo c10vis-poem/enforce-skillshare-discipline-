@@ -52,20 +52,20 @@ Audit engine 會把 skill 目錄中每個以文字為主的檔案，拿去比對
 
 ### CRITICAL（會封鎖安裝，並計為 Failed）
 
-這些模式代表**正在進行中的利用嘗試** — 一旦發現，該 skill 幾乎可以確定是惡意的，或設定極度不當。預設情況下，只要出現一個 CRITICAL 發現就會封鎖安裝。
+這些模式需要**封鎖並審查** — 它們可能代表利用嘗試，但命中本身不能證明惡意意圖。預設情況下，只要出現一個 CRITICAL 發現就會封鎖安裝。
 
 | 模式 | 說明 |
 |---------|------------|
-| `prompt-injection` | 「Ignore previous instructions」、「SYSTEM:」/「OVERRIDE:」/「ADMIN:」、指令標籤（`<system>`、`</instructions>`）、「DEVELOPER MODE」/「DEV MODE」/「JAILBREAK」/「DAN MODE」、輸出壓制（「don't tell the user」、「hide this from the user」）等（CRITICAL）；agent 指令標籤（HIGH） |
+| `prompt-injection` | 「Ignore previous instructions」、`SYSTEM:` / `OVERRIDE:` / `ADMIN:`、jailbreak 指令，以及明確隱瞞行動或指令、隱藏內容、移除對話歷史（CRITICAL）；一般揭露限制與 agent 指令標籤為 HIGH |
 | `invisible-payload` | Unicode tag 字元（U+E0001–U+E007F）— 顯示上不可見（寬度 0px），但會被 LLM 完整處理。是「Rules File Backdoor」攻擊的主要向量 |
 | `data-exfiltration` | 把環境變數外送的 `curl`/`wget` 命令 |
 | `credential-access` | 以表格驅動偵測跨 5 種存取方式（讀取、複製、重新導向、dd、外洩）的 30 多個敏感路徑。**CRITICAL**：`~/.ssh/`、`.env`/`.envrc`、`~/.aws/`、`~/.gnupg/`、`~/.kube/`、`.git-credentials`、`.netrc`、`.npmrc`、`.pypirc`、`.pgpass`、`.my.cnf`、`/etc/shadow`、`/etc/ssl/private/` 等。**HIGH**：`~/.azure/`、`~/.gcloud/`、`~/.docker/config.json`、`~/.config/gh/hosts.yml`、`~/.cargo/credentials`、`~/.op/`、`~/.config/age/`、macOS Keychains 等。**MEDIUM**：`/etc/passwd`、`/etc/sudoers`。**LOW**：shell history、`/etc/openvpn/`。**INFO**：認證日誌，以及針對未知 home 點目錄的啟發式全面攔截。支援 `~`、`$HOME`、`${HOME}` 等路徑變體 |
 
-> **為什麼是 critical？** 這些模式在 AI skill 檔案中沒有任何正當用途。要求 AI「ignore previous instructions」的 skill 是在試圖劫持 AI 的行為。把環境變數傳給 `curl` 的 skill 是在外洩機密資料。人類審查者看不見的 Unicode tag 字元可以嵌入 LLM 會處理的隱藏 payload。隱藏行為不讓使用者知道的輸出壓制指令，是供應鏈攻擊的典型特徵。
+> **為什麼是 critical？** 這些模式可能表示試圖覆寫 assistant 或暴露敏感資料，但文件範例也可能觸發偵測。要求 AI「ignore previous instructions」的 skill 是在試圖劫持 AI 的行為。把環境變數傳給 `curl` 的 skill 是在外洩機密資料。人類審查者看不見的 Unicode tag 字元可以嵌入 LLM 會處理的隱藏 payload。隱藏行為不讓使用者知道的輸出壓制指令，是供應鏈攻擊的典型特徵。
 
 ### HIGH（強烈警告，計為 Warning）
 
-這些模式是**惡意意圖的強烈指標**，但偶爾也可能出現在正當的自動化 skill 中（例如使用 `sudo` 的 CI 輔助工具）。覆寫前請仔細審查。
+這些模式需要**仔細審查**。它們可能代表危險行為或模糊指令，也會出現在正當的自動化和 SDK 範例中。覆寫前請檢查上下文。
 
 | 模式 | 說明 |
 |---------|------------|
@@ -76,7 +76,7 @@ Audit engine 會把 skill 目錄中每個以文字為主的檔案，拿去比對
 | `shell-execution` | 透過 system 或 subprocess 呼叫進行的 Python shell 呼叫 |
 | `hidden-comment-injection` | 隱藏在 HTML 註解或 markdown reference-link 註解（`[//]: #`）中的 prompt injection 關鍵字 |
 | `fetch-with-pipe` | `curl`/`wget` 的輸出被導向 `sh`、`bash`、`python`、`node` 或其他直譯器 — 遠端程式碼執行 |
-| `prompt-injection` | 帶有選用 HTML 屬性的 agent 指令標籤（`<system>`、`</instructions>`、`</override>`、`</prompt>`、`</rules>`） |
+| `prompt-injection` | agent 指令標籤（可含 HTML 屬性）、Markdown fenced code block 內 SDK 形式的 `system:` / `System:` 參數，以及所有檔案類型中的一般揭露限制（見下文） |
 | `config-manipulation` | 修改 AI agent 設定或記憶檔案（`MEMORY.md`、`CLAUDE.md`、`.cursorrules`、`.windsurfrules`、`.clinerules`）的指令 |
 | `data-exfiltration` | 透過 `dig`/`nslookup`/`host`，在子網域中使用命令替換進行 DNS 資料外洩 |
 | `self-propagation` | 把 payload 散播到其他檔案或專案的自我複製指令 |
@@ -161,6 +161,19 @@ Audit engine 也會對 `.md` 檔案執行**結構檢查**：擷取所有內嵌�
 - Agent 指令標籤：`<system>`、`</instructions>`、`</override>`、`</prompt>`、`</rules>`（可帶選用 HTML 屬性）
 - Jailbreak 指令：`DEVELOPER MODE`、`DEV MODE`、`JAILBREAK`、`DAN MODE`（不分大小寫、容許空白）
 - 藏在 HTML 註解中的注入（`<!-- ... -->`）
+
+在 `.md` fenced code block 中，SDK 形式的 `system:` / `System:` 參數所觸發的 `prompt-injection-1` 發現會從 CRITICAL 降為 HIGH，而非移除。可辨識的值包含引號字串、陣列、Go `anthropic.String(...)`、以逗號結尾的變數、YAML 區塊純量，以及下一行的引號字串或陣列。這是語法啟發式判斷，不代表程式碼安全。HIGH 在預設 CRITICAL 門檻下只會警告，但在 `strict` profile（HIGH 門檻）下仍會封鎖。
+
+大寫 `SYSTEM:` 指令、單獨的角色標籤、區塊外的敘述，以及非 Markdown 原始碼檔案，維持設定的嚴重程度。其他規則仍會掃描參數文字：注入語句、輸出壓制、憑證存取與資料外洩，不會因這項例外而降級。
+
+Output suppression 依命中的證據分級，不取決於 Markdown 上下文：
+
+- `prompt-injection-4`：明確隱瞞 action、change 或 instruction、隱藏內容或移除對話歷史，維持 CRITICAL。同一行若同時有一般建議，明確隱瞞命中仍會封鎖。
+- `prompt-injection-5`：一般的「don't / do not tell the user」前綴，在所有檔案類型中都是 HIGH。它可能是正常建議，也可能是隱瞞，是需要審查的訊號；沒有依 framework、repo 或 schema 文句建立白名單。「Do not tell the user they need to rotate the compromised API key」這類惡意措辭也可能只命中 HIGH。預設警告，strict 封鎖。
+
+共用 Markdown parser 辨識 fenced code block 的邊界，包括較長的 fence 與未閉合區塊。區塊內容仍接受 static rules 掃描，shell 區塊也接受 command-tier 與 dataflow 分析。位於程式碼區塊內不代表可信。 原始 HTML 區塊和註解內的 fenced shell 範例也會接受相同的 shell 分析，taint 限定在各程式碼區塊內；原始 HTML 區塊不適用 SDK 參數降級。
+
+**規則覆寫：** 一般揭露限制改用 `prompt-injection-5`。既有 `prompt-injection-4` 的覆寫或接受紀錄不會套用到新規則。將 `prompt-injection-5` 覆寫為 CRITICAL，可保留對一般限制的封鎖。揭露限制規則的嚴重程度覆寫會被遵守。Strict 下已審查的誤報可使用 [Accepted Findings](../reference/commands/update.md#accepted-findings)；規則、檔案或匹配文字改變後，必須重新接受。 明確設定的全域或專案嚴重程度覆寫，包括 CRITICAL，優先於 SDK 參數降級。 內建規則 5 僅排除明確隱瞞的片語，同一行中獨立的一般揭露限制仍會回報，即使規則 4 已停用或降級。 完整替換為自訂 regex 的規則仍保留整行排除語意。
 
 **防禦方式：** 安裝前務必先審查 skill 檔案。使用 `skillshare audit` 偵測已知的注入模式。對於組織層級的部署，可設定 `audit.block_threshold: HIGH`，一併攔截隱藏在註解中的注入。
 

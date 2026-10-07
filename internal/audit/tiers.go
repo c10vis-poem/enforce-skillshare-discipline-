@@ -289,26 +289,7 @@ func DetectCommandTiers(content []byte) TierProfile {
 // DetectCommandTiersInMarkdown scans only fenced code blocks within Markdown content.
 func DetectCommandTiersInMarkdown(content []byte) TierProfile {
 	var profile TierProfile
-	text := string(content)
-	inCodeFence := false
-	fenceMarker := ""
-
-	for line := range strings.SplitSeq(text, "\n") {
-		if marker, ok := detectFenceMarker(line); ok {
-			if !inCodeFence {
-				inCodeFence = true
-				fenceMarker = marker
-			} else if marker == fenceMarker {
-				inCodeFence = false
-				fenceMarker = ""
-			}
-			continue
-		}
-		if !inCodeFence {
-			continue
-		}
-		classifyLineCommands(line, &profile)
-	}
+	scanFileUnifiedMarkdown(string(content), "", nil, &profile, false, false)
 	return profile
 }
 
