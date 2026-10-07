@@ -47,6 +47,29 @@ func TestReconcileGlobalSkills_NestedTrackedRepoWithoutEntry(t *testing.T) {
 	}
 }
 
+func TestReconcileGlobalSkills_NestedTrackedRepoLegacyEntry(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "skills")
+	t.Setenv("SKILLSHARE_CONFIG", filepath.Join(root, "config.yaml"))
+	remote := testutil.SetupBareRemoteRepo(t, root)
+	testutil.SeedRemoteBranch(t, root, remote, "main", map[string]string{"README.md": "# team"})
+	testutil.RunGit(t, "", "clone", remote, filepath.Join(sourceDir, "org", "_team"))
+	store := install.NewMetadataStore()
+	want := install.MetadataEntry{Source: "github.com/example/team/custom", Tracked: true, Group: "org", Branch: "custom", FileHashes: map[string]string{"README.md": "unchanged"}}
+	entry := want
+	store.Set("_team", &entry)
+	if err := ReconcileGlobalSkills(&Config{Source: sourceDir}, store); err != nil {
+		t.Fatal(err)
+	}
+	store = install.LoadMetadataOrNew(sourceDir)
+	if got := store.Get("org/_team"); !reflect.DeepEqual(got, &want) {
+		t.Errorf("migrated entry = %+v, want %+v", got, want)
+	}
+	if store.Has("_team") {
+		t.Error("legacy key was not migrated")
+	}
+}
+
 func TestReconcileGlobalSkills_AddsNewSkill(t *testing.T) {
 	root := t.TempDir()
 	sourceDir := filepath.Join(root, "skills")
