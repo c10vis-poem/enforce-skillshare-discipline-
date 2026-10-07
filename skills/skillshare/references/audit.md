@@ -27,7 +27,7 @@ skillshare audit --analyzer static # Run only the static analyzer
 | `--threshold <t>`, `-T <t>` | Block threshold: `critical\|high\|medium\|low\|info` (shorthand: `c\|h\|m\|l\|i`) |
 | `--profile <p>` | Audit profile preset: `default`, `strict`, `permissive` |
 | `--dedupe <mode>` | Dedup mode: `legacy`, `global` (default) |
-| `--analyzer <id>` | Only run specified analyzer (repeatable): `static`, `dataflow`, `tier`, `integrity`, `structure`, `cross-skill` |
+| `--analyzer <id>` | Only run specified analyzer (repeatable): `static`, `dataflow`, `tier`, `integrity`, `metadata`, `structure`, `cross-skill` |
 | `--format <f>` | Output format: `text` (default), `json`, `sarif`, `markdown` |
 | `--json` | Same as `--format json` (deprecated) |
 | `--quiet, -q` | Only show skills with findings + summary |
