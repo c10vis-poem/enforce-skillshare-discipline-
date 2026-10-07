@@ -61,7 +61,8 @@ export function buildTree(skills: Skill[], links: SourceLink[] = []): FolderNode
     const repo = repoOf(skill);
     const slash = skill.relPath.lastIndexOf('/');
     let node = root;
-    const parent = slash > 0 ? skill.relPath.slice(0, slash) : link?.name;
+    // A repo's root SKILL.md sits in the repo's own folder, so the repo gets its row.
+    const parent = skill.relPath === repo ? repo : slash > 0 ? skill.relPath.slice(0, slash) : link?.name;
     if (parent) {
       for (const seg of parent.split('/')) {
         if (!node.children.has(seg)) {
