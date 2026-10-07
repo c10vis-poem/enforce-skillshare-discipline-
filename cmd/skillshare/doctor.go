@@ -260,7 +260,7 @@ func runDoctorChecks(cfg *config.Config, result *doctorResult, isProject bool) {
 	targetCache := checkTargets(cfg, result, isProject)
 	printSymlinkCompatHint(cfg.Targets, cfg.Mode, isProject)
 	checkSharedTargetPaths(cfg, result, isProject)
-	checkCrossTargetDiscovery(cfg, result, isProject)
+	checkCrossTargetDiscovery(cfg, result, isProject, discovered)
 	checkSyncDrift(cfg, result, discovered, targetCache)
 	checkBrokenSymlinks(cfg, walk.Follow, result)
 	checkDuplicateSkills(cfg, result, discovered)

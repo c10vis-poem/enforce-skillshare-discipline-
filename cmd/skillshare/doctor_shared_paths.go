@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sync"
 	"skillshare/internal/ui"
 )
 
@@ -38,6 +40,19 @@ func crossTargetDiscoverySuggestion(scanner string, writers []string, isProject 
 	// removing a writer also hides skills from every other tool reading its path.
 	return fmt.Sprintf("Choose one authoritative route for %s-visible skills; %s already reads the path written by %s, so start by removing the %s target (preview with `%s`). Removing %s instead also affects other tools that read the same path.",
 		scanner, scanner, strings.Join(writers, ", "), scanner, targetRemoveDryRunCommand(isProject), strings.Join(writers, ", "))
+}
+
+// scanOffHints says how a runtime can stop reading other targets' folders.
+var scanOffHints = map[string]string{
+	"opencode": "set OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 to skip .claude/skills, or OPENCODE_DISABLE_EXTERNAL_SKILLS=1 to also skip .agents/skills",
+}
+
+func leakedSkillsSuggestion(scanner string) string {
+	s := fmt.Sprintf("These skills are kept from %s by `targets:` or include/exclude, but %s also reads other targets' folders. Allow them for %s", scanner, scanner, scanner)
+	if hint := scanOffHints[scanner]; hint != "" {
+		s += ", or where " + scanner + " runs, " + hint
+	}
+	return s + "."
 }
 
 // checkSharedTargetPaths warns when two or more enabled targets resolve to the
@@ -111,8 +126,9 @@ func checkSharedTargetPaths(cfg *config.Config, result *doctorResult, isProject 
 // target writes to. Catches overlaps that checkSharedTargetPaths misses:
 // different primary paths but converging runtime discovery (e.g. Codex's
 // ~/.codex/skills primary plus its ~/.agents/skills also_scans means it sees
-// the universal target's content too).
-func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProject bool) {
+// the universal target's content too). For a runtime that prefers its own copy
+// of a same-named skill, only the skills its filters leave out count.
+func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProject bool, discovered []sync.DiscoveredSkill) {
 	primaryByName := make(map[string]string, len(cfg.Targets))
 	for name, target := range cfg.Targets {
 		raw := target.SkillsConfig().Path
@@ -131,11 +147,14 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 	type pathOverlap struct {
 		sharedPath string
 		writers    []string
+		leaked     []string
 	}
 	type scannerOverlap struct {
 		scanner     string
 		scannerPath string
 		paths       []pathOverlap
+		// known means leaked lists every skill the scanner should not load.
+		known bool
 	}
 	overlapsByScanner := make(map[string]*scannerOverlap)
 
@@ -150,22 +169,32 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 			if !ok {
 				continue
 			}
-			var others []string
+			var others, leaked []string
+			known := true
 			for _, w := range writers {
-				if w != scanner {
-					others = append(others, w)
+				if w == scanner {
+					continue
 				}
+				l, ok := sync.LeakedSkills(scanner, w, cfg.Targets, cfg.Mode, cfg.EffectiveSkillsSource(), discovered)
+				if ok && len(l) == 0 {
+					continue
+				}
+				known = known && ok
+				others = append(others, w)
+				leaked = append(leaked, l...)
 			}
 			if len(others) == 0 {
 				continue
 			}
 			sort.Strings(others)
+			sort.Strings(leaked)
 			so, exists := overlapsByScanner[scanner]
 			if !exists {
-				so = &scannerOverlap{scanner: scanner, scannerPath: primaryByName[scanner]}
+				so = &scannerOverlap{scanner: scanner, scannerPath: primaryByName[scanner], known: true}
 				overlapsByScanner[scanner] = so
 			}
-			so.paths = append(so.paths, pathOverlap{sharedPath: resolved, writers: others})
+			so.known = so.known && known
+			so.paths = append(so.paths, pathOverlap{sharedPath: resolved, writers: others, leaked: slices.Compact(leaked)})
 		}
 	}
 
@@ -199,6 +228,26 @@ func checkCrossTargetDiscovery(cfg *config.Config, result *doctorResult, isProje
 			writers = append(writers, w)
 		}
 		sort.Strings(writers)
+
+		if so.known {
+			leakedSet := map[string]struct{}{}
+			for _, p := range so.paths {
+				for _, s := range p.leaked {
+					leakedSet[s] = struct{}{}
+				}
+			}
+			ui.Warning("%s loads %s kept out of it, from: %s", so.scanner, plural(len(leakedSet), "skill"), strings.Join(writers, ", "))
+			for _, p := range so.paths {
+				ui.Note(fmt.Sprintf("%s ← %s: %s", shortenPath(p.sharedPath), strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
+				details = append(details, fmt.Sprintf("%s (%s) also scans %s ← %s and loads skills its filters leave out: %s",
+					so.scanner, so.scannerPath, p.sharedPath, strings.Join(p.writers, ", "), strings.Join(p.leaked, ", ")))
+			}
+			suggestion := leakedSkillsSuggestion(so.scanner)
+			ui.Note("suggestion: " + suggestion)
+			suggestions = append(suggestions, suggestion)
+			result.addWarning()
+			continue
+		}
 
 		ui.Warning("%s will see content from: %s", so.scanner, strings.Join(writers, ", "))
 		for _, p := range so.paths {

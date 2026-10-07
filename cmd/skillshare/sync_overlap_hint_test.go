@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sync"
 )
 
 func TestPrintSyncOverlapHint_NamesConflictAndFix(t *testing.T) {
@@ -14,7 +15,7 @@ func TestPrintSyncOverlapHint_NamesConflictAndFix(t *testing.T) {
 		"universal": {Skills: &config.ResourceTargetConfig{Path: "/tmp/agents/skills", Exclude: []string{"feature-radar*"}}},
 		"codex":     {Skills: &config.ResourceTargetConfig{Path: "/tmp/agents/skills"}},
 	}
-	out := captureStdout(t, func() { printSyncOverlapHint(targets, true, false) })
+	out := captureStdout(t, func() { printSyncOverlapHint(targets, true, false, "", "", nil) })
 
 	for _, want := range []string{
 		"codex and universal sync skills to " + filepath.FromSlash("/tmp/agents/skills") + " with different filters, so each sync undoes the other",
@@ -34,12 +35,22 @@ func TestPrintSyncOverlapHint_SameSettingsKeepsGenericLine(t *testing.T) {
 		"universal": {Skills: &config.ResourceTargetConfig{Path: "/tmp/agents/skills"}},
 		"codex":     {Skills: &config.ResourceTargetConfig{Path: "/tmp/agents/skills"}},
 	}
-	out := captureStdout(t, func() { printSyncOverlapHint(targets, false, false) })
+	out := captureStdout(t, func() { printSyncOverlapHint(targets, false, false, "", "", nil) })
 
 	if !strings.Contains(out, "2 targets share skill folders") {
 		t.Errorf("expected generic overlap line:\n%s", out)
 	}
 	if strings.Contains(out, "undoes") {
 		t.Errorf("same settings is not a conflict:\n%s", out)
+	}
+}
+
+func TestPrintSyncOverlapHint_OpenCodeSameSkillsIsQuiet(t *testing.T) {
+	cfg := opencodeAndClaude(t)
+	discovered := []sync.DiscoveredSkill{{FlatName: "shared"}}
+	out := captureStdout(t, func() { printSyncOverlapHint(cfg.Targets, false, false, cfg.Mode, cfg.Source, discovered) })
+
+	if strings.Contains(out, "share skill folders") {
+		t.Errorf("opencode loads nothing extra from claude's folder, expected no hint:\n%s", out)
 	}
 }

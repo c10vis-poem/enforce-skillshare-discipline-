@@ -11,7 +11,7 @@ func TestDetectPathOverlap_CrossRuntimeDiscovery(t *testing.T) {
 	involved := DetectPathOverlap(map[string]TargetConfig{
 		"codex":     {Skills: &ResourceTargetConfig{Path: "~/.codex/skills"}},
 		"universal": {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
-	}, false)
+	}, false, nil)
 
 	for _, want := range []string{"codex", "universal"} {
 		if !slices.Contains(involved, want) {
@@ -25,7 +25,7 @@ func TestDetectPathOverlap_CodexSharesUniversalPath(t *testing.T) {
 	involved := DetectPathOverlap(map[string]TargetConfig{
 		"codex":     {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
 		"universal": {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
-	}, false)
+	}, false, nil)
 
 	for _, want := range []string{"codex", "universal"} {
 		if !slices.Contains(involved, want) {
@@ -40,7 +40,7 @@ func TestDetectPathOverlap_LegacyGoosePathStillWarns(t *testing.T) {
 	involved := DetectPathOverlap(map[string]TargetConfig{
 		"goose":     {Skills: &ResourceTargetConfig{Path: "~/.config/goose/skills"}},
 		"universal": {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
-	}, false)
+	}, false, nil)
 
 	for _, want := range []string{"goose", "universal"} {
 		if !slices.Contains(involved, want) {
@@ -55,7 +55,7 @@ func TestDetectPathOverlap_IgnoresScannerOwnPath(t *testing.T) {
 	involved := DetectPathOverlap(map[string]TargetConfig{
 		"claude": {Skills: &ResourceTargetConfig{Path: "~/.claude/skills"}},
 		"junie":  {Skills: &ResourceTargetConfig{Path: "~/.junie/skills"}},
-	}, false)
+	}, false, nil)
 
 	if len(involved) != 0 {
 		t.Errorf("expected no overlap, got %v", involved)

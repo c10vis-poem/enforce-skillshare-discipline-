@@ -166,7 +166,16 @@ Doctor는 런타임 피커에 도달하기 전에 두 가지 종류의 중복 sk
 
 해결 방법: 먼저 스캔하는 쪽 target(위 예시의 `codex`)을 제거하십시오. 해당 런타임은 이미 공유 디렉터리를 읽고 있으며, 다른 도구에는 영향을 주지 않습니다. `skillshare target remove codex --dry-run`으로 미리 확인할 수 있습니다. 대신 writer(`universal`)를 제거하면 `~/.agents/skills`를 읽는 다른 도구에서도 해당 skill이 보이지 않게 됩니다. 스캔하는 쪽 target에 writer가 필터링한 skill이 있는 경우에만 둘 다 유지하고, 런타임 피커에 중복 항목이 나타나는 것을 감수하십시오.
 
-두 검사 모두 순수한 메타데이터 기반입니다 — 구성된 경로와 내장된 `also_scans` 테이블을 읽을 뿐, 파일시스템을 직접 프로빙하지 않습니다.
+OpenCode는 `~/.claude/skills`와 `~/.agents/skills`를 먼저 읽고 자신의 폴더를 마지막에 읽으며, 이름이 같은 skill은 하나만 남깁니다. 따라서 양쪽에 동기화된 skill은 한 번만 로드됩니다. `opencode`의 경우, `targets:`나 include/exclude로 OpenCode에서 제외한 skill을 다른 target의 폴더에서 로드할 때만 경고하고 해당 skill을 표시합니다:
+
+```text
+! opencode loads 1 skill kept out of it, from: claude
+  ~/.claude/skills ← claude: claude-only
+```
+
+해결: 해당 skill을 `opencode`에도 허용하거나, OpenCode를 실행하는 환경에 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`(`.agents/skills`도 건너뛰려면 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`)을 설정합니다. `doctor`는 OpenCode의 환경을 볼 수 없으므로 설정한 뒤에도 경고는 계속 표시됩니다.
+
+`shared_target_paths`는 구성된 경로만 읽습니다. `cross_target_discovery`는 내장된 `also_scans` 테이블도 읽고, `opencode`의 경우 각 target이 받는 skill도 확인합니다.
 
 ### Version
 

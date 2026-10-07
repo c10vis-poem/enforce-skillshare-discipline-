@@ -166,7 +166,16 @@ Doctor 會在兩類重複 skill 風險到達 runtime picker 之前先標示出�
 
 解決方式：先移除負責掃描的 target（上例中的 `codex`）。它的 runtime 本來就會讀取共用目錄，而且不會影響其他工具。可用 `skillshare target remove codex --dry-run` 預覽。若改為移除寫入者（`universal`），其他讀取 `~/.agents/skills` 的工具也會看不到這些 skill。只有在掃描端 target 帶有被寫入者過濾掉的 skill 時才同時保留兩者，並接受 runtime picker 出現重複列表。
 
-這兩項檢查都是純粹的 metadata 比對——它們讀取已設定的路徑與內建的 `also_scans` 表，不會進行檔案系統探測。
+OpenCode 會先讀 `~/.claude/skills` 和 `~/.agents/skills`，最後才讀自己的資料夾，同名的 skill 只保留一個，所以同步到兩邊的 skill 只會載入一次。對 `opencode`，這項檢查只在它從其他 target 的資料夾載入了被 `targets:` 或 include/exclude 排除在 OpenCode 之外的 skill 時才警告，並列出這些 skill：
+
+```text
+! opencode loads 1 skill kept out of it, from: claude
+  ~/.claude/skills ← claude: claude-only
+```
+
+解決方式：讓 `opencode` 也能拿到這些 skill，或在執行 OpenCode 的環境設定 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（或 `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`，連 `.agents/skills` 也略過）。`doctor` 看不到 OpenCode 的環境，所以設定後警告仍會出現。
+
+`shared_target_paths` 只讀取已設定的路徑。`cross_target_discovery` 也會讀內建的 `also_scans` 表，對 `opencode` 還會看每個 target 拿到哪些 skill。
 
 ### Version
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"skillshare/internal/config"
+	"skillshare/internal/sync"
 )
 
 func TestCheckSharedTargetPaths_NoCollision(t *testing.T) {
@@ -113,7 +114,7 @@ func TestCheckCrossTargetDiscovery_CodexSeesUniversal(t *testing.T) {
 		},
 	}
 	r := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, r, false)
+	checkCrossTargetDiscovery(cfg, r, false, nil)
 
 	if r.warnings != 1 {
 		t.Fatalf("expected 1 warning, got %d (checks=%+v)", r.warnings, r.checks)
@@ -146,7 +147,7 @@ func TestCheckCrossTargetDiscovery_NoOverlapWhenScannerAlone(t *testing.T) {
 		},
 	}
 	r := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, r, false)
+	checkCrossTargetDiscovery(cfg, r, false, nil)
 
 	if r.warnings != 0 {
 		t.Errorf("expected 0 warnings, got %d", r.warnings)
@@ -167,7 +168,7 @@ func TestCheckCrossTargetDiscovery_FirebenderMultiOverlap(t *testing.T) {
 		},
 	}
 	r := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, r, false)
+	checkCrossTargetDiscovery(cfg, r, false, nil)
 
 	// firebender overlaps with claude AND codex, but grouped into a single
 	// per-scanner warning. The details array still contains one entry per
@@ -183,6 +184,47 @@ func TestCheckCrossTargetDiscovery_FirebenderMultiOverlap(t *testing.T) {
 	}
 }
 
+func opencodeAndClaude(t *testing.T) *config.Config {
+	t.Setenv("HOME", t.TempDir())
+	return &config.Config{
+		Source: t.TempDir(),
+		Mode:   "merge",
+		Targets: map[string]config.TargetConfig{
+			"opencode": {Skills: &config.ResourceTargetConfig{Path: "~/.config/opencode/skills"}},
+			"claude":   {Skills: &config.ResourceTargetConfig{Path: "~/.claude/skills"}},
+		},
+	}
+}
+
+func TestCheckCrossTargetDiscovery_OpenCodeSameSkillsPasses(t *testing.T) {
+	// OpenCode reads its own folder last and keeps one skill per name, so a
+	// skill synced to both folders loads once.
+	r := &doctorResult{}
+	checkCrossTargetDiscovery(opencodeAndClaude(t), r, false, []sync.DiscoveredSkill{{FlatName: "shared"}})
+
+	if r.warnings != 0 || r.checks[0].Status != checkPass {
+		t.Errorf("expected a passing check, got %+v", r.checks)
+	}
+}
+
+func TestCheckCrossTargetDiscovery_OpenCodeNamesLeakedSkills(t *testing.T) {
+	r := &doctorResult{}
+	checkCrossTargetDiscovery(opencodeAndClaude(t), r, false, []sync.DiscoveredSkill{
+		{FlatName: "shared"},
+		{FlatName: "claude-only", Targets: []string{"claude"}},
+	})
+
+	if r.warnings != 1 {
+		t.Fatalf("expected 1 warning, got %d (checks=%+v)", r.warnings, r.checks)
+	}
+	if detail := r.checks[0].Details[0]; !strings.Contains(detail, "loads skills its filters leave out: claude-only") {
+		t.Errorf("detail %q does not name the leaked skill", detail)
+	}
+	if s := r.checks[0].Suggestions[0]; !strings.Contains(s, "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1") {
+		t.Errorf("suggestion %q does not say how to stop OpenCode reading .claude/skills", s)
+	}
+}
+
 func TestCheckCrossTargetDiscovery_ProjectMode(t *testing.T) {
 	// In project mode, cursor.also_scans.project includes .claude/skills.
 	// If claude (project) writes to .claude/skills, cursor overlaps.
@@ -193,7 +235,7 @@ func TestCheckCrossTargetDiscovery_ProjectMode(t *testing.T) {
 		},
 	}
 	r := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, r, true)
+	checkCrossTargetDiscovery(cfg, r, true, nil)
 
 	if r.warnings == 0 {
 		t.Errorf("expected project-mode warning (cursor scans claude's project path), got 0")
@@ -211,7 +253,7 @@ func TestCheckCrossTargetDiscovery_IgnoresScannerOwnPath(t *testing.T) {
 		},
 	}
 	r := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, r, false)
+	checkCrossTargetDiscovery(cfg, r, false, nil)
 
 	if r.warnings != 0 {
 		t.Errorf("expected 0 warnings, got %d (checks=%+v)", r.warnings, r.checks)
@@ -236,7 +278,7 @@ func TestCheckCodexOnUniversalPath_ReportedOnceAsSharedPath(t *testing.T) {
 	}
 
 	cross := &doctorResult{}
-	checkCrossTargetDiscovery(cfg, cross, false)
+	checkCrossTargetDiscovery(cfg, cross, false, nil)
 	if cross.warnings != 0 {
 		t.Errorf("expected 0 cross_target_discovery warnings, got %d (checks=%+v)", cross.warnings, cross.checks)
 	}
@@ -268,7 +310,7 @@ func TestDoctorPathChecks_IgnoreSkillsOffTargets(t *testing.T) {
 	}
 	r := &doctorResult{}
 	checkSharedTargetPaths(cfg, r, false)
-	checkCrossTargetDiscovery(cfg, r, false)
+	checkCrossTargetDiscovery(cfg, r, false, nil)
 
 	if r.warnings != 0 {
 		t.Errorf("targets with skills off should not overlap, got %d warning(s): %+v", r.warnings, r.checks)

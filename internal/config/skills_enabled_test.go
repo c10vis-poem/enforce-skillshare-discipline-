@@ -117,14 +117,14 @@ func TestDetectPathOverlap_IgnoresDisabledTargets(t *testing.T) {
 	involved := DetectPathOverlap(map[string]TargetConfig{
 		"gemini":    disabledAt("~/.gemini/skills"),
 		"universal": {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
-	}, false)
+	}, false, nil)
 	if len(involved) != 0 {
 		t.Fatalf("disabled scanner should not overlap, got %v", involved)
 	}
 	involved = DetectPathOverlap(map[string]TargetConfig{
 		"codex":     disabledAt("~/.agents/skills"),
 		"universal": {Skills: &ResourceTargetConfig{Path: "~/.agents/skills"}},
-	}, false)
+	}, false, nil)
 	if len(involved) != 0 {
 		t.Fatalf("disabled writer should not overlap, got %v", involved)
 	}

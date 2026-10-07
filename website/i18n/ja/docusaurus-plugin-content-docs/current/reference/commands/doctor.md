@@ -166,7 +166,16 @@ Doctor は、ランタイムのピッカーに到達する前に、Skill 重複�
 
 解決方法: まずスキャンする側の Target（上の例では `codex`）を削除してください。そのランタイムは共有ディレクトリをすでに読み込んでおり、他のツールには影響しません。`skillshare target remove codex --dry-run` でプレビューできます。代わりに書き込み元（`universal`）を削除すると、`~/.agents/skills` を読み込む他のツールからもそれらの skill が見えなくなります。スキャンする側の Target が、書き込み元でフィルタされている skill を持つ場合に限り両方を残し、ランタイムのピッカーでの重複表示を受け入れてください。
 
-どちらのチェックも純粋なメタデータのみを扱います — 設定済みのパスと組み込みの `also_scans` テーブルを読み取るだけで、ファイルシステムへの実際の探査は行いません。
+OpenCode は `~/.claude/skills` と `~/.agents/skills` を先に読み、自分のフォルダを最後に読みます。同じ名前の skill は 1 つだけ残すため、両方に同期された skill は 1 回だけ読み込まれます。`opencode` については、`targets:` や include/exclude で OpenCode から外した skill を他の target のフォルダから読み込む場合にだけ警告し、その skill を表示します：
+
+```text
+! opencode loads 1 skill kept out of it, from: claude
+  ~/.claude/skills ← claude: claude-only
+```
+
+対処：その skill を `opencode` にも許可するか、OpenCode を実行する環境で `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`（`.agents/skills` も読まない場合は `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`）を設定します。`doctor` からは OpenCode の環境が見えないため、設定後も警告は表示されます。
+
+`shared_target_paths` は設定済みのパスだけを読みます。`cross_target_discovery` は組み込みの `also_scans` テーブルも読み、`opencode` については各 target が受け取る skill も確認します。
 
 ### バージョン
 
