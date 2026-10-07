@@ -20,6 +20,20 @@ const labels = (rows: ReturnType<typeof flattenTree>) =>
   rows.map((r) => `${'  '.repeat(r.depth)}${r.type === 'folder' ? r.names.join(' / ') : r.skill.name}`);
 
 describe('flattenTree', () => {
+  it('gives a repo whose skill is its root SKILL.md its own repo row', () => {
+    const rows = flattenTree(buildTree([skill('org/_repo', { isInRepo: true, repoPath: 'org/_repo' })]), new Set(), false);
+
+    expect(rows.map((r) => (r.type === 'folder' ? [r.names.join(' / '), r.repo] : [r.skill.name]))).toEqual([['org', false], ['_repo', true], ['_repo']]);
+  });
+
+  it('marks a repo installed with --into as a repo root, not its parent folder', () => {
+    const repo = { isInRepo: true, repoPath: 'org/_repo' };
+    const rows = flattenTree(buildTree([skill('org/_repo/skills/x', repo)]), new Set(), false);
+
+    expect(rows.filter((r) => r.type === 'folder').map((r) => [r.names.join(' / '), r.type === 'folder' && r.repo]))
+      .toEqual([['org', false], ['_repo', true], ['skills', false]]);
+  });
+
   it('merges chains of single-folder folders into one row, but never a tracked repo root', () => {
     expect(labels(flattenTree(buildTree(SKILLS), new Set(), false))).toEqual([
       '_repo',

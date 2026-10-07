@@ -174,11 +174,14 @@ For tracked repositories (folders starting with `_`):
 - Fails with `failed to check git status` when skillshare cannot read the repo's git status; other items in the batch are still removed, and `--force` skips the check
 - Automatically removes the entry from `.gitignore`
 - The `_` prefix is optional when uninstalling
+- A repo installed with `--into` is named by its path, such as `devops/_team-skills`
+- A skill or folder inside a tracked repo cannot be removed on its own, even with `--force`; the command fails with `inside a tracked repo; uninstall the repo instead`. Skills below a followed source link can still be removed one at a time
 
 ```bash
 skillshare uninstall _team-skills        # With prefix
 skillshare uninstall team-skills         # Without prefix (auto-detected)
 skillshare uninstall _team-skills --force # Force remove with uncommitted changes
+skillshare uninstall devops/_team-skills # Repo installed with --into devops
 ```
 
 ## Examples

@@ -54,7 +54,7 @@ func getMissingTrackedReposImpl(sourceDir string, walks ...sourcewalk.Options) (
 	}
 	existing := make(map[string]bool, len(existingRepos))
 	for _, repo := range existingRepos {
-		existing[filepath.ToSlash(repo)] = true
+		existing[repo] = true
 	}
 
 	var missing []TrackedRepoMeta
@@ -103,7 +103,7 @@ func rehydrateMissingTrackedReposImpl(sourceDir string, parseOpts ParseOptions, 
 	}
 	existing := make(map[string]bool, len(existingRepos))
 	for _, repo := range existingRepos {
-		existing[filepath.ToSlash(repo)] = true
+		existing[repo] = true
 	}
 
 	opts.Quiet = true
@@ -238,7 +238,7 @@ func getTrackedReposImpl(sourceDir string, walk sourcewalk.Options) ([]string, e
 		if info.IsDir() && IsTrackedCheckout(path) {
 			relPath, relErr := filepath.Rel(walkRoot, path)
 			if relErr == nil {
-				repos = append(repos, relPath)
+				repos = append(repos, filepath.ToSlash(relPath))
 			}
 			return filepath.SkipDir // Don't recurse into tracked repos
 		}

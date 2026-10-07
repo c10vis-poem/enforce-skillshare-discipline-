@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"skillshare/internal/sourcewalk"
 	"skillshare/internal/sync"
 	"skillshare/internal/uninstall"
+	"skillshare/internal/utils"
 )
 
 type batchUninstallRequest struct {
@@ -186,7 +188,12 @@ func (s *Server) resolveBatchUninstallItem(discovered []sync.DiscoveredSkill, so
 
 	repoPath := filepath.Join(source, name)
 	_, repoFollowed := walk.Follow.Resolve(repoPath)
-	managedRepo := strings.HasPrefix(name, "_") && filepath.Base(name) == name && !repoFollowed && install.IsGitRepo(repoPath)
+	// A repo installed with --into is named by its path, e.g. org/_team. --into
+	// folders cannot start with "_" (validate.IntoPath), so a deeper _ git dir
+	// such as _team/vendor/_lib is part of a tracked repo, not a repo of its own.
+	parent, base := path.Split(name)
+	repoName := utils.IsTrackedRepoDir(base) && !strings.Contains("/"+parent, "/_")
+	managedRepo := repoName && !repoFollowed && install.IsGitRepo(repoPath)
 	var skill *sync.DiscoveredSkill
 	if !managedRepo {
 		var err error
@@ -199,7 +206,7 @@ func (s *Server) resolveBatchUninstallItem(discovered []sync.DiscoveredSkill, so
 		_, followed = walk.Follow.Resolve(skill.SourcePath)
 	}
 	// An explicit managed repo takes precedence over a skill's basename.
-	if managedRepo || (strings.HasPrefix(name, "_") && !followed) {
+	if managedRepo || (repoName && !followed) {
 		if !install.IsGitRepo(repoPath) {
 			return uninstall.Item{}, errors.New("not a tracked repository: " + name)
 		}

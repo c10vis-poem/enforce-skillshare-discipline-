@@ -227,7 +227,7 @@ func printTrackedReposStatus(sourcePath string, discovered []sync.DiscoveredSkil
 	for _, repoName := range trackedRepos {
 		skillCount := 0
 		for _, d := range discovered {
-			if d.IsInRepo && strings.HasPrefix(d.RelPath, repoName+"/") {
+			if d.RepoRelPath == repoName {
 				skillCount++
 			}
 		}

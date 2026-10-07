@@ -162,9 +162,10 @@ func (s *Server) skillEntry(relPath string) *install.MetadataEntry {
 
 // discoveredSkillEntry returns a copy of the metadata entry for a discovered
 // skill. A skill nested inside a tracked repo has no entry of its own, so it
-// falls back to the repo's entry, which carries the repo source.
-func (s *Server) discoveredSkillEntry(relPath string, inRepo bool) *install.MetadataEntry {
-	if !inRepo {
+// falls back to the repo's entry, which carries the repo source. repoRelPath is
+// the skill's tracked repo root from discovery, empty outside a repo.
+func (s *Server) discoveredSkillEntry(relPath, repoRelPath string) *install.MetadataEntry {
+	if repoRelPath == "" {
 		return s.skillEntry(relPath)
 	}
 	s.mu.RLock()
@@ -175,8 +176,7 @@ func (s *Server) discoveredSkillEntry(relPath string, inRepo bool) *install.Meta
 	if e := s.skillsStore.GetByPath(relPath); e != nil && (e.Group != "" || s.skillsStore.Has(relPath)) {
 		return copyMetadataEntry(e)
 	}
-	repo, _, _ := strings.Cut(relPath, "/")
-	if e := s.skillsStore.Get(repo); e != nil && e.Tracked {
+	if e := s.skillsStore.Get(repoRelPath); e != nil && e.Tracked {
 		return copyMetadataEntry(e)
 	}
 	return nil

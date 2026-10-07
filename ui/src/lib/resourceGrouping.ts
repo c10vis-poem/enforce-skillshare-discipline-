@@ -74,7 +74,7 @@ export function sortSkills(skills: Skill[], sortType: SortType): Skill[] {
 }
 
 export function repoOf(s: Skill): string | undefined {
-  return s.isInRepo ? s.relPath.split('/')[0] : undefined;
+  return s.isInRepo ? folderOf(s) : undefined;
 }
 
 export function sourceLinkOf(s: Skill): SourceLink | undefined {

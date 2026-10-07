@@ -67,6 +67,8 @@ Tracked repos 会以 `_` 为前缀，以便与普通 Skill 区分：
 └── _team-skills/       # Tracked Repo（下划线前缀）
 ```
 
+用 `--into` 安装的 tracked repo 会放在文件夹里，例如 `devops/_team-skills/`。它仍然被视为一个 repo：其中的 Skill 会归在它下面，`status` 会统计这些 Skill，更新或卸载时使用 `devops/_team-skills` 这个名称。在第一层以下，只有 git clone 得到的 `_` 文件夹才算 tracked repo，因此像 `devops/_drafts/` 这样的普通文件夹仍是普通文件夹。
+
 ---
 
 ## 嵌套 Skill 与自动扁平化 {#nested-skills--auto-flattening}
