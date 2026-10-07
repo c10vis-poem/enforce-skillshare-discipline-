@@ -11,20 +11,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-UPDATE_GO="$PROJECT_ROOT/cmd/skillshare/update_handlers.go"
+GATE_GO="$PROJECT_ROOT/internal/install/install_audit.go"
 BACKUP_FILE=""
 BACKUP_READY=false
 RESTORED=false
 
 backup_source() {
-  BACKUP_FILE="$(mktemp "${TMPDIR:-/tmp}/update.go.backup.XXXXXX")"
-  cp "$UPDATE_GO" "$BACKUP_FILE"
+  BACKUP_FILE="$(mktemp "${TMPDIR:-/tmp}/install_audit.go.backup.XXXXXX")"
+  cp "$GATE_GO" "$BACKUP_FILE"
   BACKUP_READY=true
 }
 
 restore_source() {
   if [ "$RESTORED" = false ] && [ "$BACKUP_READY" = true ] && [ -f "$BACKUP_FILE" ]; then
-    cp "$BACKUP_FILE" "$UPDATE_GO"
+    cp "$BACKUP_FILE" "$GATE_GO"
     RESTORED=true
   fi
   if [ -n "$BACKUP_FILE" ]; then
@@ -43,20 +43,21 @@ echo "==> [1/4] Baseline: running make test-redteam (should pass)"
 echo "==> [2/4] Injecting mutation: bypass rollback on HIGH/CRITICAL findings"
 backup_source
 
-perl -0pi -e 's@return result, fmt\.Errorf\("security audit failed — findings at/above %s detected — rolled back \(use --skip-audit to bypass\): %w", normalizedThreshold, audit\.ErrBlocked\)@return result, nil // MUTATION: bypass rollback gate@g' "$UPDATE_GO"
+# install and update both decide through AuditGate.Run; skip its threshold check.
+perl -0pi -e 's@if !scanResult\.HasSeverityAtOrAbove\(threshold\) \{@if true { // MUTATION: bypass rollback gate@g' "$GATE_GO"
 
 if command -v rg >/dev/null 2>&1; then
-  MUTATION_COUNT="$(rg -c "MUTATION: bypass rollback gate" "$UPDATE_GO" || true)"
+  MUTATION_COUNT="$(rg -c "MUTATION: bypass rollback gate" "$GATE_GO" || true)"
 else
-  MUTATION_COUNT="$(grep -c "MUTATION: bypass rollback gate" "$UPDATE_GO" || true)"
+  MUTATION_COUNT="$(grep -c "MUTATION: bypass rollback gate" "$GATE_GO" || true)"
 fi
 MUTATION_COUNT="${MUTATION_COUNT:-0}"
 if ! [[ "$MUTATION_COUNT" =~ ^[0-9]+$ ]]; then
   echo "ERROR: mutation count is not numeric: $MUTATION_COUNT"
   exit 2
 fi
-if [ "$MUTATION_COUNT" -lt 2 ]; then
-  echo "ERROR: expected to inject 2 mutation points, got $MUTATION_COUNT"
+if [ "$MUTATION_COUNT" -ne 1 ]; then
+  echo "ERROR: expected to inject 1 mutation point, got $MUTATION_COUNT"
   exit 2
 fi
 
